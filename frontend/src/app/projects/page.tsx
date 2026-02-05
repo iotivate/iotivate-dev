@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getProjects, type Project } from "@/lib/api";
 
@@ -29,11 +30,12 @@ export default async function ProjectsPage() {
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {projects.map((project) => (
-          <div
+          <Link
             key={project.slug}
-            className="p-6 border border-border rounded-lg"
+            href={`/projects/${project.slug}`}
+            className="block p-6 border border-border rounded-lg hover:border-accent/50 transition-colors group"
           >
-            <h2 className="text-lg font-semibold mb-2">{project.name}</h2>
+            <h2 className="text-lg font-semibold mb-2 group-hover:text-accent transition-colors">{project.name}</h2>
             <p className="text-sm text-muted leading-relaxed mb-4">
               {project.description}
             </p>
@@ -50,7 +52,7 @@ export default async function ProjectsPage() {
                   </span>
                 ))}
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

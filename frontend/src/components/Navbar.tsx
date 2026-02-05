@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -15,6 +16,7 @@ const navLinks = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { user, isLoading, logout } = useAuth();
 
   return (
     <nav className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
@@ -38,15 +40,52 @@ export default function Navbar() {
                 {label}
               </Link>
             ))}
+            <div className="ml-4 pl-4 border-l border-border flex items-center gap-2">
+              {isLoading ? (
+                <span className="text-sm text-muted">...</span>
+              ) : user ? (
+                <>
+                  <span className="text-sm text-muted">{user.username}</span>
+                  <button
+                    onClick={logout}
+                    className="px-3 py-1.5 text-sm text-muted hover:text-foreground transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="px-3 py-1.5 text-sm text-muted hover:text-foreground transition-colors"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="px-3 py-1.5 text-sm bg-accent text-white rounded-md hover:bg-accent-hover transition-colors"
+                  >
+                    Register
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
-          <MobileMenu pathname={pathname} />
+          <MobileMenu pathname={pathname} user={user} isLoading={isLoading} logout={logout} />
         </div>
       </div>
     </nav>
   );
 }
 
-function MobileMenu({ pathname }: { pathname: string }) {
+interface MobileMenuProps {
+  pathname: string;
+  user: { username: string } | null;
+  isLoading: boolean;
+  logout: () => void;
+}
+
+function MobileMenu({ pathname, user, isLoading, logout }: MobileMenuProps) {
   return (
     <details className="md:hidden relative">
       <summary className="list-none cursor-pointer p-2">
@@ -78,6 +117,36 @@ function MobileMenu({ pathname }: { pathname: string }) {
             {label}
           </Link>
         ))}
+        <div className="border-t border-border mt-2 pt-2">
+          {isLoading ? (
+            <span className="block px-4 py-2 text-sm text-muted">...</span>
+          ) : user ? (
+            <>
+              <span className="block px-4 py-2 text-sm text-muted">{user.username}</span>
+              <button
+                onClick={logout}
+                className="block w-full text-left px-4 py-2 text-sm text-muted hover:text-foreground"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="block px-4 py-2 text-sm text-muted hover:text-foreground"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                className="block px-4 py-2 text-sm text-accent"
+              >
+                Register
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </details>
   );
