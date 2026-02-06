@@ -15,15 +15,7 @@ const fallbackTools = [
     name: "ESP32 Web Flasher",
     description:
       "Flash ESP32 firmware directly from your browser using Web Serial API. No drivers or desktop tools needed.",
-    status: "coming_soon",
-  },
-  {
-    id: 2,
-    slug: "wirelessear-installer",
-    name: "WirelessEar Installer",
-    description:
-      "One-click installer for the WirelessEar project firmware. Connect your board and flash in seconds.",
-    status: "coming_soon",
+    status: "active",
   },
 ];
 
