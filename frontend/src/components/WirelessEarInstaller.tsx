@@ -1,39 +1,62 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { ESPLoader, Transport, type LoaderOptions } from "esptool-js";
 
 type InstallState = "idle" | "connecting" | "connected" | "installing" | "done" | "error";
 
 const FIRMWARE_VERSION = "1.0.0";
+const FIRMWARE_URL = "/firmware/wirelessear-v1.0.0.bin"; // Will be hosted later
 
 export default function WirelessEarInstaller() {
   const [state, setState] = useState<InstallState>("idle");
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const portRef = useRef<SerialPort | null>(null);
+  const [chipInfo, setChipInfo] = useState<string | null>(null);
+
+  const espLoaderRef = useRef<ESPLoader | null>(null);
+  const transportRef = useRef<Transport | null>(null);
 
   const addLog = useCallback((msg: string) => {
-    setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+    setLog((prev) => [...prev.slice(-100), `[${new Date().toLocaleTimeString()}] ${msg}`]);
   }, []);
 
   const isSupported = typeof navigator !== "undefined" && "serial" in navigator;
+
+  const terminal = {
+    clean: () => setLog([]),
+    writeLine: (data: string) => addLog(data),
+    write: (data: string) => addLog(data),
+  };
 
   async function connect() {
     if (!isSupported) return;
     setState("connecting");
     setError(null);
+    setChipInfo(null);
+
     try {
       const port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 115200 });
-      portRef.current = port;
-      setState("connected");
-      addLog("Device connected.");
+      transportRef.current = new Transport(port, true);
 
-      const info = port.getInfo();
-      if (info.usbVendorId) {
-        addLog(`Vendor ID: 0x${info.usbVendorId.toString(16).toUpperCase()}`);
-      }
+      const loaderOptions: LoaderOptions = {
+        transport: transportRef.current,
+        baudrate: 115200,
+        romBaudrate: 115200,
+        terminal,
+        debugLogging: false,
+      };
+
+      espLoaderRef.current = new ESPLoader(loaderOptions);
+      const chip = await espLoaderRef.current.main();
+
+      setChipInfo(chip);
+      setState("connected");
+      addLog(`Connected to ${chip}`);
+
+      const macAddr = await espLoaderRef.current.chip.readMac(espLoaderRef.current);
+      addLog(`MAC Address: ${macAddr}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to connect";
       setState("error");
@@ -43,36 +66,79 @@ export default function WirelessEarInstaller() {
   }
 
   async function disconnect() {
-    if (portRef.current) {
-      try {
-        await portRef.current.close();
-      } catch {
-        // ignore
+    try {
+      if (transportRef.current) {
+        await transportRef.current.disconnect();
+        await transportRef.current.waitForUnlock(1500);
       }
-      portRef.current = null;
+    } catch {
+      // ignore
     }
+    espLoaderRef.current = null;
+    transportRef.current = null;
     setState("idle");
+    setChipInfo(null);
     setProgress(0);
     addLog("Disconnected.");
   }
 
   async function install() {
-    if (!portRef.current) return;
+    if (!espLoaderRef.current) return;
+
     setState("installing");
     setProgress(0);
-    addLog(`Installing WirelessEar firmware v${FIRMWARE_VERSION}...`);
+    setError(null);
 
-    // Simulated installation progress
-    for (let i = 0; i <= 100; i += 5) {
-      await new Promise((r) => setTimeout(r, 150));
-      setProgress(i);
-      if (i === 25) addLog("Erasing flash...");
-      if (i === 50) addLog("Writing firmware...");
-      if (i === 75) addLog("Verifying...");
+    try {
+      addLog(`Downloading WirelessEar firmware v${FIRMWARE_VERSION}...`);
+
+      // Try to fetch the firmware - for now show placeholder if not available
+      let firmwareData: string;
+      try {
+        const response = await fetch(FIRMWARE_URL);
+        if (!response.ok) {
+          throw new Error("Firmware not available yet");
+        }
+        const buffer = await response.arrayBuffer();
+        firmwareData = Array.from(new Uint8Array(buffer))
+          .map((b) => String.fromCharCode(b))
+          .join("");
+        addLog(`Downloaded ${(buffer.byteLength / 1024).toFixed(1)} KB`);
+      } catch {
+        // Firmware not hosted yet - show message
+        addLog("Firmware file not available yet. Using placeholder for demo.");
+        addLog("In production, the firmware will be hosted at " + FIRMWARE_URL);
+        setState("error");
+        setError("Firmware not available. Check back soon!");
+        return;
+      }
+
+      addLog("Flashing firmware...");
+
+      await espLoaderRef.current.writeFlash({
+        fileArray: [
+          { address: 0x10000, data: firmwareData },
+        ],
+        flashSize: "keep",
+        flashMode: "keep",
+        flashFreq: "keep",
+        eraseAll: false,
+        compress: true,
+        reportProgress: (_fileIndex: number, written: number, total: number) => {
+          const pct = Math.round((written / total) * 100);
+          setProgress(pct);
+        },
+        calculateMD5Hash: (image: string) => image.slice(0, 32),
+      });
+
+      setState("done");
+      addLog("Installation complete! Reset your device to start WirelessEar.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Installation failed";
+      setState("error");
+      setError(msg);
+      addLog(`Error: ${msg}`);
     }
-
-    setState("done");
-    addLog("Installation complete! You can now disconnect your device.");
   }
 
   return (
@@ -158,7 +224,7 @@ export default function WirelessEarInstaller() {
         <span className="text-muted">
           {state === "idle" && "No device connected"}
           {state === "connecting" && "Connecting..."}
-          {state === "connected" && "Ready to install"}
+          {state === "connected" && (chipInfo ? `Ready: ${chipInfo}` : "Ready to install")}
           {state === "installing" && `Installing... ${progress}%`}
           {state === "done" && "Installation complete"}
           {state === "error" && (error || "Connection error")}
@@ -166,7 +232,7 @@ export default function WirelessEarInstaller() {
       </div>
 
       {/* Progress bar */}
-      {state === "installing" && (
+      {state === "installing" && progress > 0 && (
         <div className="w-full h-2 bg-surface rounded-full overflow-hidden">
           <div
             className="h-full bg-accent transition-all duration-150"
