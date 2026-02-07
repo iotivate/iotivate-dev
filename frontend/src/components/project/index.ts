@@ -4,3 +4,4 @@ export { default as CircuitDiagram } from "./CircuitDiagram";
 export { default as FileDownloads, type DownloadFile } from "./FileDownloads";
 export { default as FirmwarePurchase } from "./FirmwarePurchase";
 export { default as AppDownload } from "./AppDownload";
+export { default as ProjectPage, type ProjectData } from "./ProjectPage";
