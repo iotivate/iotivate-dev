@@ -1,8 +1,10 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database import get_session
 from app.models.user import User
@@ -12,10 +14,12 @@ from app.auth import hash_password, verify_password, create_access_token, get_cu
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(data: RegisterRequest, session: Session = Depends(get_session)):
+@limiter.limit("5/minute")
+def register(request: Request, data: RegisterRequest, session: Session = Depends(get_session)):
     existing = session.exec(
         select(User).where((User.email == data.email) | (User.username == data.username))
     ).first()
@@ -46,7 +50,8 @@ def register(data: RegisterRequest, session: Session = Depends(get_session)):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(form: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+@limiter.limit("10/minute")
+def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
     user = session.exec(select(User).where(User.username == form.username)).first()
 
     # Always run password verification to prevent timing attacks that reveal user existence

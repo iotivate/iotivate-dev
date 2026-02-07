@@ -1,7 +1,9 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database import get_session
 from app.models.contact import ContactMessage
@@ -10,11 +12,13 @@ from app.schemas.contact import ContactRequest, ContactResponse
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/contact", tags=["contact"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("3/minute")
 def submit_contact(
-    data: ContactRequest, session: Session = Depends(get_session)
+    request: Request, data: ContactRequest, session: Session = Depends(get_session)
 ) -> ContactResponse:
     try:
         msg = ContactMessage(name=data.name, email=data.email, message=data.message)
