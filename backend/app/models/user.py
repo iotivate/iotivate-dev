@@ -7,3 +7,4 @@ class User(SQLModel, table=True):
     username: str = Field(unique=True, index=True, max_length=30)
     hashed_password: str = Field(max_length=255)
     is_active: bool = Field(default=True)
+    is_admin: bool = Field(default=False)
