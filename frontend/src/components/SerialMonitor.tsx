@@ -33,6 +33,7 @@ export default function SerialMonitor() {
   const [hexView, setHexView] = useState(false);
   const [filter, setFilter] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [hexSend, setHexSend] = useState(false);
 
   const portRef = useRef<SerialPort | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
@@ -98,6 +99,14 @@ export default function SerialMonitor() {
   async function readLoop(port: SerialPort) {
     const decoder = new TextDecoder();
     let buffer = "";
+    let flushTimeout: NodeJS.Timeout | null = null;
+
+    const flushBuffer = () => {
+      if (buffer.trim()) {
+        addLog("rx", buffer);
+        buffer = "";
+      }
+    };
 
     while (port.readable) {
       const reader = port.readable.getReader();
@@ -108,23 +117,43 @@ export default function SerialMonitor() {
           const { value, done } = await reader.read();
           if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
+          // Clear pending flush since we got new data
+          if (flushTimeout) {
+            clearTimeout(flushTimeout);
+            flushTimeout = null;
+          }
 
-          // Process complete lines
-          const lines = buffer.split(/\r?\n/);
-          buffer = lines.pop() || "";
+          const text = decoder.decode(value, { stream: true });
+          buffer += text;
 
-          for (const line of lines) {
-            if (line.trim()) {
-              addLog("rx", line);
+          // Check if we have complete lines
+          if (buffer.includes("\n") || buffer.includes("\r")) {
+            const lines = buffer.split(/\r?\n|\r/);
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.length > 0) {
+                addLog("rx", line);
+              }
             }
+          }
+
+          // Flush partial data after 100ms of no new data
+          if (buffer.length > 0) {
+            flushTimeout = setTimeout(flushBuffer, 100);
           }
         }
       } catch (err) {
+        // Flush remaining buffer on error/disconnect
+        flushBuffer();
         if (err instanceof Error && err.name !== "NetworkError") {
           addLog("rx", `Read error: ${err.message}`);
         }
       } finally {
+        if (flushTimeout) {
+          clearTimeout(flushTimeout);
+        }
+        flushBuffer();
         reader.releaseLock();
       }
     }
@@ -147,16 +176,57 @@ export default function SerialMonitor() {
     addLog("rx", "Disconnected");
   }
 
+  function parseHexInput(hexStr: string): Uint8Array | null {
+    // Remove common separators and prefixes
+    const cleaned = hexStr
+      .replace(/0x/gi, "")
+      .replace(/[,\s]+/g, " ")
+      .trim();
+
+    if (!cleaned) return null;
+
+    const parts = cleaned.split(" ").filter(Boolean);
+    const bytes: number[] = [];
+
+    for (const part of parts) {
+      // Handle pairs of hex digits
+      const hex = part.replace(/[^0-9a-fA-F]/g, "");
+      for (let i = 0; i < hex.length; i += 2) {
+        const byte = parseInt(hex.slice(i, i + 2), 16);
+        if (isNaN(byte)) return null;
+        bytes.push(byte);
+      }
+    }
+
+    return bytes.length > 0 ? new Uint8Array(bytes) : null;
+  }
+
   async function send() {
     if (!portRef.current?.writable || !input.trim()) return;
 
-    const text = input + lineEnding;
-    const encoder = new TextEncoder();
     const writer = portRef.current.writable.getWriter();
 
     try {
-      await writer.write(encoder.encode(text));
-      addLog("tx", input);
+      let data: Uint8Array;
+      let logText: string;
+
+      if (hexSend) {
+        const hexData = parseHexInput(input);
+        if (!hexData) {
+          addLog("rx", "Invalid hex input. Use format: 48 65 6C 6C 6F or 0x48 0x65");
+          writer.releaseLock();
+          return;
+        }
+        data = hexData;
+        logText = `[HEX] ${Array.from(hexData).map(b => b.toString(16).padStart(2, "0").toUpperCase()).join(" ")}`;
+      } else {
+        const text = input + lineEnding;
+        data = new TextEncoder().encode(text);
+        logText = input;
+      }
+
+      await writer.write(data);
+      addLog("tx", logText);
 
       // Add to history
       if (input.trim() && (commandHistory.length === 0 || commandHistory[0] !== input)) {
@@ -302,7 +372,7 @@ export default function SerialMonitor() {
       {/* Settings panel */}
       {showSettings && (
         <div className="p-4 border border-border rounded-lg bg-surface/50 space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -329,6 +399,15 @@ export default function SerialMonitor() {
                 className="rounded border-border"
               />
               Hex view
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={hexSend}
+                onChange={(e) => setHexSend(e.target.checked)}
+                className="rounded border-border"
+              />
+              Hex send
             </label>
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted">Line ending:</span>
@@ -436,7 +515,7 @@ export default function SerialMonitor() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={state === "connected" ? "Type a command and press Enter..." : "Connect to send commands"}
+          placeholder={state !== "connected" ? "Connect to send commands" : hexSend ? "Enter hex bytes: 48 65 6C 6C 6F or 0x48 0x65..." : "Type a command and press Enter..."}
           disabled={state !== "connected"}
           className="flex-1 px-4 py-2.5 bg-background border border-border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:opacity-50"
         />
