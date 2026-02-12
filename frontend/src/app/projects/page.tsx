@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "Real IoT projects built with ESP32 — documented builds with source code and schematics.",
 };
 
-const fallbackProjects: Project[] = [
+const fallbackProjects: Partial<Project>[] = [
   {
     id: 1,
     slug: "wirelessear",
@@ -40,7 +40,7 @@ export default async function ProjectsPage() {
               {project.description}
             </p>
             <div className="flex flex-wrap gap-2">
-              {project.tags
+              {(project.tags || "")
                 .split(",")
                 .filter(Boolean)
                 .map((tag) => (

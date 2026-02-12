@@ -14,6 +14,7 @@ from app.api.projects import router as projects_router
 from app.api.contact import router as contact_router
 from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
+from app.api.upload import router as upload_router
 
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
@@ -49,6 +50,7 @@ app.include_router(projects_router, prefix="/api")
 app.include_router(contact_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(upload_router, prefix="/api")
 
 
 @app.get("/health")

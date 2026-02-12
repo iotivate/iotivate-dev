@@ -28,6 +28,30 @@ interface AuthContextType {
   logout: () => void;
 }
 
+/**
+ * Authenticated fetch wrapper that auto-logs out on 401.
+ * Use this for all admin API calls.
+ */
+export async function authFetch(
+  url: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const headers = new Headers(options.headers);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = "/admin/login";
+  }
+
+  return res;
+}
+
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
