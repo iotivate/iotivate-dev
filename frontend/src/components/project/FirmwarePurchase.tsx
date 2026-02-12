@@ -10,6 +10,7 @@ interface FirmwarePurchaseProps {
   currency?: string;
   features?: string[];
   firmwareUrl?: string;
+  sourceCodeUrl?: string;
   purchased?: boolean;
 }
 
@@ -20,6 +21,7 @@ export default function FirmwarePurchase({
   currency = "USD",
   features = [],
   firmwareUrl,
+  sourceCodeUrl,
   purchased = false,
 }: FirmwarePurchaseProps) {
   const [isPurchased, setIsPurchased] = useState(purchased);
@@ -122,6 +124,20 @@ export default function FirmwarePurchase({
               </svg>
               {showFlasher ? "Hide Flasher" : "Flash Now"}
             </button>
+
+            {sourceCodeUrl && (
+              <a
+                href={sourceCodeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full px-4 py-2.5 border border-border font-medium rounded-lg hover:bg-surface transition-colors flex items-center justify-center gap-2 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                Download Source Code
+              </a>
+            )}
           </div>
         )}
       </div>
@@ -129,7 +145,7 @@ export default function FirmwarePurchase({
       {/* Embedded flasher */}
       {isPurchased && showFlasher && (
         <div className="border-t border-border p-4">
-          <WebFlasher />
+          <WebFlasher firmwareUrl={firmwareUrl} />
         </div>
       )}
     </div>

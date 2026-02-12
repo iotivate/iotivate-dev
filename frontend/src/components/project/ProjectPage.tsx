@@ -47,6 +47,7 @@ export interface ProjectData {
     currency?: string;
     features?: string[];
     firmwareUrl?: string;
+    sourceCodeUrl?: string;
   };
 
   // App (optional)
@@ -147,6 +148,7 @@ export default function ProjectPage({ data }: ProjectPageProps) {
                 currency={data.firmware.currency}
                 features={data.firmware.features}
                 firmwareUrl={data.firmware.firmwareUrl}
+                sourceCodeUrl={data.firmware.sourceCodeUrl}
               />
             )}
             {data.app && (

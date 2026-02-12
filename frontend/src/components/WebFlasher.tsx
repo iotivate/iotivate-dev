@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { ESPLoader, Transport, type LoaderOptions } from "esptool-js";
 
 type FlashState = "idle" | "connecting" | "connected" | "flashing" | "done" | "error";
@@ -9,16 +9,22 @@ interface FileEntry {
   offset: string;
   file: File | null;
   data: Uint8Array | null;
+  fromServer?: boolean;
 }
 
-export default function WebFlasher() {
+interface WebFlasherProps {
+  firmwareUrl?: string;
+}
+
+export default function WebFlasher({ firmwareUrl }: WebFlasherProps) {
   const [state, setState] = useState<FlashState>("idle");
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [chipInfo, setChipInfo] = useState<string | null>(null);
+  const [firmwareLoaded, setFirmwareLoaded] = useState(false);
   const [files, setFiles] = useState<FileEntry[]>([
-    { offset: "0x1000", file: null, data: null },
+    { offset: "0x0", file: null, data: null },
   ]);
 
   const espLoaderRef = useRef<ESPLoader | null>(null);
@@ -29,6 +35,38 @@ export default function WebFlasher() {
   }, []);
 
   const isSupported = typeof navigator !== "undefined" && "serial" in navigator;
+
+  // Auto-fetch firmware from URL when device is connected
+  useEffect(() => {
+    if (!firmwareUrl || firmwareLoaded) return;
+    if (state !== "connected" && state !== "done") return;
+
+    let cancelled = false;
+    async function fetchFirmware() {
+      addLog(`Downloading firmware from server...`);
+      try {
+        const res = await fetch(firmwareUrl!);
+        if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+        const buffer = await res.arrayBuffer();
+        const data = new Uint8Array(buffer);
+        if (cancelled) return;
+
+        setFiles((prev) => {
+          const updated = [...prev];
+          updated[0] = { offset: "0x0", file: null, data, fromServer: true };
+          return updated;
+        });
+        setFirmwareLoaded(true);
+        addLog(`Firmware loaded from server (${(data.length / 1024).toFixed(1)} KB)`);
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : "Failed to download firmware";
+        addLog(`Error: ${msg}`);
+      }
+    }
+    fetchFirmware();
+    return () => { cancelled = true; };
+  }, [firmwareUrl, firmwareLoaded, state, addLog]);
 
   const terminal = {
     clean: () => setLog([]),
@@ -272,12 +310,21 @@ export default function WebFlasher() {
                   placeholder="0x1000"
                   className="w-24 px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent/50"
                 />
-                <input
-                  type="file"
-                  accept=".bin"
-                  onChange={(e) => handleFileSelect(index, e.target.files?.[0] || null)}
-                  className="flex-1 text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-border file:text-sm file:font-medium file:bg-surface file:text-foreground hover:file:bg-border file:cursor-pointer file:transition-colors"
-                />
+                {entry.fromServer ? (
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-accent/10 border border-accent/20 rounded-lg text-sm">
+                    <svg className="w-4 h-4 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-accent">Firmware loaded from server</span>
+                  </div>
+                ) : (
+                  <input
+                    type="file"
+                    accept=".bin"
+                    onChange={(e) => handleFileSelect(index, e.target.files?.[0] || null)}
+                    className="flex-1 text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-border file:text-sm file:font-medium file:bg-surface file:text-foreground hover:file:bg-border file:cursor-pointer file:transition-colors"
+                  />
+                )}
                 {files.length > 1 && (
                   <button
                     onClick={() => removeFileEntry(index)}

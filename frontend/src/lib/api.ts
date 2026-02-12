@@ -42,6 +42,7 @@ export interface FirmwareData {
   currency?: string;
   features?: string[];
   firmwareUrl?: string;
+  sourceCodeUrl?: string;
 }
 
 export interface AppData {
