@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import FilePicker, {
@@ -49,11 +49,14 @@ interface ProjectFormData {
     version: string;
     price: number;
     features: string[];
+    firmwareUrl: string;
+    sourceCodeUrl: string;
   } | null;
   app: {
     name: string;
     description: string;
     playStoreUrl: string;
+    iosUrl: string;
     apkUrl: string;
     apkVersion: string;
     apkSize: string;
@@ -97,6 +100,16 @@ function mergeFormData(initial?: Partial<ProjectFormData>): ProjectFormData {
     youtube_id: initial.youtube_id ?? "",
     overview: initial.overview ?? "",
     tags: initial.tags ?? "",
+    firmware: initial.firmware
+      ? {
+          name: initial.firmware.name ?? "",
+          version: initial.firmware.version ?? "1.0.0",
+          price: initial.firmware.price ?? 0,
+          features: initial.firmware.features ?? [],
+          firmwareUrl: initial.firmware.firmwareUrl ?? "",
+          sourceCodeUrl: initial.firmware.sourceCodeUrl ?? "",
+        }
+      : null,
   };
 }
 
@@ -117,6 +130,7 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
   const { token } = useAuth();
   const router = useRouter();
   const [form, setForm] = useState<ProjectFormData>(() => mergeFormData(initialData));
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [activeTab, setActiveTab] = useState("basic");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +139,12 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
   // Staged files (not yet uploaded)
   const [stagedDownloads, setStagedDownloads] = useState<StagedFile[]>([]);
   const [stagedCircuit, setStagedCircuit] = useState<StagedFile | null>(null);
+  const [stagedFirmware, setStagedFirmware] = useState<StagedFile | null>(null);
+  const [stagedApk, setStagedApk] = useState<StagedFile | null>(null);
+
+  // Build guide image insertion
+  const [uploadingStepImage, setUploadingStepImage] = useState<number | null>(null);
+  const stepContentRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   const tabs = [
     { id: "basic", label: "Basic Info" },
@@ -181,6 +201,34 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
         };
       }
 
+      // Upload staged firmware binary
+      let updatedFirmware = form.firmware;
+      if (stagedFirmware && form.firmware) {
+        setSaveProgress("Uploading firmware binary...");
+        const [result] = await uploadStagedFiles(
+          [stagedFirmware],
+          `${folder}/firmware`,
+          token
+        );
+        updatedFirmware = { ...form.firmware, firmwareUrl: result.url };
+      }
+
+      // Upload staged APK
+      let updatedApp = form.app;
+      if (stagedApk && form.app) {
+        setSaveProgress("Uploading APK...");
+        const [result] = await uploadStagedFiles(
+          [stagedApk],
+          `${folder}/app`,
+          token
+        );
+        updatedApp = {
+          ...form.app,
+          apkUrl: result.url,
+          apkSize: formatSize(result.size),
+        };
+      }
+
       // Save the project
       setSaveProgress("Saving project...");
       const url = isEdit
@@ -191,6 +239,8 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
         ...form,
         downloads: updatedDownloads.length > 0 ? updatedDownloads : null,
         circuit: updatedCircuit,
+        firmware: updatedFirmware,
+        app: updatedApp,
         parts: form.parts.length > 0 ? form.parts : null,
         build_guide: form.build_guide.length > 0 ? form.build_guide : null,
       };
@@ -265,7 +315,50 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
     setForm({ ...form, build_guide: form.build_guide.filter((_, i) => i !== index) });
   }
 
-  const totalPendingFiles = stagedDownloads.length + (stagedCircuit ? 1 : 0);
+  function handleInsertImage(stepIndex: number) {
+    if (!token) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      setUploadingStepImage(stepIndex);
+      try {
+        const staged: StagedFile = {
+          file,
+          preview: URL.createObjectURL(file),
+          id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        };
+        const folder = `projects/${form.slug || "new"}/guide`;
+        const [result] = await uploadStagedFiles([staged], folder, token);
+        URL.revokeObjectURL(staged.preview);
+
+        const imgTag = `<img src="${result.url}" alt="" />`;
+        const textarea = stepContentRefs.current[stepIndex];
+        const currentContent = form.build_guide[stepIndex].content;
+
+        let newContent: string;
+        if (textarea && textarea === document.activeElement) {
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          newContent = currentContent.slice(0, start) + imgTag + currentContent.slice(end);
+        } else {
+          newContent = currentContent + imgTag;
+        }
+
+        updateStep(stepIndex, "content", newContent);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to upload image");
+      } finally {
+        setUploadingStepImage(null);
+      }
+    };
+    input.click();
+  }
+
+  const totalPendingFiles = stagedDownloads.length + (stagedCircuit ? 1 : 0) + (stagedFirmware ? 1 : 0) + (stagedApk ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -302,25 +395,36 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Slug *</label>
-              <input
-                type="text"
-                value={form.slug}
-                onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })}
-                placeholder="my-project"
-                disabled={isEdit}
-                className="w-full px-4 py-2 bg-background border border-border rounded-lg disabled:opacity-50"
-              />
-            </div>
-            <div>
               <label className="block text-sm font-medium mb-1">Name *</label>
               <input
                 type="text"
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  const updates: Partial<ProjectFormData> = { name };
+                  if (!isEdit && !slugManuallyEdited) {
+                    updates.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+                  }
+                  setForm({ ...form, ...updates });
+                }}
                 placeholder="My Awesome Project"
                 className="w-full px-4 py-2 bg-background border border-border rounded-lg"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Slug *</label>
+              <input
+                type="text"
+                value={form.slug}
+                onChange={(e) => {
+                  setSlugManuallyEdited(true);
+                  setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") });
+                }}
+                placeholder="my-project"
+                disabled={isEdit}
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg disabled:opacity-50"
+              />
+              {!isEdit && <p className="text-xs text-muted mt-1">Auto-generated from name</p>}
             </div>
           </div>
           <div>
@@ -591,12 +695,30 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
                 className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm"
               />
               <textarea
+                ref={(el) => { stepContentRefs.current[index] = el; }}
                 value={step.content}
                 onChange={(e) => updateStep(index, "content", e.target.value)}
                 placeholder="<p>Step content in HTML...</p>"
                 rows={3}
                 className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono"
               />
+              <button
+                type="button"
+                onClick={() => handleInsertImage(index)}
+                disabled={uploadingStepImage === index}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-surface transition-colors disabled:opacity-50"
+              >
+                {uploadingStepImage === index ? (
+                  "Uploading..."
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Insert Image
+                  </>
+                )}
+              </button>
               <input
                 type="text"
                 value={step.warning || ""}
@@ -626,7 +748,7 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
                 setForm({
                   ...form,
                   firmware: e.target.checked
-                    ? { name: "", version: "1.0.0", price: 0, features: [] }
+                    ? { name: "", version: "1.0.0", price: 0, features: [], firmwareUrl: "", sourceCodeUrl: "" }
                     : null,
                 })
               }
@@ -685,6 +807,52 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg"
                 />
               </div>
+
+              {/* Firmware Binary Upload */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">Firmware Binary (.bin)</label>
+                {form.firmware.firmwareUrl ? (
+                  <div className="p-4 border border-border rounded-lg">
+                    <FilePreview
+                      url={form.firmware.firmwareUrl}
+                      filename="Firmware Binary"
+                      onRemove={() => {
+                        setStagedFirmware(null);
+                        setForm({ ...form, firmware: { ...form.firmware!, firmwareUrl: "" } });
+                      }}
+                    />
+                  </div>
+                ) : stagedFirmware ? (
+                  <div className="p-4 border border-border rounded-lg">
+                    <StagedFilePreview
+                      staged={stagedFirmware}
+                      onRemove={() => setStagedFirmware(null)}
+                    />
+                  </div>
+                ) : (
+                  <FilePicker
+                    accept=".bin,.hex"
+                    hint="Select compiled firmware (.bin or .hex)"
+                    multiple={false}
+                    onFiles={(files) => setStagedFirmware(files[0])}
+                  />
+                )}
+              </div>
+
+              {/* Source Code URL */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Source Code URL</label>
+                <input
+                  type="text"
+                  value={form.firmware.sourceCodeUrl}
+                  onChange={(e) =>
+                    setForm({ ...form, firmware: { ...form.firmware!, sourceCodeUrl: e.target.value } })
+                  }
+                  placeholder="https://github.com/user/repo or ZIP download link"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg"
+                />
+                <p className="text-xs text-muted mt-1">GitHub repo or direct ZIP link for source code</p>
+              </div>
             </div>
           )}
         </div>
@@ -701,7 +869,7 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
                 setForm({
                   ...form,
                   app: e.target.checked
-                    ? { name: "", description: "", playStoreUrl: "", apkUrl: "", apkVersion: "", apkSize: "", features: [] }
+                    ? { name: "", description: "", playStoreUrl: "", iosUrl: "", apkUrl: "", apkVersion: "", apkSize: "", features: [] }
                     : null,
                 })
               }
@@ -746,16 +914,48 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">APK Download URL</label>
+                  <label className="block text-sm font-medium mb-1">iOS App Store URL</label>
                   <input
                     type="text"
-                    value={form.app.apkUrl}
-                    onChange={(e) => setForm({ ...form, app: { ...form.app!, apkUrl: e.target.value } })}
-                    placeholder="/apps/my-app.apk"
+                    value={form.app.iosUrl}
+                    onChange={(e) => setForm({ ...form, app: { ...form.app!, iosUrl: e.target.value } })}
+                    placeholder="https://apps.apple.com/app/..."
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg"
                   />
                 </div>
               </div>
+
+              {/* APK File Upload */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">APK File</label>
+                {form.app.apkUrl ? (
+                  <div className="p-4 border border-border rounded-lg">
+                    <FilePreview
+                      url={form.app.apkUrl}
+                      filename={`APK${form.app.apkSize ? ` (${form.app.apkSize})` : ""}`}
+                      onRemove={() => {
+                        setStagedApk(null);
+                        setForm({ ...form, app: { ...form.app!, apkUrl: "", apkSize: "" } });
+                      }}
+                    />
+                  </div>
+                ) : stagedApk ? (
+                  <div className="p-4 border border-border rounded-lg">
+                    <StagedFilePreview
+                      staged={stagedApk}
+                      onRemove={() => setStagedApk(null)}
+                    />
+                  </div>
+                ) : (
+                  <FilePicker
+                    accept=".apk"
+                    hint="Android APK file"
+                    multiple={false}
+                    onFiles={(files) => setStagedApk(files[0])}
+                  />
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">APK Version</label>
@@ -773,7 +973,7 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
                     type="text"
                     value={form.app.apkSize}
                     onChange={(e) => setForm({ ...form, app: { ...form.app!, apkSize: e.target.value } })}
-                    placeholder="12 MB"
+                    placeholder="Auto-filled on upload, or enter manually"
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg"
                   />
                 </div>
