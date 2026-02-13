@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     r2_bucket_name: str = "iotivate-files"
     r2_public_url: str = ""  # e.g., https://files.iotivate.dev
 
+    # Admin bootstrap settings (set all three to auto-create admin on startup)
+    admin_email: str = ""
+    admin_username: str = ""
+    admin_password: str = ""
+
     # Lemon Squeezy settings
     lemonsqueezy_api_key: str = ""
     lemonsqueezy_store_id: str = ""
@@ -29,6 +34,10 @@ class Settings(BaseSettings):
             and self.lemonsqueezy_store_id
             and self.lemonsqueezy_webhook_secret
         )
+
+    @property
+    def admin_bootstrap_configured(self) -> bool:
+        return bool(self.admin_email and self.admin_username and self.admin_password)
 
     @property
     def cors_origin_list(self) -> list[str]:

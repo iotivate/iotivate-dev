@@ -1,3 +1,5 @@
+import logging
+import re
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -6,9 +8,10 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from sqlmodel import Session, select
 
 from app.config import settings
-from app.database import create_db_and_tables
+from app.database import create_db_and_tables, engine
 from app.api.tools import router as tools_router
 from app.api.projects import router as projects_router
 from app.api.contact import router as contact_router
@@ -21,9 +24,57 @@ from app.api.checkout import router as checkout_router
 limiter = Limiter(key_func=get_remote_address)
 
 
+logger = logging.getLogger("iotivate")
+
+
+def _bootstrap_admin() -> None:
+    """Create admin user from env vars if configured. Idempotent."""
+    if not settings.admin_bootstrap_configured:
+        return
+
+    from app.auth import hash_password
+    from app.models.user import User
+
+    email = settings.admin_email.strip().lower()
+    username = settings.admin_username.strip()
+
+    # Basic email validation
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        logger.error("ADMIN_EMAIL is not a valid email address, skipping admin bootstrap")
+        return
+
+    if len(username) < 3 or len(username) > 30:
+        logger.error("ADMIN_USERNAME must be 3-30 characters, skipping admin bootstrap")
+        return
+
+    password = settings.admin_password
+    if len(password) < 8:
+        logger.error("ADMIN_PASSWORD must be at least 8 characters, skipping admin bootstrap")
+        return
+
+    with Session(engine) as session:
+        existing = session.exec(
+            select(User).where((User.email == email) | (User.username == username))
+        ).first()
+        if existing:
+            logger.info("Admin user already exists, skipping bootstrap")
+            return
+
+        user = User(
+            email=email,
+            username=username,
+            hashed_password=hash_password(password),
+            is_admin=True,
+        )
+        session.add(user)
+        session.commit()
+        logger.info("Admin user '%s' created via bootstrap", username)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
+    _bootstrap_admin()
     yield
 
 
