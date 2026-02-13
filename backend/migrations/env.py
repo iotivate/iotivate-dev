@@ -9,6 +9,7 @@ from sqlmodel import SQLModel
 from app.config import settings
 # Import all models so SQLModel.metadata is fully populated
 from app.models import User, Project, Tool, ContactMessage, Purchase  # noqa: F401
+from app.models.webhook_event import WebhookEvent  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

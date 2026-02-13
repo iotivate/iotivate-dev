@@ -1,0 +1,86 @@
+databases:
+  - name: iotivate-db
+    plan: starter
+    databaseName: iotivate
+    user: iotivate
+
+services:
+  # --- Backend API ---
+  - type: web
+    name: iotivate-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: iotivate-db
+          property: connectionURI
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://iotivate.dev
+      - key: FRONTEND_URL
+        value: https://iotivate.dev
+      - key: LOG_LEVEL
+        value: INFO
+      # Admin bootstrap
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      # SMTP
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: SMTP_TO_EMAIL
+        sync: false
+      - key: SMTP_USE_TLS
+        value: "true"
+      # Cloudflare R2
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: iotivate-files
+      - key: R2_PUBLIC_URL
+        sync: false
+      # Lemon Squeezy
+      - key: LEMONSQUEEZY_API_KEY
+        sync: false
+      - key: LEMONSQUEEZY_STORE_ID
+        sync: false
+      - key: LEMONSQUEEZY_WEBHOOK_SECRET
+        sync: false
+
+  # --- Frontend ---
+  - type: web
+    name: iotivate-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: starter
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: iotivate-backend
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://iotivate.dev
+      - key: NEXT_PUBLIC_PLAUSIBLE_DOMAIN
+        sync: false
