@@ -16,6 +16,7 @@ from app.database import get_session
 from app.models.project import Project
 from app.models.purchase import Purchase
 from app.models.user import User
+from app.models.webhook_event import WebhookEvent
 
 logger = logging.getLogger(__name__)
 
@@ -189,13 +190,31 @@ async def lemonsqueezy_webhook(request: Request, session: Session = Depends(get_
     # Parse event
     event_name = request.headers.get("X-Event-Name", "")
     payload = json.loads(body)
+    order_id = str(payload.get("data", {}).get("id", "")) or None
 
-    if event_name == "order_created":
-        _handle_order_created(payload, session)
-    elif event_name == "order_refunded":
-        _handle_order_refunded(payload, session)
-    else:
-        logger.info("Ignoring Lemon Squeezy event: %s", event_name)
+    # Log webhook event
+    webhook_event = WebhookEvent(
+        event_name=event_name,
+        lemon_order_id=order_id,
+        payload_json=body.decode("utf-8"),
+        status="processed",
+    )
+
+    try:
+        if event_name == "order_created":
+            _handle_order_created(payload, session)
+        elif event_name == "order_refunded":
+            _handle_order_refunded(payload, session)
+        else:
+            webhook_event.status = "ignored"
+            logger.info("Ignoring Lemon Squeezy event: %s", event_name)
+    except Exception as e:
+        webhook_event.status = "failed"
+        webhook_event.error_message = str(e)[:2000]
+        logger.exception("Webhook handler failed for event: %s", event_name)
+
+    session.add(webhook_event)
+    session.commit()
 
     return {"status": "ok"}
 

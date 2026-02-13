@@ -20,7 +20,8 @@ const fallbackProjects: Partial<Project>[] = [
 ];
 
 export default async function ProjectsPage() {
-  const projects = (await getProjects()) || fallbackProjects;
+  const result = await getProjects();
+  const projects = result?.items || fallbackProjects;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">

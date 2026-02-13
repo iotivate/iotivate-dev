@@ -1,0 +1,49 @@
+---
+title: Choosing the Right ESP32 Module
+description: A comparison of popular ESP32 variants to help you pick the right module for your next IoT project.
+date: "2026-02-12"
+tags:
+  - esp32
+  - hardware
+  - guide
+---
+
+The ESP32 family has grown well beyond the original dual-core chip. With variants ranging from tiny single-core modules to boards with built-in cameras and displays, picking the right one for your project isn't always obvious. Here's a practical breakdown of the most common options.
+
+## ESP32 (Original)
+
+The classic ESP32-WROOM-32 is still a solid choice for most projects. It has a dual-core 240 MHz processor, 520 KB of SRAM, Wi-Fi, Bluetooth Classic, and BLE. It's well-documented, widely available, and supported by every ESP32 framework.
+
+**Best for:** General-purpose IoT projects, relay controllers, sensor nodes, and anything where you need both Wi-Fi and Bluetooth.
+
+## ESP32-S2
+
+The S2 drops Bluetooth entirely and switches to a single-core processor, but adds native USB support (USB-OTG). It's cheaper than the original and uses less power.
+
+**Best for:** USB-connected devices, simple Wi-Fi sensors, and projects where Bluetooth isn't needed and cost matters.
+
+## ESP32-S3
+
+The S3 is the current sweet spot for most new designs. It brings back dual-core processing and BLE (no Bluetooth Classic), adds native USB, and includes vector instructions for AI/ML inference on the edge. It also has more GPIO pins than the original.
+
+**Best for:** Projects that need USB and BLE, edge ML applications, and anything that benefits from extra processing power.
+
+## ESP32-C3
+
+The C3 is a RISC-V based single-core chip with Wi-Fi and BLE. It's the cheapest option in the family and consumes very little power. The RISC-V architecture is a notable departure from the Xtensa cores in other ESP32 variants, but from an application developer's perspective, the difference is mostly invisible.
+
+**Best for:** Cost-sensitive production runs, battery-powered BLE sensors, and simple Wi-Fi devices.
+
+## ESP32-C6
+
+The newest addition adds Wi-Fi 6, Thread, and Zigbee support alongside BLE. If you're building for Matter-compatible smart home ecosystems, the C6 is the obvious choice.
+
+**Best for:** Smart home devices, Matter/Thread projects, and applications that need modern wireless standards.
+
+## How to Decide
+
+Start with your requirements. Do you need Bluetooth Classic? Only the original ESP32 has it. Need USB? Look at the S2, S3, or C3. Building for Matter? The C6 is your pick. For everything else, the S3 offers the best balance of features and performance.
+
+Price matters too. The C3 can be found for under $2 in quantity, while S3 modules run $3–5. For prototyping, dev board prices are close enough that you should pick based on features, not cost.
+
+All of the projects and tools on iotivate.dev support multiple ESP32 variants. Our web flasher detects your board automatically and loads the correct firmware.

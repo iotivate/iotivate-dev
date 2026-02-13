@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth, authFetch } from "@/lib/auth";
 import Link from "next/link";
+import Pagination from "@/components/admin/Pagination";
 
 interface Project {
   id: number;
@@ -14,24 +15,29 @@ interface Project {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const PAGE_SIZE = 20;
 
 export default function AdminProjects() {
   const { token } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [total, setTotal] = useState(0);
+  const [skip, setSkip] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchProjects();
-  }, [token]);
+  }, [token, skip]);
 
   async function fetchProjects() {
     if (!token) return;
     try {
-      const res = await authFetch(`${API_URL}/api/admin/projects`);
+      const res = await authFetch(`${API_URL}/api/admin/projects?skip=${skip}&limit=${PAGE_SIZE}`);
       if (res.ok) {
-        setProjects(await res.json());
+        const data = await res.json();
+        setProjects(data.items);
+        setTotal(data.total);
       }
     } catch {
       setError("Failed to fetch projects");
@@ -98,15 +104,15 @@ export default function AdminProjects() {
       )}
 
       <div className="space-y-4">
-        {projects.length === 0 ? (
+        {projects.length === 0 && skip === 0 ? (
           <p className="text-muted">No projects yet. Create your first one.</p>
         ) : (
           projects.map((project) => {
             const isBusy = busyId === project.id;
             return (
               <div key={project.id} className="p-4 border border-border rounded-lg">
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="font-semibold">{project.name}</h3>
                       <span
@@ -133,7 +139,7 @@ export default function AdminProjects() {
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => togglePublish(project.id, project.is_published)}
                       disabled={isBusy}
@@ -171,6 +177,7 @@ export default function AdminProjects() {
           })
         )}
       </div>
+      <Pagination total={total} skip={skip} limit={PAGE_SIZE} onPageChange={setSkip} />
     </div>
   );
 }

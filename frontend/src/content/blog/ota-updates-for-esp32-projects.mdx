@@ -1,0 +1,42 @@
+---
+title: OTA Updates for ESP32 Projects
+description: Why over-the-air firmware updates matter for deployed IoT devices, and how to implement them with the ESP32.
+date: "2026-02-10"
+tags:
+  - esp32
+  - firmware
+  - ota
+  - deployment
+---
+
+Deploying an ESP32 project is exciting — until you find a bug three days later and realize the device is screwed into a junction box behind a wall. Over-the-air (OTA) updates solve this problem by letting you push new firmware to a device over Wi-Fi, without any physical access.
+
+## The Case for OTA
+
+If you're building a one-off prototype that lives on your desk, OTA might seem like overkill. But the moment you install a device in a permanent location — mounted inside an enclosure, wired into a panel, or deployed at a remote site — OTA goes from "nice to have" to essential.
+
+Even for personal projects, OTA saves time. Instead of unplugging the device, connecting a USB cable, flashing, and re-installing, you trigger an update from your laptop and the device handles the rest.
+
+## How ESP32 OTA Works
+
+The ESP32 supports OTA through its partition table scheme. The flash memory is divided into two app partitions (OTA_0 and OTA_1) plus a data partition that tracks which slot is active. When you perform an OTA update, the new firmware is written to the inactive slot. Once the write completes and verification passes, the bootloader is told to boot from the new slot on the next restart.
+
+If the new firmware crashes on startup, the ESP32 can roll back to the previous slot automatically. This rollback mechanism is critical for deployed devices — a bad update shouldn't brick the hardware.
+
+## Implementation Approaches
+
+There are three common patterns for ESP32 OTA:
+
+**Pull-based:** The device periodically checks a server for new firmware. If a newer version is available, it downloads and installs the update. This is simple to implement and works well for devices that are always online.
+
+**Push-based:** A server initiates the update by connecting to the device. This requires the device to be reachable on the network, which can be tricky with NAT and firewalls.
+
+**Hybrid:** The device checks in with a server, and the server responds with update instructions if one is available. This combines the reliability of pull-based with the control of push-based.
+
+## Security Considerations
+
+OTA updates are a potential attack vector. If an attacker can push arbitrary firmware to your device, they own it completely. At minimum, you should verify firmware signatures before applying updates and use HTTPS for the download. The ESP32's secure boot feature can enforce that only signed firmware runs on the device.
+
+## What We're Building
+
+On iotivate.dev, we're working on a managed OTA service that handles firmware hosting, version tracking, and rollout management. The goal is to make OTA as simple as uploading a binary and clicking "deploy."

@@ -38,6 +38,13 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
+        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && (
+          <script
+            defer
+            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+            src="https://plausible.io/js/script.js"
+          />
+        )}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}

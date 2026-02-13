@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.database import get_session
@@ -8,8 +9,19 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 
 
 @router.get("/")
-def list_tools(session: Session = Depends(get_session)) -> list[Tool]:
-    return session.exec(select(Tool)).all()
+def list_tools(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_session),
+) -> dict:
+    total = session.exec(select(func.count()).select_from(Tool)).one()
+    tools = session.exec(select(Tool).offset(skip).limit(limit)).all()
+    return {
+        "items": [t.model_dump() for t in tools],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.get("/{slug}")

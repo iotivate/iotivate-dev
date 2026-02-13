@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth, authFetch } from "@/lib/auth";
+import Pagination from "@/components/admin/Pagination";
 
 interface Tool {
   id: number;
@@ -12,12 +13,15 @@ interface Tool {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const PAGE_SIZE = 20;
 
 const STATUS_OPTIONS = ["coming_soon", "active", "beta", "deprecated"];
 
 export default function AdminTools() {
   const { token } = useAuth();
   const [tools, setTools] = useState<Tool[]>([]);
+  const [total, setTotal] = useState(0);
+  const [skip, setSkip] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -26,14 +30,16 @@ export default function AdminTools() {
 
   useEffect(() => {
     fetchTools();
-  }, [token]);
+  }, [token, skip]);
 
   async function fetchTools() {
     if (!token) return;
     try {
-      const res = await authFetch(`${API_URL}/api/admin/tools`);
+      const res = await authFetch(`${API_URL}/api/admin/tools?skip=${skip}&limit=${PAGE_SIZE}`);
       if (res.ok) {
-        setTools(await res.json());
+        const data = await res.json();
+        setTools(data.items);
+        setTotal(data.total);
       }
     } catch {
       setError("Failed to fetch tools");
@@ -184,7 +190,7 @@ export default function AdminTools() {
       )}
 
       <div className="space-y-4">
-        {tools.length === 0 ? (
+        {tools.length === 0 && skip === 0 ? (
           <p className="text-muted">No tools yet.</p>
         ) : (
           tools.map((tool) => (
@@ -233,8 +239,8 @@ export default function AdminTools() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="font-semibold">{tool.name}</h3>
                       <span className="text-xs px-2 py-1 rounded bg-surface text-muted border border-border">
@@ -244,7 +250,7 @@ export default function AdminTools() {
                     <p className="text-sm text-muted mb-1">{tool.description}</p>
                     <p className="text-xs text-muted">/{tool.slug}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => setEditing(tool.id)}
                       className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface transition-colors"
@@ -264,6 +270,7 @@ export default function AdminTools() {
           ))
         )}
       </div>
+      <Pagination total={total} skip={skip} limit={PAGE_SIZE} onPageChange={setSkip} />
     </div>
   );
 }

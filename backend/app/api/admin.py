@@ -3,21 +3,27 @@ import logging
 from datetime import datetime, timezone
 
 import bleach
-from fastapi import APIRouter, Depends, HTTPException, status
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.auth import get_admin_user
+from app.config import settings
 from app.database import get_session
 from app.models.contact import ContactMessage
 from app.models.project import Project
+from app.models.purchase import Purchase
 from app.models.tool import Tool, ToolStatus
 from app.models.user import User
+from app.models.webhook_event import WebhookEvent
 from app.schemas.project import (
     ProjectCreate,
     ProjectUpdate,
     ProjectResponse,
 )
+from app.services.r2_cleanup import extract_r2_urls_from_project, delete_r2_objects
 
 logger = logging.getLogger(__name__)
 
@@ -119,10 +125,19 @@ def create_data_to_model(data: ProjectCreate) -> dict:
 
 @router.get("/tools")
 def list_tools(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     session: Session = Depends(get_session),
     _: User = Depends(get_admin_user),
-) -> list[Tool]:
-    return session.exec(select(Tool)).all()
+) -> dict:
+    total = session.exec(select(func.count()).select_from(Tool)).one()
+    tools = session.exec(select(Tool).offset(skip).limit(limit)).all()
+    return {
+        "items": [t.model_dump() for t in tools],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.post("/tools", status_code=status.HTTP_201_CREATED)
@@ -177,11 +192,19 @@ def delete_tool(
 
 @router.get("/projects")
 def list_projects(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     session: Session = Depends(get_session),
     _: User = Depends(get_admin_user),
-) -> list[dict]:
-    projects = session.exec(select(Project)).all()
-    return [project_to_response(p) for p in projects]
+) -> dict:
+    total = session.exec(select(func.count()).select_from(Project)).one()
+    projects = session.exec(select(Project).offset(skip).limit(limit)).all()
+    return {
+        "items": [project_to_response(p) for p in projects],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.get("/projects/{project_id}")
@@ -280,6 +303,10 @@ def delete_project(
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    # Clean up R2 files before deleting the project
+    r2_urls = extract_r2_urls_from_project(project)
+    if r2_urls:
+        delete_r2_objects(r2_urls)
     session.delete(project)
     session.commit()
 
@@ -288,10 +315,21 @@ def delete_project(
 
 @router.get("/contacts")
 def list_contacts(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
     session: Session = Depends(get_session),
     _: User = Depends(get_admin_user),
-) -> list[ContactMessage]:
-    return session.exec(select(ContactMessage).order_by(ContactMessage.created_at.desc())).all()
+) -> dict:
+    total = session.exec(select(func.count()).select_from(ContactMessage)).one()
+    contacts = session.exec(
+        select(ContactMessage).order_by(ContactMessage.created_at.desc()).offset(skip).limit(limit)
+    ).all()
+    return {
+        "items": [c.model_dump() for c in contacts],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.delete("/contacts/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -305,6 +343,89 @@ def delete_contact(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
     session.delete(contact)
     session.commit()
+
+
+# --- Webhook Events ---
+
+@router.get("/webhooks")
+def list_webhook_events(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_session),
+    _: User = Depends(get_admin_user),
+) -> dict:
+    total = session.exec(select(func.count()).select_from(WebhookEvent)).one()
+    events = session.exec(
+        select(WebhookEvent).order_by(WebhookEvent.created_at.desc()).offset(skip).limit(limit)
+    ).all()
+    return {
+        "items": [
+            {
+                "id": e.id,
+                "event_name": e.event_name,
+                "lemon_order_id": e.lemon_order_id,
+                "status": e.status,
+                "error_message": e.error_message,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in events
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@router.post("/webhooks/sync")
+def sync_orders(
+    session: Session = Depends(get_session),
+    _: User = Depends(get_admin_user),
+) -> dict:
+    if not settings.ls_configured:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Lemon Squeezy not configured",
+        )
+
+    try:
+        with httpx.Client(timeout=30) as client:
+            resp = client.get(
+                "https://api.lemonsqueezy.com/v1/orders",
+                headers={
+                    "Authorization": f"Bearer {settings.lemonsqueezy_api_key}",
+                    "Accept": "application/vnd.api+json",
+                },
+                params={"filter[store_id]": settings.lemonsqueezy_store_id},
+            )
+    except httpx.RequestError as e:
+        logger.error("Lemon Squeezy API request failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to reach Lemon Squeezy API",
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Lemon Squeezy API returned an error",
+        )
+
+    orders = resp.json().get("data", [])
+    synced = 0
+
+    for order in orders:
+        order_id = str(order.get("id", ""))
+        if not order_id:
+            continue
+
+        existing = session.exec(
+            select(Purchase).where(Purchase.lemon_order_id == order_id)
+        ).first()
+        if not existing:
+            synced += 1
+            logger.info("Order %s found in Lemon Squeezy but missing from purchases", order_id)
+
+    return {"missing_orders": synced, "total_orders": len(orders)}
 
 
 # --- Admin user info ---

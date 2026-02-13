@@ -80,6 +80,13 @@ export interface Project {
   support?: SupportData;
 }
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
 async function fetchAPI<T>(path: string): Promise<T | null> {
   try {
     const res = await fetch(`${API_URL}${path}`, { next: { revalidate: 60 } });
@@ -91,16 +98,16 @@ async function fetchAPI<T>(path: string): Promise<T | null> {
   }
 }
 
-export function getTools() {
-  return fetchAPI<Tool[]>("/api/tools/");
+export function getTools(skip = 0, limit = 100) {
+  return fetchAPI<PaginatedResponse<Tool>>(`/api/tools/?skip=${skip}&limit=${limit}`);
 }
 
 export function getTool(slug: string) {
   return fetchAPI<Tool>(`/api/tools/${slug}`);
 }
 
-export function getProjects() {
-  return fetchAPI<Project[]>("/api/projects/");
+export function getProjects(skip = 0, limit = 100) {
+  return fetchAPI<PaginatedResponse<Project>>(`/api/projects/?skip=${skip}&limit=${limit}`);
 }
 
 export function getProject(slug: string) {

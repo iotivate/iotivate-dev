@@ -8,6 +8,7 @@ from slowapi.util import get_remote_address
 from app.database import get_session
 from app.models.contact import ContactMessage
 from app.schemas.contact import ContactRequest, ContactResponse
+from app.services.email import send_contact_notification
 
 logger = logging.getLogger(__name__)
 
@@ -30,4 +31,7 @@ def submit_contact(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to save message. Please try again.",
         )
+
+    send_contact_notification(data.name, data.email, data.message)
+
     return ContactResponse(status="ok", message="Message received. We'll get back to you.")

@@ -1,0 +1,42 @@
+---
+title: Building a Smart Relay with ESP32
+description: A practical walkthrough of designing and assembling a Wi-Fi-controlled relay using the ESP32 microcontroller.
+date: "2026-02-06"
+tags:
+  - esp32
+  - hardware
+  - relay
+  - tutorial
+---
+
+If you've ever wanted to control a lamp, fan, or pump from your phone, a smart relay is one of the most satisfying projects you can build. With an ESP32 and a handful of components, you can have a Wi-Fi-controlled switch running in an afternoon.
+
+## Why ESP32?
+
+The ESP32 is an excellent fit for relay projects. It has built-in Wi-Fi and Bluetooth, plenty of GPIO pins, and enough processing power to run a small web server alongside your relay logic. Compared to an Arduino + Wi-Fi shield combo, the ESP32 is cheaper, smaller, and more capable.
+
+## The Circuit
+
+The core of the build is simple: the ESP32 drives a GPIO pin high or low, which controls an optocoupler or transistor connected to the relay coil. The relay then switches your mains-powered device. Always use an optocoupler or relay module with built-in isolation — never connect mains voltage directly to your microcontroller circuit.
+
+A typical parts list looks like this:
+
+- ESP32 dev board (any variant with exposed GPIO)
+- 5V relay module with optocoupler
+- 5V power supply (or USB power)
+- Screw terminals for load wiring
+- Jumper wires and a breadboard for prototyping
+
+## Firmware Approach
+
+For the firmware, you have a few options. You can write bare-metal C with the ESP-IDF, use the Arduino framework for simplicity, or go with MicroPython if you prefer scripting. We chose the Arduino framework for this build because it strikes a good balance between control and development speed.
+
+The firmware runs a lightweight HTTP server on the ESP32. A simple REST API exposes endpoints to toggle the relay, check its state, and update configuration. For production use, you'd want to add authentication — even a basic API key check prevents unauthorized access on your local network.
+
+## OTA Updates
+
+One feature worth adding early is over-the-air (OTA) firmware updates. Once the relay is installed behind a wall plate or inside an enclosure, you don't want to pull it apart every time you fix a bug. The ESP32's OTA libraries make this straightforward.
+
+## What's Next
+
+In a future post, we'll cover adding MQTT support so the relay integrates with Home Assistant and other automation platforms. We'll also look at designing a custom PCB to replace the breadboard prototype with something you can actually mount in an enclosure.

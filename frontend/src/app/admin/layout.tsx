@@ -50,24 +50,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen">
       <nav className="border-b border-border bg-surface">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-6">
-              <Link href="/admin" className="font-semibold text-accent">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[3.5rem] py-2">
+            <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto">
+              <Link href="/admin" className="font-semibold text-accent shrink-0">
                 Admin
               </Link>
-              <div className="flex gap-4 text-sm">
-                <Link href="/admin/tools" className="text-muted hover:text-foreground transition-colors">
+              <div className="flex gap-3 sm:gap-4 text-sm">
+                <Link href="/admin/tools" className="text-muted hover:text-foreground transition-colors whitespace-nowrap">
                   Tools
                 </Link>
-                <Link href="/admin/projects" className="text-muted hover:text-foreground transition-colors">
+                <Link href="/admin/projects" className="text-muted hover:text-foreground transition-colors whitespace-nowrap">
                   Projects
                 </Link>
-                <Link href="/admin/contacts" className="text-muted hover:text-foreground transition-colors">
+                <Link href="/admin/contacts" className="text-muted hover:text-foreground transition-colors whitespace-nowrap">
                   Contacts
+                </Link>
+                <Link href="/admin/webhooks" className="text-muted hover:text-foreground transition-colors whitespace-nowrap">
+                  Webhooks
                 </Link>
               </div>
             </div>
-            <Link href="/" className="text-sm text-muted hover:text-foreground transition-colors">
+            <Link href="/" className="text-sm text-muted hover:text-foreground transition-colors shrink-0">
               Back to site
             </Link>
           </div>

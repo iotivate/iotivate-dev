@@ -1,9 +1,10 @@
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.database import get_session
@@ -48,20 +49,31 @@ def project_to_dict(project: Project) -> dict:
 
 @router.get("/")
 @limiter.limit("30/minute")
-def list_projects(request: Request, session: Session = Depends(get_session)) -> list[dict]:
+def list_projects(
+    request: Request,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_session),
+) -> dict:
     # Only return published projects for public API
-    projects = session.exec(select(Project).where(Project.is_published == True)).all()
-    # Return basic info for listing
-    return [
-        {
-            "id": p.id,
-            "slug": p.slug,
-            "name": p.name,
-            "description": p.description,
-            "tags": p.tags,
-        }
-        for p in projects
-    ]
+    base_query = select(Project).where(Project.is_published == True)
+    total = session.exec(select(func.count()).select_from(base_query.subquery())).one()
+    projects = session.exec(base_query.offset(skip).limit(limit)).all()
+    return {
+        "items": [
+            {
+                "id": p.id,
+                "slug": p.slug,
+                "name": p.name,
+                "description": p.description,
+                "tags": p.tags,
+            }
+            for p in projects
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.get("/{slug}")
