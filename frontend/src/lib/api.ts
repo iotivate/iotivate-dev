@@ -85,7 +85,8 @@ async function fetchAPI<T>(path: string): Promise<T | null> {
     const res = await fetch(`${API_URL}${path}`, { next: { revalidate: 60 } });
     if (!res.ok) return null;
     return res.json();
-  } catch {
+  } catch (error) {
+    console.error(`[API] Failed to fetch ${path}:`, error);
     return null;
   }
 }

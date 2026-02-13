@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     smtp_to_email: str = ""
     smtp_use_tls: bool = True
 
+    # Logging
+    log_level: str = "INFO"
+
     # Frontend URL (for password reset links)
     frontend_url: str = "http://localhost:3000"
 

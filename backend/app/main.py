@@ -1,6 +1,8 @@
 import logging
 import os
 import re
+import time
+import traceback
 from contextlib import asynccontextmanager
 
 from alembic import command
@@ -15,6 +17,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.database import engine
+from app.logging_config import setup_logging
 from app.api.tools import router as tools_router
 from app.api.projects import router as projects_router
 from app.api.contact import router as contact_router
@@ -22,6 +25,9 @@ from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
 from app.api.upload import router as upload_router
 from app.api.checkout import router as checkout_router
+
+# Configure logging before anything else
+setup_logging(settings.log_level)
 
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
@@ -98,6 +104,40 @@ app = FastAPI(
 # Add rate limiter to app state
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    if request.url.path == "/health":
+        return await call_next(request)
+
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.error(
+            "Unhandled exception during request %s %s\n%s",
+            request.method,
+            request.url.path,
+            traceback.format_exc(),
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
+
+    duration_ms = (time.perf_counter() - start) * 1000
+    log_msg = "%s %s %d %.1fms"
+    log_args = (request.method, request.url.path, response.status_code, duration_ms)
+
+    if response.status_code >= 500:
+        logger.error(log_msg, *log_args)
+    elif response.status_code >= 400:
+        logger.warning(log_msg, *log_args)
+    else:
+        logger.info(log_msg, *log_args)
+
+    return response
+
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
