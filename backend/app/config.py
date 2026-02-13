@@ -17,6 +17,19 @@ class Settings(BaseSettings):
     r2_bucket_name: str = "iotivate-files"
     r2_public_url: str = ""  # e.g., https://files.iotivate.dev
 
+    # Lemon Squeezy settings
+    lemonsqueezy_api_key: str = ""
+    lemonsqueezy_store_id: str = ""
+    lemonsqueezy_webhook_secret: str = ""
+
+    @property
+    def ls_configured(self) -> bool:
+        return bool(
+            self.lemonsqueezy_api_key
+            and self.lemonsqueezy_store_id
+            and self.lemonsqueezy_webhook_secret
+        )
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]

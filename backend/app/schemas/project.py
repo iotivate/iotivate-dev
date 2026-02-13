@@ -41,6 +41,7 @@ class FirmwareData(BaseModel):
     features: list[str] = Field(default_factory=list)
     firmwareUrl: str | None = Field(default=None, max_length=2000)
     sourceCodeUrl: str | None = Field(default=None, max_length=2000)
+    variantId: str | None = Field(default=None, max_length=50)
 
 
 class AppData(BaseModel):

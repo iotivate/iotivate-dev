@@ -36,6 +36,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
 
 // Example: A simpler project without STL files or companion app
 const projectData: ProjectData = {
+  slug: "wirelessear",
   title: "WirelessEar",
   description: "Wireless audio monitoring system built with ESP32. Stream audio over Wi-Fi with minimal latency.",
 

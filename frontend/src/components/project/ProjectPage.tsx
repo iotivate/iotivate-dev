@@ -10,6 +10,7 @@ import AppDownload from "./AppDownload";
 
 export interface ProjectData {
   // Basic info (required)
+  slug: string;
   title: string;
   description: string;
 
@@ -48,6 +49,7 @@ export interface ProjectData {
     features?: string[];
     firmwareUrl?: string;
     sourceCodeUrl?: string;
+    variantId?: string;
   };
 
   // App (optional)
@@ -149,6 +151,8 @@ export default function ProjectPage({ data }: ProjectPageProps) {
                 features={data.firmware.features}
                 firmwareUrl={data.firmware.firmwareUrl}
                 sourceCodeUrl={data.firmware.sourceCodeUrl}
+                projectSlug={data.slug}
+                variantId={data.firmware.variantId}
               />
             )}
             {data.app && (

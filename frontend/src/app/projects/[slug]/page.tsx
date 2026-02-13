@@ -11,6 +11,7 @@ interface Props {
 
 function transformToProjectData(project: Project): ProjectData {
   return {
+    slug: project.slug,
     title: project.name,
     description: project.description,
     youtubeId: project.youtube_id,

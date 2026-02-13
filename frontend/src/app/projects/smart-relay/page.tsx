@@ -7,6 +7,7 @@ export const metadata: Metadata = {
 };
 
 const projectData: ProjectData = {
+  slug: "smart-relay",
   title: "Smart Relay",
   description: "WiFi-controlled power switch with scheduling, monitoring, and app control. Perfect for home automation.",
 

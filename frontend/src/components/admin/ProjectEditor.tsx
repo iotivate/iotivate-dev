@@ -51,6 +51,7 @@ interface ProjectFormData {
     features: string[];
     firmwareUrl: string;
     sourceCodeUrl: string;
+    variantId: string;
   } | null;
   app: {
     name: string;
@@ -108,6 +109,7 @@ function mergeFormData(initial?: Partial<ProjectFormData>): ProjectFormData {
           features: initial.firmware.features ?? [],
           firmwareUrl: initial.firmware.firmwareUrl ?? "",
           sourceCodeUrl: initial.firmware.sourceCodeUrl ?? "",
+          variantId: initial.firmware.variantId ?? "",
         }
       : null,
   };
@@ -748,7 +750,7 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
                 setForm({
                   ...form,
                   firmware: e.target.checked
-                    ? { name: "", version: "1.0.0", price: 0, features: [], firmwareUrl: "", sourceCodeUrl: "" }
+                    ? { name: "", version: "1.0.0", price: 0, features: [], firmwareUrl: "", sourceCodeUrl: "", variantId: "" }
                     : null,
                 })
               }
@@ -852,6 +854,21 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
                   className="w-full px-3 py-2 bg-background border border-border rounded-lg"
                 />
                 <p className="text-xs text-muted mt-1">GitHub repo or direct ZIP link for source code</p>
+              </div>
+
+              {/* Lemon Squeezy Variant ID */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Lemon Squeezy Variant ID</label>
+                <input
+                  type="text"
+                  value={form.firmware.variantId}
+                  onChange={(e) =>
+                    setForm({ ...form, firmware: { ...form.firmware!, variantId: e.target.value } })
+                  }
+                  placeholder="123456"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg"
+                />
+                <p className="text-xs text-muted mt-1">From Lemon Squeezy dashboard — required for paid firmware</p>
               </div>
             </div>
           )}

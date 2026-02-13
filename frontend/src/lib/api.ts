@@ -43,6 +43,7 @@ export interface FirmwareData {
   features?: string[];
   firmwareUrl?: string;
   sourceCodeUrl?: string;
+  variantId?: string;
 }
 
 export interface AppData {
