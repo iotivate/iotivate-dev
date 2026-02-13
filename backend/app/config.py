@@ -22,6 +22,18 @@ class Settings(BaseSettings):
     admin_username: str = ""
     admin_password: str = ""
 
+    # SMTP settings (for contact form notifications)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_to_email: str = ""
+    smtp_use_tls: bool = True
+
+    # Frontend URL (for password reset links)
+    frontend_url: str = "http://localhost:3000"
+
     # Lemon Squeezy settings
     lemonsqueezy_api_key: str = ""
     lemonsqueezy_store_id: str = ""
@@ -34,6 +46,10 @@ class Settings(BaseSettings):
             and self.lemonsqueezy_store_id
             and self.lemonsqueezy_webhook_secret
         )
+
+    @property
+    def smtp_configured(self) -> bool:
+        return bool(self.smtp_host and self.smtp_user and self.smtp_password and self.smtp_to_email)
 
     @property
     def admin_bootstrap_configured(self) -> bool:

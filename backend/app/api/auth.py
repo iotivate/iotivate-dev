@@ -8,8 +8,23 @@ from slowapi.util import get_remote_address
 
 from app.database import get_session
 from app.models.user import User
-from app.schemas.auth import RegisterRequest, TokenResponse, UserResponse
-from app.auth import hash_password, verify_password, create_access_token, get_current_user
+from app.config import settings
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    TokenResponse,
+    UserResponse,
+)
+from app.auth import (
+    create_access_token,
+    create_reset_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+    verify_reset_token,
+)
+from app.services.email import send_password_reset_email
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +87,42 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), session
     token = create_access_token({"sub": user.username})
     logger.info("User logged in: %s", user.username)
     return TokenResponse(access_token=token)
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+@limiter.limit("3/minute")
+def forgot_password(
+    request: Request,
+    data: ForgotPasswordRequest,
+    session: Session = Depends(get_session),
+):
+    """Send a password reset email. Always returns success to avoid leaking user existence."""
+    user = session.exec(select(User).where(User.email == data.email)).first()
+    if user:
+        token = create_reset_token(user)
+        reset_url = f"{settings.frontend_url}/reset-password?token={token}"
+        send_password_reset_email(user.email, reset_url)
+        logger.info("Password reset email sent for user: %s", user.username)
+    else:
+        logger.info("Password reset requested for non-existent email: %s", data.email)
+
+    return {"message": "If an account with that email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
+def reset_password(
+    request: Request,
+    data: ResetPasswordRequest,
+    session: Session = Depends(get_session),
+):
+    """Reset a user's password using a valid reset token."""
+    user = verify_reset_token(data.token, session)
+    user.hashed_password = hash_password(data.password)
+    session.add(user)
+    session.commit()
+    logger.info("Password reset successfully for user: %s", user.username)
+    return {"message": "Password has been reset successfully."}
 
 
 @router.get("/me", response_model=UserResponse)
