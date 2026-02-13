@@ -1,7 +1,10 @@
 import logging
+import os
 import re
 from contextlib import asynccontextmanager
 
+from alembic import command
+from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlmodel import Session, select
 
 from app.config import settings
-from app.database import create_db_and_tables, engine
+from app.database import engine
 from app.api.tools import router as tools_router
 from app.api.projects import router as projects_router
 from app.api.contact import router as contact_router
@@ -71,9 +74,16 @@ def _bootstrap_admin() -> None:
         logger.info("Admin user '%s' created via bootstrap", username)
 
 
+def _run_migrations() -> None:
+    """Run Alembic migrations to head."""
+    alembic_ini = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
+    alembic_cfg = AlembicConfig(alembic_ini)
+    command.upgrade(alembic_cfg, "head")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_db_and_tables()
+    _run_migrations()
     _bootstrap_admin()
     yield
 
