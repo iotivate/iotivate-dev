@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, authFetch } from "@/lib/auth";
 
 interface Contact {
   id: number;
@@ -26,9 +26,7 @@ export default function AdminContacts() {
   async function fetchContacts() {
     if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/api/admin/contacts`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(`${API_URL}/api/admin/contacts`);
       if (res.ok) {
         setContacts(await res.json());
       }
@@ -42,9 +40,8 @@ export default function AdminContacts() {
   async function handleDelete(id: number) {
     if (!confirm("Delete this message?")) return;
     try {
-      const res = await fetch(`${API_URL}/api/admin/contacts/${id}`, {
+      const res = await authFetch(`${API_URL}/api/admin/contacts/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         fetchContacts();

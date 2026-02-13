@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, authFetch } from "@/lib/auth";
 
 interface Tool {
   id: number;
@@ -31,9 +31,7 @@ export default function AdminTools() {
   async function fetchTools() {
     if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/api/admin/tools`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authFetch(`${API_URL}/api/admin/tools`);
       if (res.ok) {
         setTools(await res.json());
       }
@@ -48,12 +46,9 @@ export default function AdminTools() {
     e.preventDefault();
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/admin/tools`, {
+      const res = await authFetch(`${API_URL}/api/admin/tools`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       if (res.ok) {
@@ -75,12 +70,9 @@ export default function AdminTools() {
     if (!tool) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/tools/${id}`, {
+      const res = await authFetch(`${API_URL}/api/admin/tools/${id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: tool.name,
           description: tool.description,
@@ -102,9 +94,8 @@ export default function AdminTools() {
   async function handleDelete(id: number) {
     if (!confirm("Delete this tool?")) return;
     try {
-      const res = await fetch(`${API_URL}/api/admin/tools/${id}`, {
+      const res = await authFetch(`${API_URL}/api/admin/tools/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         fetchTools();

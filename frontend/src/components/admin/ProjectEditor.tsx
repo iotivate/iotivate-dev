@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
+import { useAuth, authFetch } from "@/lib/auth";
 import FilePicker, {
   StagedFilePreview,
   FilePreview,
@@ -247,12 +247,9 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
         build_guide: form.build_guide.length > 0 ? form.build_guide : null,
       };
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method: isEdit ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 

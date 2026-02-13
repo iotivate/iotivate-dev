@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { authFetch } from "@/lib/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -18,10 +19,11 @@ export interface UploadResult {
 }
 
 // Upload utility function - called from ProjectEditor on submit
+// token parameter kept for backward compatibility but authFetch reads it from localStorage
 export async function uploadStagedFiles(
   files: StagedFile[],
   folder: string,
-  token: string,
+  _token: string,
   onProgress?: (current: number, total: number, filename: string) => void
 ): Promise<UploadResult[]> {
   const results: UploadResult[] = [];
@@ -33,9 +35,8 @@ export async function uploadStagedFiles(
     formData.append("file", files[i].file);
     formData.append("folder", folder);
 
-    const res = await fetch(`${API_URL}/api/upload`, {
+    const res = await authFetch(`${API_URL}/api/upload`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
 

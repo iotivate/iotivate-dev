@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
 from slowapi import Limiter
@@ -17,11 +17,14 @@ from app.schemas.auth import (
     UserResponse,
 )
 from app.auth import (
+    REFRESH_TOKEN_EXPIRE_DAYS,
     create_access_token,
+    create_refresh_token,
     create_reset_token,
     get_current_user,
     hash_password,
     verify_password,
+    verify_refresh_token,
     verify_reset_token,
 )
 from app.services.email import send_password_reset_email
@@ -64,9 +67,26 @@ def register(request: Request, data: RegisterRequest, session: Session = Depends
     return user
 
 
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key="refresh_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/api/auth",
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+    )
+
+
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+def login(
+    request: Request,
+    response: Response,
+    form: OAuth2PasswordRequestForm = Depends(),
+    session: Session = Depends(get_session),
+):
     user = session.exec(select(User).where(User.username == form.username)).first()
 
     # Always run password verification to prevent timing attacks that reveal user existence
@@ -84,9 +104,43 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), session
             detail="Invalid credentials",
         )
 
-    token = create_access_token({"sub": user.username})
+    access_token = create_access_token({"sub": user.username})
+    refresh_token = create_refresh_token(user)
+    _set_refresh_cookie(response, refresh_token)
     logger.info("User logged in: %s", user.username)
-    return TokenResponse(access_token=token)
+    return TokenResponse(access_token=access_token)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("30/minute")
+def refresh(
+    request: Request,
+    response: Response,
+    session: Session = Depends(get_session),
+    refresh_token: str | None = Cookie(default=None),
+):
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No refresh token",
+        )
+    user = verify_refresh_token(refresh_token, session)
+    new_access_token = create_access_token({"sub": user.username})
+    new_refresh_token = create_refresh_token(user)
+    _set_refresh_cookie(response, new_refresh_token)
+    return TokenResponse(access_token=new_access_token)
+
+
+@router.post("/logout", status_code=status.HTTP_200_OK)
+def logout(response: Response):
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/api/auth",
+    )
+    return {"message": "Logged out"}
 
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)

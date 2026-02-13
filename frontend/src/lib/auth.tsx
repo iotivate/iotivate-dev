@@ -28,8 +28,40 @@ interface AuthContextType {
   logout: () => void;
 }
 
+let refreshPromise: Promise<string | null> | null = null;
+
+async function tryRefresh(): Promise<string | null> {
+  // Deduplicate concurrent refresh attempts
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const newToken = data.access_token;
+        localStorage.setItem(TOKEN_KEY, newToken);
+        return newToken;
+      }
+    } catch {
+      // refresh failed
+    }
+    return null;
+  })();
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
 /**
- * Authenticated fetch wrapper that auto-logs out on 401.
+ * Authenticated fetch wrapper with automatic token refresh.
+ * On 401, attempts a silent refresh once; if that fails, redirects to login.
  * Use this for all admin API calls.
  */
 export async function authFetch(
@@ -45,6 +77,15 @@ export async function authFetch(
   const res = await fetch(url, { ...options, headers });
 
   if (res.status === 401) {
+    const newToken = await tryRefresh();
+    if (newToken) {
+      // Retry the original request with the new token
+      const retryHeaders = new Headers(options.headers);
+      retryHeaders.set("Authorization", `Bearer ${newToken}`);
+      return fetch(url, { ...options, headers: retryHeaders });
+    }
+
+    // Refresh failed — clear state and redirect
     localStorage.removeItem(TOKEN_KEY);
     window.location.href = "/admin/login";
   }
@@ -76,13 +117,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY);
-    if (stored) {
-      setToken(stored);
-      fetchUser(stored).finally(() => setIsLoading(false));
-    } else {
+    async function init() {
+      const stored = localStorage.getItem(TOKEN_KEY);
+      if (stored) {
+        setToken(stored);
+        const ok = await fetchUser(stored);
+        if (!ok) {
+          // Access token expired — try refresh
+          const newToken = await tryRefresh();
+          if (newToken) {
+            setToken(newToken);
+            await fetchUser(newToken);
+          } else {
+            localStorage.removeItem(TOKEN_KEY);
+            setToken(null);
+          }
+        }
+      }
       setIsLoading(false);
     }
+    init();
   }, [fetchUser]);
 
   const login = async (username: string, password: string) => {
@@ -91,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ username, password }),
+        credentials: "include",
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -125,7 +180,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Best-effort cookie clear
+    }
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setUser(null);

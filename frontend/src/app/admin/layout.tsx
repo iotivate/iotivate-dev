@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth";
+import { useAuth, authFetch } from "@/lib/auth";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { token, isLoading } = useAuth();
@@ -19,9 +19,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     // Check if user is admin
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    authFetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/admin/me`)
       .then((res) => {
         if (res.ok) {
           setIsAdmin(true);

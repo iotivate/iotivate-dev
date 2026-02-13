@@ -11,7 +11,8 @@ from app.database import get_session
 from app.models.user import User
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 RESET_TOKEN_EXPIRE_MINUTES = 15
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
@@ -30,6 +31,36 @@ def create_access_token(data: dict) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.secret_key, algorithm=ALGORITHM)
+
+
+def create_refresh_token(user: User) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    return jwt.encode(
+        {"sub": user.username, "purpose": "refresh", "exp": expire},
+        settings.secret_key,
+        algorithm=ALGORITHM,
+    )
+
+
+def verify_refresh_token(token: str, session: Session) -> User:
+    credentials_exc = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired refresh token",
+    )
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+        if payload.get("purpose") != "refresh":
+            raise credentials_exc
+        username: str | None = payload.get("sub")
+        if username is None:
+            raise credentials_exc
+    except JWTError:
+        raise credentials_exc
+
+    user = session.exec(select(User).where(User.username == username)).first()
+    if user is None:
+        raise credentials_exc
+    return user
 
 
 def get_current_user(
