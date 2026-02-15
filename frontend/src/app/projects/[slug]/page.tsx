@@ -27,9 +27,9 @@ function transformToProjectData(project: Project): ProjectData {
 }
 
 export async function generateStaticParams() {
-  const projects = await getProjects();
-  if (!projects) return [];
-  return projects.map((p) => ({ slug: p.slug }));
+  const response = await getProjects();
+  if (!response) return [];
+  return response.items.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

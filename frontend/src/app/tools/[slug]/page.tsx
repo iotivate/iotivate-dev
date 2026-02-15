@@ -30,9 +30,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export async function generateStaticParams() {
-  const tools = await getTools();
-  if (!tools) return [];
-  return tools.map((tool) => ({ slug: tool.slug }));
+  const response = await getTools();
+  if (!response) return [];
+  return response.items.map((tool) => ({ slug: tool.slug }));
 }
 
 export default async function ToolPage({ params }: Props) {
