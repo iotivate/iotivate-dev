@@ -82,5 +82,5 @@ services:
           envVarKey: RENDER_EXTERNAL_URL
       - key: NEXT_PUBLIC_SITE_URL
         value: https://iotivate.dev
-      - key: NEXT_PUBLIC_PLAUSIBLE_DOMAIN
+      - key: NEXT_PUBLIC_CF_ANALYTICS_TOKEN
         sync: false

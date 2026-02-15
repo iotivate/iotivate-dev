@@ -38,11 +38,11 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
-        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN && (
+        {process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN && (
           <script
             defer
-            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
-            src="https://plausible.io/js/script.js"
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon={`{"token": "${process.env.NEXT_PUBLIC_CF_ANALYTICS_TOKEN}"}`}
           />
         )}
       </head>
