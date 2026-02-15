@@ -17,7 +17,7 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: iotivate-db
-          property: connectionURI
+          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: CORS_ORIGINS
