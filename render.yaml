@@ -1,6 +1,6 @@
 databases:
   - name: iotivate-db
-    plan: basic-256mb
+    plan: free
     databaseName: iotivate
     user: iotivate
 
@@ -11,7 +11,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: starter
+    plan: free
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -73,7 +73,7 @@ services:
     runtime: docker
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
-    plan: starter
+    plan: free
     envVars:
       - key: NEXT_PUBLIC_API_URL
         fromService:
