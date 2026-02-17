@@ -30,7 +30,7 @@ const securityHeaders = [
       "font-src 'self'",
       "img-src 'self' data: blob:",
       "frame-src https://www.youtube.com https://app.lemonsqueezy.com",
-      `connect-src 'self' https://app.lemonsqueezy.com ${process.env.NEXT_PUBLIC_API_URL || ''}`.trim(),
+      "connect-src 'self' https://app.lemonsqueezy.com https://iotivate-backend.onrender.com",
       "frame-ancestors 'none'",
     ].join("; "),
   },
