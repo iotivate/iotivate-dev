@@ -8,17 +8,6 @@ export const metadata: Metadata = {
   description: "Web-based IoT and ESP32 tools — flash firmware, configure devices, and more.",
 };
 
-const fallbackTools = [
-  {
-    id: 1,
-    slug: "esp32-web-flasher",
-    name: "ESP32 Web Flasher",
-    description:
-      "Flash ESP32 firmware directly from your browser using Web Serial API. No drivers or desktop tools needed.",
-    status: "active",
-  },
-];
-
 function statusLabel(status: string): string {
   const labels: Record<string, string> = {
     coming_soon: "Coming Soon",
@@ -30,7 +19,7 @@ function statusLabel(status: string): string {
 
 export default async function ToolsPage() {
   const result = await getTools();
-  const tools: Tool[] = result?.items || fallbackTools;
+  const tools: Tool[] = result?.items || [];
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">

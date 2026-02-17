@@ -8,20 +8,9 @@ export const metadata: Metadata = {
   description: "Real IoT projects built with ESP32 — documented builds with source code and schematics.",
 };
 
-const fallbackProjects: Partial<Project>[] = [
-  {
-    id: 1,
-    slug: "wirelessear",
-    name: "WirelessEar",
-    description:
-      "A wireless audio monitoring system built with ESP32. Stream audio over Wi-Fi with minimal latency.",
-    tags: "ESP32,Audio,Wi-Fi",
-  },
-];
-
 export default async function ProjectsPage() {
   const result = await getProjects();
-  const projects = result?.items || fallbackProjects;
+  const projects = result?.items || [];
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
