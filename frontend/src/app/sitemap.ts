@@ -42,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const projectEntries: MetadataRoute.Sitemap = [];
   const projects = await getProjects();
   if (projects) {
-    for (const project of projects) {
+    for (const project of projects.items) {
       projectEntries.push({
         url: `${SITE_URL}/projects/${project.slug}`,
         changeFrequency: "monthly",
@@ -54,7 +54,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const toolEntries: MetadataRoute.Sitemap = [];
   const tools = await getTools();
   if (tools) {
-    for (const tool of tools) {
+    for (const tool of tools.items) {
       if (tool.status === "active" || tool.status === "beta") {
         toolEntries.push({
           url: `${SITE_URL}/tools/${tool.slug}`,
