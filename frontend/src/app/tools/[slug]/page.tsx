@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import PageHeader from "@/components/PageHeader";
 import WebFlasher from "@/components/WebFlasher";
+import { PinPlanner } from "@/components/pin-planner";
 import SerialMonitorWithPro from "./SerialMonitorWithPro";
 import { getTool, getTools } from "@/lib/api";
 
@@ -9,6 +10,7 @@ import { getTool, getTools } from "@/lib/api";
 const TOOL_COMPONENTS: Record<string, React.ComponentType> = {
   "esp32-web-flasher": WebFlasher,
   "serial-monitor": SerialMonitorWithPro,
+  "esp32-pin-planner": PinPlanner,
 };
 
 interface Props {
