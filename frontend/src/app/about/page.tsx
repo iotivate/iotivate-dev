@@ -4,6 +4,7 @@ import PageHeader from "@/components/PageHeader";
 export const metadata: Metadata = {
   title: "About",
   description: "About iotivate — building practical IoT tools and firmware.",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {

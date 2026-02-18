@@ -32,15 +32,34 @@ export async function generateStaticParams() {
   return response.items.map((p) => ({ slug: p.slug }));
 }
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://iotivate.dev";
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const project = await getProject(slug);
   if (!project) {
     return { title: "Project Not Found" };
   }
+
+  const url = `${SITE_URL}/projects/${slug}`;
+
   return {
     title: project.name,
     description: project.description,
+    openGraph: {
+      title: `${project.name} | iotivate.dev`,
+      description: project.description,
+      url,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${project.name} | iotivate.dev`,
+      description: project.description,
+    },
+    alternates: {
+      canonical: url,
+    },
   };
 }
 

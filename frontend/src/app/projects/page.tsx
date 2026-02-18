@@ -6,6 +6,7 @@ import { getProjects, type Project } from "@/lib/api";
 export const metadata: Metadata = {
   title: "Projects",
   description: "Real IoT projects built with ESP32 — documented builds with source code and schematics.",
+  alternates: { canonical: "/projects" },
 };
 
 export default async function ProjectsPage() {

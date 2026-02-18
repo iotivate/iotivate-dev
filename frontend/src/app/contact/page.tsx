@@ -5,6 +5,7 @@ import ContactForm from "@/components/ContactForm";
 export const metadata: Metadata = {
   title: "Contact",
   description: "Get in touch with the iotivate team.",
+  alternates: { canonical: "/contact" },
 };
 
 export default function ContactPage() {

@@ -6,6 +6,7 @@ import { getTools, type Tool } from "@/lib/api";
 export const metadata: Metadata = {
   title: "Tools",
   description: "Web-based IoT and ESP32 tools — flash firmware, configure devices, and more.",
+  alternates: { canonical: "/tools" },
 };
 
 function statusLabel(status: string): string {

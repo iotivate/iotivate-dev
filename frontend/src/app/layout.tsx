@@ -15,17 +15,38 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://iotivate.dev";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "iotivate.dev — Simplifying IoT, One Module at a Time",
     template: "%s | iotivate.dev",
   },
   description:
     "We build practical tools, firmware, and hardware that make ESP32 and IoT projects easier to create, share, and deploy.",
-  keywords: ["IoT", "ESP32", "firmware", "web flasher", "tools", "hardware"],
+  keywords: ["IoT", "ESP32", "firmware", "web flasher", "tools", "hardware", "pin planner", "serial monitor"],
   icons: {
     icon: "/favicon-32.png",
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "iotivate.dev",
+    locale: "en_US",
+    title: "iotivate.dev — Simplifying IoT, One Module at a Time",
+    description:
+      "Practical web-based tools, firmware, and hardware for ESP32 and IoT projects. No installs required.",
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "iotivate.dev — Simplifying IoT, One Module at a Time",
+    description:
+      "Practical web-based tools, firmware, and hardware for ESP32 and IoT projects. No installs required.",
+  },
+  alternates: {
+    canonical: SITE_URL,
   },
 };
 

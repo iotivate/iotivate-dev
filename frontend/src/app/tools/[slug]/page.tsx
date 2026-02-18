@@ -17,6 +17,8 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://iotivate.dev";
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const tool = await getTool(slug);
@@ -25,9 +27,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Tool Not Found" };
   }
 
+  const url = `${SITE_URL}/tools/${slug}`;
+
   return {
     title: tool.name,
     description: tool.description,
+    openGraph: {
+      title: `${tool.name} | iotivate.dev`,
+      description: tool.description,
+      url,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${tool.name} | iotivate.dev`,
+      description: tool.description,
+    },
+    alternates: {
+      canonical: url,
+    },
   };
 }
 
