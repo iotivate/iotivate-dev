@@ -79,7 +79,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
       label: "EN Button",
       description: "Reset button — pulls EN pin low to restart the chip",
       specs: [{ label: "Function", value: "Hardware reset" }],
-      bounds: { x: 145, y: 310, w: 30, h: 20 },
+      bounds: { x: 170, y: 306, w: 26, h: 26 },
     },
     {
       id: "btn-boot",
@@ -90,7 +90,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
         { label: "Function", value: "GPIO0 → GND" },
         { label: "Use", value: "Enter download mode" },
       ],
-      bounds: { x: 345, y: 310, w: 30, h: 20 },
+      bounds: { x: 324, y: 306, w: 26, h: 26 },
     },
     {
       id: "led",

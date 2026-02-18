@@ -41,24 +41,24 @@ export const esp32S3DevKitC: BoardVariant = {
     {
       id: "usb-otg",
       type: "usb-micro",
-      label: "USB-OTG Port",
+      label: "USB-OTG",
       description: "Native USB OTG port for programming and USB device/host mode",
       specs: [
         { label: "Type", value: "USB 1.1 OTG" },
         { label: "Pins", value: "GPIO19 (D-), GPIO20 (D+)" },
       ],
-      bounds: { x: 225, y: 620, w: 70, h: 35 },
+      bounds: { x: 170, y: 680, w: 65, h: 25 },
     },
     {
       id: "usb-uart",
       type: "usb-micro",
-      label: "USB-UART Port",
+      label: "USB-UART",
       description: "USB-to-UART bridge for serial communication and programming",
       specs: [
         { label: "Interface", value: "USB 2.0 Full Speed" },
         { label: "Baud Rate", value: "Up to 921600" },
       ],
-      bounds: { x: 225, y: 660, w: 70, h: 35 },
+      bounds: { x: 285, y: 680, w: 65, h: 25 },
     },
     {
       id: "antenna",
@@ -88,7 +88,7 @@ export const esp32S3DevKitC: BoardVariant = {
       label: "BOOT Button",
       description: "Boot mode select — hold during reset to enter download mode (GPIO0)",
       specs: [{ label: "Function", value: "GPIO0 → GND" }],
-      bounds: { x: 345, y: 500, w: 30, h: 20 },
+      bounds: { x: 324, y: 497, w: 26, h: 26 },
     },
     {
       id: "btn-rst",
@@ -96,7 +96,7 @@ export const esp32S3DevKitC: BoardVariant = {
       label: "RST Button",
       description: "Reset button — restarts the chip",
       specs: [{ label: "Function", value: "Hardware reset" }],
-      bounds: { x: 145, y: 500, w: 30, h: 20 },
+      bounds: { x: 170, y: 497, w: 26, h: 26 },
     },
   ],
   pins: [

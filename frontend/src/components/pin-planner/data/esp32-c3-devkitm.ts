@@ -78,7 +78,7 @@ export const esp32C3DevKitM: BoardVariant = {
       label: "BOOT Button",
       description: "Boot mode select (GPIO9)",
       specs: [{ label: "Function", value: "GPIO9 → GND" }],
-      bounds: { x: 345, y: 370, w: 30, h: 20 },
+      bounds: { x: 324, y: 368, w: 26, h: 26 },
     },
     {
       id: "btn-rst",
@@ -86,7 +86,7 @@ export const esp32C3DevKitM: BoardVariant = {
       label: "RST Button",
       description: "Reset button",
       specs: [{ label: "Function", value: "Hardware reset" }],
-      bounds: { x: 145, y: 370, w: 30, h: 20 },
+      bounds: { x: 170, y: 368, w: 26, h: 26 },
     },
   ],
   pins: [

@@ -47,7 +47,7 @@ function ComponentRenderer({
       return (
         <g {...wrapperProps}>
           {hitArea}
-          {/* Metal shield body */}
+          {/* Metal RF shield body */}
           <rect
             x={x}
             y={y}
@@ -55,10 +55,10 @@ function ComponentRenderer({
             height={h}
             rx={3}
             fill="url(#chip-body)"
-            stroke={isHighlighted ? "var(--color-accent)" : "#444"}
+            stroke={isHighlighted ? "var(--color-accent)" : "#aaa"}
             strokeWidth={isHighlighted ? 2 : 1}
           />
-          {/* Subtle inner bevel */}
+          {/* Subtle inner bevel / shine */}
           <rect
             x={x + 2}
             y={y + 2}
@@ -66,18 +66,18 @@ function ComponentRenderer({
             height={h - 4}
             rx={2}
             fill="none"
-            stroke="rgba(255,255,255,0.05)"
+            stroke="rgba(255,255,255,0.2)"
             strokeWidth={0.5}
           />
           {/* Pin-1 dot marker */}
-          <circle cx={x + 10} cy={y + 10} r={2.5} fill="#555" />
-          {/* Silkscreen label */}
+          <circle cx={x + 10} cy={y + 10} r={2.5} fill="rgba(0,0,0,0.25)" />
+          {/* Silkscreen label — dark on metal */}
           <text
             x={cx}
             y={cy - 4}
             textAnchor="middle"
             dominantBaseline="central"
-            fill={isHighlighted ? "var(--color-accent)" : "rgba(255,255,255,0.65)"}
+            fill={isHighlighted ? "var(--color-accent)" : "rgba(0,0,0,0.55)"}
             fontSize={9}
             fontFamily="ui-monospace, monospace"
             fontWeight={500}
@@ -90,7 +90,7 @@ function ComponentRenderer({
             y={cy + 10}
             textAnchor="middle"
             dominantBaseline="central"
-            fill="rgba(255,255,255,0.3)"
+            fill="rgba(0,0,0,0.3)"
             fontSize={7}
             fontFamily="ui-monospace, monospace"
             className="select-none pointer-events-none"
@@ -363,7 +363,7 @@ function ComponentRenderer({
             width={w}
             height={h}
             rx={2}
-            fill="url(#chip-body)"
+            fill="url(#ic-body)"
             stroke={isHighlighted ? "var(--color-accent)" : "#444"}
             strokeWidth={isHighlighted ? 1.5 : 0.75}
           />
@@ -421,14 +421,21 @@ export default function BoardSVG({
       aria-label={`${variant.name} pin diagram`}
     >
       <defs>
-        {/* Board gradient */}
+        {/* Board gradient — black PCB */}
         <linearGradient id="board-gradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" className="[stop-color:#1a5c2a] dark:[stop-color:#0f3d1a]" />
-          <stop offset="100%" className="[stop-color:#145222] dark:[stop-color:#0a2e14]" />
+          <stop offset="0%" className="[stop-color:#2a2a2a] dark:[stop-color:#1a1a1a]" />
+          <stop offset="100%" className="[stop-color:#222] dark:[stop-color:#141414]" />
         </linearGradient>
 
-        {/* Chip body gradient */}
+        {/* Chip metallic shield gradient */}
         <linearGradient id="chip-body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#b8b8b8" />
+          <stop offset="40%" stopColor="#969696" />
+          <stop offset="100%" stopColor="#787878" />
+        </linearGradient>
+
+        {/* Small IC body (dark) for LDO etc */}
+        <linearGradient id="ic-body" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#3a3a3a" />
           <stop offset="50%" stopColor="#222" />
           <stop offset="100%" stopColor="#1a1a1a" />
@@ -495,9 +502,9 @@ export default function BoardSVG({
         height={layout.boardHeight}
         rx={layout.cornerRadius}
         fill="url(#board-gradient)"
-        stroke="#0d3b15"
+        stroke="#333"
         strokeWidth={2}
-        className="dark:stroke-[#0a2e11]"
+        className="dark:stroke-[#222]"
       />
 
       {/* PCB edge highlight */}
