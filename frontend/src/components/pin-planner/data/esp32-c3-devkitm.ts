@@ -25,6 +25,7 @@ export const esp32C3DevKitM: BoardVariant = {
   components: [
     {
       id: "chip",
+      type: "chip",
       label: "ESP32-C3-MINI-1",
       description: "Single-core RISC-V Wi-Fi + BLE 5 SoC module",
       specs: [
@@ -39,6 +40,7 @@ export const esp32C3DevKitM: BoardVariant = {
     },
     {
       id: "usb",
+      type: "usb-c",
       label: "USB-C Port",
       description: "USB Serial/JTAG controller for programming and debugging",
       specs: [
@@ -50,6 +52,7 @@ export const esp32C3DevKitM: BoardVariant = {
     },
     {
       id: "antenna",
+      type: "antenna",
       label: "PCB Antenna",
       description: "Onboard PCB antenna for Wi-Fi and Bluetooth",
       specs: [
@@ -60,6 +63,7 @@ export const esp32C3DevKitM: BoardVariant = {
     },
     {
       id: "rgb-led",
+      type: "rgb-led",
       label: "Addressable RGB LED",
       description: "WS2812 RGB LED on GPIO8",
       specs: [
@@ -70,6 +74,7 @@ export const esp32C3DevKitM: BoardVariant = {
     },
     {
       id: "btn-boot",
+      type: "button",
       label: "BOOT Button",
       description: "Boot mode select (GPIO9)",
       specs: [{ label: "Function", value: "GPIO9 → GND" }],
@@ -77,6 +82,7 @@ export const esp32C3DevKitM: BoardVariant = {
     },
     {
       id: "btn-rst",
+      type: "button",
       label: "RST Button",
       description: "Reset button",
       specs: [{ label: "Function", value: "Hardware reset" }],

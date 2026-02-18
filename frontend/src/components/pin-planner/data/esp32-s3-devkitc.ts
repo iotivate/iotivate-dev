@@ -25,6 +25,7 @@ export const esp32S3DevKitC: BoardVariant = {
   components: [
     {
       id: "chip",
+      type: "chip",
       label: "ESP32-S3-WROOM-1",
       description: "Dual-core Xtensa LX7 Wi-Fi + BLE 5 SoC module with AI acceleration",
       specs: [
@@ -39,6 +40,7 @@ export const esp32S3DevKitC: BoardVariant = {
     },
     {
       id: "usb-otg",
+      type: "usb-micro",
       label: "USB-OTG Port",
       description: "Native USB OTG port for programming and USB device/host mode",
       specs: [
@@ -49,6 +51,7 @@ export const esp32S3DevKitC: BoardVariant = {
     },
     {
       id: "usb-uart",
+      type: "usb-micro",
       label: "USB-UART Port",
       description: "USB-to-UART bridge for serial communication and programming",
       specs: [
@@ -59,6 +62,7 @@ export const esp32S3DevKitC: BoardVariant = {
     },
     {
       id: "antenna",
+      type: "antenna",
       label: "PCB Antenna",
       description: "Onboard PCB antenna for Wi-Fi and Bluetooth",
       specs: [
@@ -69,6 +73,7 @@ export const esp32S3DevKitC: BoardVariant = {
     },
     {
       id: "rgb-led",
+      type: "rgb-led",
       label: "Addressable RGB LED",
       description: "WS2812 RGB LED on GPIO48",
       specs: [
@@ -79,6 +84,7 @@ export const esp32S3DevKitC: BoardVariant = {
     },
     {
       id: "btn-boot",
+      type: "button",
       label: "BOOT Button",
       description: "Boot mode select — hold during reset to enter download mode (GPIO0)",
       specs: [{ label: "Function", value: "GPIO0 → GND" }],
@@ -86,6 +92,7 @@ export const esp32S3DevKitC: BoardVariant = {
     },
     {
       id: "btn-rst",
+      type: "button",
       label: "RST Button",
       description: "Reset button — restarts the chip",
       specs: [{ label: "Function", value: "Hardware reset" }],

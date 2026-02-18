@@ -25,6 +25,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
   components: [
     {
       id: "chip",
+      type: "chip",
       label: "ESP32-WROOM-32",
       description: "Dual-core Xtensa LX6 Wi-Fi + Bluetooth SoC module",
       specs: [
@@ -38,6 +39,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
     },
     {
       id: "usb-uart",
+      type: "usb-micro",
       label: "CP2102 / CH340",
       description: "USB-to-UART bridge for programming and serial communication",
       specs: [
@@ -49,6 +51,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
     },
     {
       id: "antenna",
+      type: "antenna",
       label: "PCB Antenna",
       description: "Onboard PCB trace antenna for Wi-Fi and Bluetooth",
       specs: [
@@ -60,6 +63,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
     },
     {
       id: "ldo",
+      type: "ldo",
       label: "AMS1117-3.3",
       description: "3.3V low-dropout voltage regulator",
       specs: [
@@ -71,6 +75,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
     },
     {
       id: "btn-en",
+      type: "button",
       label: "EN Button",
       description: "Reset button — pulls EN pin low to restart the chip",
       specs: [{ label: "Function", value: "Hardware reset" }],
@@ -78,6 +83,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
     },
     {
       id: "btn-boot",
+      type: "button",
       label: "BOOT Button",
       description: "Boot mode button — hold during reset to enter flashing mode (GPIO0)",
       specs: [
@@ -88,6 +94,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
     },
     {
       id: "led",
+      type: "led",
       label: "Power LED",
       description: "Indicates 3.3V power rail is active",
       specs: [{ label: "Color", value: "Red" }],

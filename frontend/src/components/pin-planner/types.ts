@@ -22,6 +22,16 @@ export type FunctionCategory =
   | "flash"
   | "other";
 
+export type ComponentType =
+  | "chip"
+  | "usb-micro"
+  | "usb-c"
+  | "antenna"
+  | "led"
+  | "rgb-led"
+  | "button"
+  | "ldo";
+
 export type WarningSeverity = "info" | "warning" | "danger";
 
 export interface PinFunction {
@@ -48,6 +58,7 @@ export interface PinDefinition {
 
 export interface BoardComponent {
   id: string;
+  type: ComponentType;
   label: string;
   description: string;
   specs: { label: string; value: string }[];

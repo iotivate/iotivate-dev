@@ -31,6 +31,8 @@ export default function PinPad({
   const labelX = pin.side === "left" ? x - 6 : x + width + 6;
   const textAnchor = pin.side === "left" ? "end" : "start";
 
+  const inset = 3;
+
   return (
     <g
       data-pin-index={pin.position}
@@ -54,12 +56,25 @@ export default function PinPad({
         />
       )}
 
-      {/* Pin pad */}
+      {/* Outer metallic frame */}
       <rect
         x={x}
         y={y}
         width={width}
         height={height}
+        rx={3}
+        fill="url(#pin-metallic)"
+        stroke={isHighlighted ? "var(--color-accent)" : "#8a7a40"}
+        strokeWidth={0.75}
+        className="transition-all duration-150"
+      />
+
+      {/* Inner color fill */}
+      <rect
+        x={x + inset}
+        y={y + inset}
+        width={width - inset * 2}
+        height={height - inset * 2}
         rx={2}
         fill={isHighlighted ? "var(--color-accent)" : baseColor}
         opacity={isHighlighted ? 1 : 0.85}
