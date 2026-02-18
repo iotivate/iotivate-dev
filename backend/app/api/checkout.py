@@ -427,14 +427,16 @@ def create_subscription_checkout(
         )
 
     if resp.status_code != 201:
+        error_body = resp.text[:500]
         logger.error(
             "Lemon Squeezy subscription checkout failed: %s %s",
             resp.status_code,
-            resp.text[:500],
+            error_body,
         )
+        # Include LS status for debugging; the full body stays in server logs only
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Failed to create checkout session",
+            detail=f"Checkout failed (upstream {resp.status_code}). Check server logs for details.",
         )
 
     checkout_url = resp.json()["data"]["attributes"]["url"]

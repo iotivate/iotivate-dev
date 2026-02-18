@@ -197,7 +197,13 @@ export default function ProPage() {
         return;
       }
       const data = await res.json();
-      window.location.href = data.url;
+
+      // Use overlay checkout if available, otherwise redirect
+      if (window.LemonSqueezy) {
+        window.LemonSqueezy.Url.Open(data.url);
+      } else {
+        window.location.href = data.url;
+      }
     } catch {
       setError("Network error. Please try again.");
     } finally {
