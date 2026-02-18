@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone, timedelta
 
 import pytest
 from sqlalchemy.pool import StaticPool
@@ -89,6 +90,29 @@ def auth_headers_fixture(test_user):
 @pytest.fixture(name="admin_headers")
 def admin_headers_fixture(admin_user):
     token = create_access_token({"sub": admin_user.username})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(name="pro_user")
+def pro_user_fixture(session):
+    user = User(
+        email="pro@example.com",
+        username="prouser",
+        hashed_password=hash_password("Pro1234!"),
+        lemon_subscription_id="sub-123",
+        subscription_status="active",
+        subscription_ends_at=datetime.now(timezone.utc) + timedelta(days=30),
+        subscription_updated_at=datetime.now(timezone.utc),
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+@pytest.fixture(name="pro_headers")
+def pro_headers_fixture(pro_user):
+    token = create_access_token({"sub": pro_user.username})
     return {"Authorization": f"Bearer {token}"}
 
 

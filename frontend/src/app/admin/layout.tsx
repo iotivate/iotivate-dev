@@ -68,6 +68,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link href="/admin/webhooks" className="text-muted hover:text-foreground transition-colors whitespace-nowrap">
                   Webhooks
                 </Link>
+                <Link href="/admin/users" className="text-muted hover:text-foreground transition-colors whitespace-nowrap">
+                  Users
+                </Link>
               </div>
             </div>
             <Link href="/" className="text-sm text-muted hover:text-foreground transition-colors shrink-0">

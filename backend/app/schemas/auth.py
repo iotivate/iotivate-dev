@@ -61,3 +61,6 @@ class UserResponse(BaseModel):
     email: str
     username: str
     is_active: bool
+    is_pro: bool = False
+
+    model_config = {"from_attributes": True}

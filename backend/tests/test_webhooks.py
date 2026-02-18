@@ -84,7 +84,7 @@ class TestWebhookEventLogging:
             content=body,
             headers={
                 "X-Signature": signature,
-                "X-Event-Name": "subscription_updated",
+                "X-Event-Name": "some_unknown_event",
                 "Content-Type": "application/json",
             },
         )
@@ -92,7 +92,7 @@ class TestWebhookEventLogging:
 
         event = session.exec(select(WebhookEvent)).first()
         assert event is not None
-        assert event.event_name == "subscription_updated"
+        assert event.event_name == "some_unknown_event"
         assert event.status == "ignored"
 
     @patch("app.api.checkout.settings")

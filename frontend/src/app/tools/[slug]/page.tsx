@@ -2,13 +2,13 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import PageHeader from "@/components/PageHeader";
 import WebFlasher from "@/components/WebFlasher";
-import SerialMonitor from "@/components/SerialMonitor";
+import SerialMonitorWithPro from "./SerialMonitorWithPro";
 import { getTool, getTools } from "@/lib/api";
 
 // Map tool slugs to their components
 const TOOL_COMPONENTS: Record<string, React.ComponentType> = {
   "esp32-web-flasher": WebFlasher,
-  "serial-monitor": SerialMonitor,
+  "serial-monitor": SerialMonitorWithPro,
 };
 
 interface Props {

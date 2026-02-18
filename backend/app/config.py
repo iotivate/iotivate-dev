@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     lemonsqueezy_api_key: str = ""
     lemonsqueezy_store_id: str = ""
     lemonsqueezy_webhook_secret: str = ""
+    lemonsqueezy_pro_monthly_variant_id: str = ""
+    lemonsqueezy_pro_yearly_variant_id: str = ""
 
     @property
     def ls_configured(self) -> bool:
@@ -48,6 +50,14 @@ class Settings(BaseSettings):
             self.lemonsqueezy_api_key
             and self.lemonsqueezy_store_id
             and self.lemonsqueezy_webhook_secret
+        )
+
+    @property
+    def pro_subscription_configured(self) -> bool:
+        return bool(
+            self.ls_configured
+            and self.lemonsqueezy_pro_monthly_variant_id
+            and self.lemonsqueezy_pro_yearly_variant_id
         )
 
     @property

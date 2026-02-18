@@ -428,6 +428,39 @@ def sync_orders(
     return {"missing_orders": synced, "total_orders": len(orders)}
 
 
+# --- Users (read-only) ---
+
+@router.get("/users")
+def list_users(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    session: Session = Depends(get_session),
+    _: User = Depends(get_admin_user),
+) -> dict:
+    total = session.exec(select(func.count()).select_from(User)).one()
+    users = session.exec(select(User).offset(skip).limit(limit)).all()
+    return {
+        "items": [
+            {
+                "id": u.id,
+                "email": u.email,
+                "username": u.username,
+                "is_active": u.is_active,
+                "is_admin": u.is_admin,
+                "is_pro": u.is_pro,
+                "subscription_status": u.subscription_status,
+                "subscription_ends_at": (
+                    u.subscription_ends_at.isoformat() if u.subscription_ends_at else None
+                ),
+            }
+            for u in users
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
 # --- Admin user info ---
 
 @router.get("/me")

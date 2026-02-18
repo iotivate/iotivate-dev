@@ -17,6 +17,7 @@ interface User {
   email: string;
   username: string;
   is_active: boolean;
+  is_pro: boolean;
 }
 
 interface AuthContextType {
@@ -207,4 +208,13 @@ export function useAuth() {
     throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
+}
+
+export function usePro() {
+  const { user, isLoading } = useAuth();
+  return {
+    isPro: user?.is_pro ?? false,
+    isLoading,
+    isLoggedIn: !!user,
+  };
 }

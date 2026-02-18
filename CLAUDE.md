@@ -26,3 +26,15 @@
 - Cloudflare Web Analytics via edge (automatic for proxied domains, no JS snippet needed)
 - Database backups via `backend/scripts/backup.sh` (pg_dump + gzip + retention)
 - Alembic migrations in `backend/migrations/versions/`
+
+## Subscription System (iotivate Pro)
+- Simple `is_pro` computed property on User model (not a separate tier table)
+- Subscription fields: `lemon_subscription_id`, `subscription_status`, `subscription_ends_at`, `subscription_updated_at`
+- `is_pro` returns True for `active`/`on_trial` status, or `cancelled` with future `subscription_ends_at` (grace period)
+- Billing via Lemon Squeezy: `POST /api/subscribe` (monthly/yearly), webhooks extend existing handler
+- Subscription webhooks: `subscription_created`, `subscription_updated`, `subscription_cancelled`, `subscription_resumed`, `subscription_expired`, `subscription_payment_failed`
+- Customer portal: `POST /api/subscription/portal` fetches URL from LS API
+- Frontend `usePro()` hook in `src/lib/auth.tsx`, `ProGate` component in `src/components/ProGate.tsx`
+- Serial Monitor gated features (Phase 1): export, filter, plotter, split view, macros, hex send
+- Serial Monitor free features: connect, console, baud rate, copy, auto-scroll, command history, hex view (receive), DTR/RTS, timestamps
+- Pro pricing page at `/pro`, admin users page at `/admin/users`

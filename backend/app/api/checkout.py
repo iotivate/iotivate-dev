@@ -2,6 +2,8 @@ import hashlib
 import hmac
 import json
 import logging
+from datetime import datetime, timezone
+from enum import Enum
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -36,6 +38,25 @@ class CheckoutResponse(BaseModel):
 
 class PurchaseStatusResponse(BaseModel):
     purchased: bool
+
+
+class SubscriptionPlan(str, Enum):
+    monthly = "monthly"
+    yearly = "yearly"
+
+
+class SubscribeRequest(BaseModel):
+    plan: SubscriptionPlan
+
+
+class SubscriptionStatusResponse(BaseModel):
+    is_pro: bool
+    subscription_status: str | None
+    subscription_ends_at: str | None
+
+
+class PortalResponse(BaseModel):
+    url: str
 
 
 @router.post("/checkout", response_model=CheckoutResponse)
@@ -200,11 +221,22 @@ async def lemonsqueezy_webhook(request: Request, session: Session = Depends(get_
         status="processed",
     )
 
+    subscription_events = {
+        "subscription_created",
+        "subscription_updated",
+        "subscription_cancelled",
+        "subscription_resumed",
+        "subscription_expired",
+        "subscription_payment_failed",
+    }
+
     try:
         if event_name == "order_created":
             _handle_order_created(payload, session)
         elif event_name == "order_refunded":
             _handle_order_refunded(payload, session)
+        elif event_name in subscription_events:
+            _handle_subscription_event(event_name, payload, session)
         else:
             webhook_event.status = "ignored"
             logger.info("Ignoring Lemon Squeezy event: %s", event_name)
@@ -313,3 +345,250 @@ def check_purchase(
     ).first()
 
     return PurchaseStatusResponse(purchased=purchase is not None)
+
+
+# --- Subscription endpoints ---
+
+
+@router.post("/subscribe", response_model=CheckoutResponse)
+@limiter.limit("5/minute")
+def create_subscription_checkout(
+    request: Request,
+    data: SubscribeRequest,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not settings.pro_subscription_configured:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Subscription service is not configured",
+        )
+
+    if user.is_pro:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You already have an active Pro subscription",
+        )
+
+    variant_id = (
+        settings.lemonsqueezy_pro_monthly_variant_id
+        if data.plan == SubscriptionPlan.monthly
+        else settings.lemonsqueezy_pro_yearly_variant_id
+    )
+
+    checkout_payload = {
+        "data": {
+            "type": "checkouts",
+            "attributes": {
+                "custom_data": {
+                    "user_id": str(user.id),
+                    "checkout_type": "subscription",
+                },
+                "checkout_data": {
+                    "email": user.email,
+                },
+                "product_options": {
+                    "redirect_url": f"{settings.cors_origin_list[0]}/pro?success=true",
+                },
+            },
+            "relationships": {
+                "store": {
+                    "data": {
+                        "type": "stores",
+                        "id": settings.lemonsqueezy_store_id,
+                    }
+                },
+                "variant": {
+                    "data": {
+                        "type": "variants",
+                        "id": variant_id,
+                    }
+                },
+            },
+        }
+    }
+
+    try:
+        with httpx.Client(timeout=15) as client:
+            resp = client.post(
+                f"{LEMONSQUEEZY_API_BASE}/checkouts",
+                json=checkout_payload,
+                headers={
+                    "Authorization": f"Bearer {settings.lemonsqueezy_api_key}",
+                    "Accept": "application/vnd.api+json",
+                    "Content-Type": "application/vnd.api+json",
+                },
+            )
+    except httpx.RequestError as e:
+        logger.error("Lemon Squeezy subscription checkout failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Payment service unavailable",
+        )
+
+    if resp.status_code != 201:
+        logger.error(
+            "Lemon Squeezy subscription checkout failed: %s %s",
+            resp.status_code,
+            resp.text[:500],
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to create checkout session",
+        )
+
+    checkout_url = resp.json()["data"]["attributes"]["url"]
+    return CheckoutResponse(url=checkout_url)
+
+
+@router.get("/subscription", response_model=SubscriptionStatusResponse)
+def get_subscription_status(user: User = Depends(get_current_user)):
+    return SubscriptionStatusResponse(
+        is_pro=user.is_pro,
+        subscription_status=user.subscription_status,
+        subscription_ends_at=(
+            user.subscription_ends_at.isoformat() if user.subscription_ends_at else None
+        ),
+    )
+
+
+@router.post("/subscription/portal", response_model=PortalResponse)
+@limiter.limit("10/minute")
+def get_customer_portal(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    if not user.lemon_subscription_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No subscription found",
+        )
+
+    if not settings.ls_configured:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Payment service is not configured",
+        )
+
+    try:
+        with httpx.Client(timeout=15) as client:
+            resp = client.get(
+                f"{LEMONSQUEEZY_API_BASE}/subscriptions/{user.lemon_subscription_id}",
+                headers={
+                    "Authorization": f"Bearer {settings.lemonsqueezy_api_key}",
+                    "Accept": "application/vnd.api+json",
+                },
+            )
+    except httpx.RequestError as e:
+        logger.error("Lemon Squeezy portal request failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Payment service unavailable",
+        )
+
+    if resp.status_code != 200:
+        logger.error("Failed to fetch subscription: %s %s", resp.status_code, resp.text[:500])
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to fetch subscription details",
+        )
+
+    portal_url = resp.json()["data"]["attributes"]["urls"]["customer_portal"]
+    return PortalResponse(url=portal_url)
+
+
+# --- Subscription webhook handlers ---
+
+
+def _resolve_subscription_user(payload: dict, session: Session) -> User | None:
+    """Resolve user from subscription webhook payload.
+
+    Tries custom_data.user_id first (present on subscription_created),
+    then falls back to lemon_subscription_id lookup.
+    """
+    # Try custom_data first (available on subscription_created)
+    meta = payload.get("meta", {})
+    custom_data = meta.get("custom_data", {})
+    user_id_str = custom_data.get("user_id")
+    if user_id_str:
+        try:
+            user = session.get(User, int(user_id_str))
+            if user:
+                return user
+        except (ValueError, TypeError):
+            pass
+
+    # Fall back to subscription ID lookup
+    subscription_id = str(payload.get("data", {}).get("id", ""))
+    if subscription_id:
+        user = session.exec(
+            select(User).where(User.lemon_subscription_id == subscription_id)
+        ).first()
+        if user:
+            return user
+
+    return None
+
+
+def _parse_subscription_ends_at(payload: dict) -> datetime | None:
+    """Extract ends_at from subscription payload attributes."""
+    ends_at_str = payload.get("data", {}).get("attributes", {}).get("ends_at")
+    if not ends_at_str:
+        return None
+    try:
+        return datetime.fromisoformat(ends_at_str.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return None
+
+
+def _handle_subscription_event(event_name: str, payload: dict, session: Session) -> None:
+    """Handle all subscription-related webhook events."""
+    user = _resolve_subscription_user(payload, session)
+    if not user:
+        logger.warning("Subscription webhook: could not resolve user for event %s", event_name)
+        return
+
+    subscription_id = str(payload.get("data", {}).get("id", ""))
+    attrs = payload.get("data", {}).get("attributes", {})
+    ls_status = attrs.get("status", "")
+    ends_at = _parse_subscription_ends_at(payload)
+    now = datetime.now(timezone.utc)
+
+    if event_name == "subscription_created":
+        user.lemon_subscription_id = subscription_id
+        user.subscription_status = ls_status or "active"
+        user.subscription_ends_at = ends_at
+        user.subscription_updated_at = now
+        logger.info("Subscription created: user=%s sub=%s", user.id, subscription_id)
+
+    elif event_name == "subscription_updated":
+        user.subscription_status = ls_status
+        user.subscription_ends_at = ends_at
+        user.subscription_updated_at = now
+        logger.info("Subscription updated: user=%s status=%s", user.id, ls_status)
+
+    elif event_name == "subscription_cancelled":
+        user.subscription_status = "cancelled"
+        user.subscription_ends_at = ends_at
+        user.subscription_updated_at = now
+        logger.info("Subscription cancelled: user=%s ends_at=%s", user.id, ends_at)
+
+    elif event_name == "subscription_resumed":
+        user.subscription_status = ls_status or "active"
+        user.subscription_ends_at = ends_at
+        user.subscription_updated_at = now
+        logger.info("Subscription resumed: user=%s", user.id)
+
+    elif event_name == "subscription_expired":
+        user.subscription_status = "expired"
+        user.subscription_ends_at = ends_at
+        user.subscription_updated_at = now
+        logger.info("Subscription expired: user=%s", user.id)
+
+    elif event_name == "subscription_payment_failed":
+        user.subscription_status = "past_due"
+        user.subscription_updated_at = now
+        logger.warning("Subscription payment failed: user=%s", user.id)
+
+    session.add(user)
+    session.commit()

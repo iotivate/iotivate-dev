@@ -181,4 +181,10 @@ def reset_password(
 
 @router.get("/me", response_model=UserResponse)
 def me(user: User = Depends(get_current_user)):
-    return user
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        username=user.username,
+        is_active=user.is_active,
+        is_pro=user.is_pro,
+    )

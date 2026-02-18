@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/lib/auth";
+import { useAuth, usePro } from "@/lib/auth";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -17,6 +17,7 @@ const navLinks = [
 export default function Navbar() {
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
+  const { isPro } = usePro();
 
   return (
     <nav className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
@@ -45,6 +46,18 @@ export default function Navbar() {
                 <span className="text-sm text-muted">...</span>
               ) : user ? (
                 <>
+                  {isPro ? (
+                    <span className="px-1.5 py-0.5 text-xs font-semibold rounded bg-accent/10 text-accent border border-accent/20">
+                      PRO
+                    </span>
+                  ) : (
+                    <Link
+                      href="/pro"
+                      className="px-2 py-1 text-xs font-medium text-accent hover:bg-accent/10 rounded transition-colors"
+                    >
+                      Upgrade
+                    </Link>
+                  )}
                   <span className="text-sm text-muted">{user.username}</span>
                   <button
                     onClick={logout}
@@ -71,7 +84,7 @@ export default function Navbar() {
               )}
             </div>
           </div>
-          <MobileMenu pathname={pathname} user={user} isLoading={isLoading} logout={logout} />
+          <MobileMenu pathname={pathname} user={user} isLoading={isLoading} logout={logout} isPro={isPro} />
         </div>
       </div>
     </nav>
@@ -83,9 +96,10 @@ interface MobileMenuProps {
   user: { username: string } | null;
   isLoading: boolean;
   logout: () => void;
+  isPro: boolean;
 }
 
-function MobileMenu({ pathname, user, isLoading, logout }: MobileMenuProps) {
+function MobileMenu({ pathname, user, isLoading, logout, isPro }: MobileMenuProps) {
   return (
     <details className="md:hidden relative">
       <summary className="list-none cursor-pointer p-2">
@@ -122,7 +136,18 @@ function MobileMenu({ pathname, user, isLoading, logout }: MobileMenuProps) {
             <span className="block px-4 py-2 text-sm text-muted">...</span>
           ) : user ? (
             <>
-              <span className="block px-4 py-2 text-sm text-muted">{user.username}</span>
+              <div className="flex items-center gap-2 px-4 py-2">
+                <span className="text-sm text-muted">{user.username}</span>
+                {isPro ? (
+                  <span className="px-1.5 py-0.5 text-xs font-semibold rounded bg-accent/10 text-accent border border-accent/20">
+                    PRO
+                  </span>
+                ) : (
+                  <Link href="/pro" className="text-xs text-accent hover:underline">
+                    Upgrade
+                  </Link>
+                )}
+              </div>
               <button
                 onClick={logout}
                 className="block w-full text-left px-4 py-2 text-sm text-muted hover:text-foreground"

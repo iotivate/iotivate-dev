@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, KeyboardEvent } from "react";
+import Link from "next/link";
 
 type ConnectionState = "disconnected" | "connecting" | "connected";
 type ViewMode = "console" | "plotter" | "split";
@@ -35,7 +36,25 @@ const LINE_ENDINGS = [
 
 const PLOT_COLORS = ["#5BA8A0", "#E879F9", "#FACC15", "#F87171", "#60A5FA", "#4ADE80", "#FB923C", "#A78BFA"];
 
-export default function SerialMonitor() {
+function ProBadge({ feature }: { feature: string }) {
+  return (
+    <Link
+      href="/pro"
+      className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-accent transition-colors"
+      title={`${feature} requires iotivate Pro`}
+    >
+      <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-accent/10 text-accent border border-accent/20">
+        PRO
+      </span>
+    </Link>
+  );
+}
+
+interface SerialMonitorProps {
+  isPro?: boolean;
+}
+
+export default function SerialMonitor({ isPro = false }: SerialMonitorProps) {
   const [state, setState] = useState<ConnectionState>("disconnected");
   const [baudRate, setBaudRate] = useState(115200);
   const [lineEnding, setLineEnding] = useState("\n");
@@ -574,29 +593,55 @@ export default function SerialMonitor() {
           >
             Console
           </button>
-          <button
-            onClick={() => setViewMode("plotter")}
-            className={`px-3 py-1 text-xs rounded transition-colors ${viewMode === "plotter" ? "bg-accent text-white" : "hover:bg-surface"}`}
-          >
-            Plotter
-          </button>
-          <button
-            onClick={() => setViewMode("split")}
-            className={`px-3 py-1 text-xs rounded transition-colors ${viewMode === "split" ? "bg-accent text-white" : "hover:bg-surface"}`}
-          >
-            Split
-          </button>
+          {isPro ? (
+            <>
+              <button
+                onClick={() => setViewMode("plotter")}
+                className={`px-3 py-1 text-xs rounded transition-colors ${viewMode === "plotter" ? "bg-accent text-white" : "hover:bg-surface"}`}
+              >
+                Plotter
+              </button>
+              <button
+                onClick={() => setViewMode("split")}
+                className={`px-3 py-1 text-xs rounded transition-colors ${viewMode === "split" ? "bg-accent text-white" : "hover:bg-surface"}`}
+              >
+                Split
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/pro" className="px-3 py-1 text-xs rounded text-muted hover:text-accent transition-colors flex items-center gap-1" title="Plotter requires Pro">
+                Plotter <span className="text-[9px] font-semibold text-accent">PRO</span>
+              </Link>
+              <Link href="/pro" className="px-3 py-1 text-xs rounded text-muted hover:text-accent transition-colors flex items-center gap-1" title="Split view requires Pro">
+                Split <span className="text-[9px] font-semibold text-accent">PRO</span>
+              </Link>
+            </>
+          )}
         </div>
 
-        <button
-          onClick={() => setShowMacros(!showMacros)}
-          className={`p-2 rounded-lg border transition-colors ${showMacros ? "border-accent bg-accent/10" : "border-border hover:bg-surface"}`}
-          title="Macros"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </button>
+        {isPro ? (
+          <button
+            onClick={() => setShowMacros(!showMacros)}
+            className={`p-2 rounded-lg border transition-colors ${showMacros ? "border-accent bg-accent/10" : "border-border hover:bg-surface"}`}
+            title="Macros"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </button>
+        ) : (
+          <Link
+            href="/pro"
+            className="p-2 rounded-lg border border-border hover:bg-surface transition-colors relative"
+            title="Macros require Pro"
+          >
+            <svg className="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span className="absolute -top-1 -right-1 text-[8px] font-bold px-1 rounded bg-accent/10 text-accent border border-accent/20">PRO</span>
+          </Link>
+        )}
 
         <button
           onClick={() => setShowSettings(!showSettings)}
@@ -641,15 +686,22 @@ export default function SerialMonitor() {
               />
               Hex view
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={hexSend}
-                onChange={(e) => setHexSend(e.target.checked)}
-                className="rounded border-border"
-              />
-              Hex send
-            </label>
+            {isPro ? (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={hexSend}
+                  onChange={(e) => setHexSend(e.target.checked)}
+                  className="rounded border-border"
+                />
+                Hex send
+              </label>
+            ) : (
+              <span className="flex items-center gap-2 text-sm text-muted">
+                <input type="checkbox" disabled className="rounded border-border opacity-50" />
+                Hex send <ProBadge feature="Hex send" />
+              </span>
+            )}
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted">Line ending:</span>
               <select
@@ -707,18 +759,33 @@ export default function SerialMonitor() {
 
       {/* Filter and actions */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <input
-            type="text"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter logs..."
-            className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-          />
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
+        {isPro ? (
+          <div className="relative flex-1 min-w-[200px]">
+            <input
+              type="text"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter logs..."
+              className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+            />
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        ) : (
+          <div className="relative flex-1 min-w-[200px]">
+            <Link
+              href="/pro"
+              className="flex items-center gap-2 w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm text-muted hover:border-accent/30 transition-colors"
+            >
+              Filter logs...
+              <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-accent/10 text-accent border border-accent/20">PRO</span>
+            </Link>
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        )}
         <button
           onClick={copyLogs}
           className="px-3 py-2 text-sm border border-border rounded-lg hover:bg-surface transition-colors"
@@ -726,13 +793,23 @@ export default function SerialMonitor() {
         >
           Copy
         </button>
-        <button
-          onClick={exportLogs}
-          className="px-3 py-2 text-sm border border-border rounded-lg hover:bg-surface transition-colors"
-          title="Download logs"
-        >
-          Export
-        </button>
+        {isPro ? (
+          <button
+            onClick={exportLogs}
+            className="px-3 py-2 text-sm border border-border rounded-lg hover:bg-surface transition-colors"
+            title="Download logs"
+          >
+            Export
+          </button>
+        ) : (
+          <Link
+            href="/pro"
+            className="px-3 py-2 text-sm border border-border rounded-lg hover:bg-surface transition-colors flex items-center gap-1"
+            title="Export requires Pro"
+          >
+            Export <span className="text-[9px] font-semibold text-accent">PRO</span>
+          </Link>
+        )}
         <button
           onClick={clearLogs}
           className="px-3 py-2 text-sm border border-border rounded-lg hover:bg-surface transition-colors"

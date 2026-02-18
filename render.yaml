@@ -58,3 +58,7 @@ services:
         sync: false
       - key: LEMONSQUEEZY_WEBHOOK_SECRET
         sync: false
+      - key: LEMONSQUEEZY_PRO_MONTHLY_VARIANT_ID
+        sync: false
+      - key: LEMONSQUEEZY_PRO_YEARLY_VARIANT_ID
+        sync: false
