@@ -25,6 +25,11 @@ backend/*.db
 .DS_Store
 Thumbs.db
 
+# Internal planning docs
+PROJECT_TEMPLATE.md
+TOOLS_ROADMAP.md
+VERIFICATION_CHECKLIST.md
+
 # Docker
 docker-compose.override.yml
 iotivate.db
