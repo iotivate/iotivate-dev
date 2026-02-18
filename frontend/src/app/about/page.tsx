@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import PageHeader from "@/components/PageHeader";
+import { JsonLd, ORGANIZATION } from "@/lib/jsonld";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://iotivate.dev";
 
 export const metadata: Metadata = {
   title: "About",
@@ -10,6 +13,20 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          name: "About iotivate",
+          description:
+            "About iotivate — building practical IoT tools and firmware.",
+          url: `${SITE_URL}/about`,
+          mainEntity: {
+            "@context": "https://schema.org",
+            ...ORGANIZATION,
+          },
+        }}
+      />
       <PageHeader
         title="About iotivate"
         description="We build practical tools and firmware for the IoT and maker community."

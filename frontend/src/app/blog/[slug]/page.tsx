@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import { getAllPosts, getPostBySlug } from "@/lib/blog";
+import { JsonLd, ORGANIZATION } from "@/lib/jsonld";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -94,6 +95,19 @@ export default async function BlogPostPage({ params }: Props) {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "BlogPosting",
+          headline: post.title,
+          description: post.description,
+          datePublished: post.date,
+          url: `${SITE_URL}/blog/${slug}`,
+          keywords: post.tags,
+          author: ORGANIZATION,
+          publisher: ORGANIZATION,
+        }}
+      />
       <Link
         href="/blog"
         className="inline-flex items-center text-sm text-muted hover:text-foreground mb-8"

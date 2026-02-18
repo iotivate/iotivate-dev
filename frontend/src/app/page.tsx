@@ -1,8 +1,16 @@
 import Link from "next/link";
+import { JsonLd, WEBSITE, ORGANIZATION } from "@/lib/jsonld";
 
 export default function Home() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <JsonLd data={WEBSITE} />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          ...ORGANIZATION,
+        }}
+      />
       {/* Hero */}
       <section className="py-20 sm:py-32">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl">

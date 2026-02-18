@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getAllPosts } from "@/lib/blog";
+import { JsonLd } from "@/lib/jsonld";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://iotivate.dev";
 
 export const metadata: Metadata = {
   title: "Blog",
@@ -14,6 +17,25 @@ export default function BlogPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "Blog",
+          description:
+            "Articles on IoT, ESP32 development, and hardware projects.",
+          url: `${SITE_URL}/blog`,
+          mainEntity: {
+            "@type": "ItemList",
+            itemListElement: posts.map((post, i) => ({
+              "@type": "ListItem",
+              position: i + 1,
+              name: post.title,
+              url: `${SITE_URL}/blog/${post.slug}`,
+            })),
+          },
+        }}
+      />
       <PageHeader
         title="Blog"
         description="Articles on IoT development, ESP32 tips, and project deep-dives."

@@ -5,6 +5,7 @@ import WebFlasher from "@/components/WebFlasher";
 import { PinPlanner } from "@/components/pin-planner";
 import SerialMonitorWithPro from "./SerialMonitorWithPro";
 import { getTool, getTools } from "@/lib/api";
+import { JsonLd, ORGANIZATION } from "@/lib/jsonld";
 
 // Map tool slugs to their components
 const TOOL_COMPONENTS: Record<string, React.ComponentType> = {
@@ -67,6 +68,23 @@ export default async function ToolPage({ params }: Props) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          name: tool.name,
+          description: tool.description,
+          url: `${SITE_URL}/tools/${slug}`,
+          applicationCategory: "DeveloperApplication",
+          operatingSystem: "Any",
+          offers: {
+            "@type": "Offer",
+            price: "0",
+            priceCurrency: "USD",
+          },
+          provider: ORGANIZATION,
+        }}
+      />
       <PageHeader title={tool.name} description={tool.description} />
 
       {ToolComponent ? (

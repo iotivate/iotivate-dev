@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getTools, type Tool } from "@/lib/api";
+import { JsonLd } from "@/lib/jsonld";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://iotivate.dev";
 
 export const metadata: Metadata = {
   title: "Tools",
@@ -24,6 +27,25 @@ export default async function ToolsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "Tools",
+          description:
+            "Web-based IoT and ESP32 tools — flash firmware, configure devices, and more.",
+          url: `${SITE_URL}/tools`,
+          mainEntity: {
+            "@type": "ItemList",
+            itemListElement: tools.map((tool, i) => ({
+              "@type": "ListItem",
+              position: i + 1,
+              name: tool.name,
+              url: `${SITE_URL}/tools/${tool.slug}`,
+            })),
+          },
+        }}
+      />
       <PageHeader
         title="Tools"
         description="Web-based tools for ESP32 and IoT development. No installs, no drivers — just your browser."
