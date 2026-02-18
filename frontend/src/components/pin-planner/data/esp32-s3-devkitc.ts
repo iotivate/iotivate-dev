@@ -93,7 +93,7 @@ export const esp32S3DevKitC: BoardVariant = {
     },
   ],
   pins: [
-    // Left side (positions 1–22), top to bottom
+    // Left side — J1 header (positions 1–22), top to bottom
     {
       position: 1,
       side: "left",
@@ -180,6 +180,7 @@ export const esp32S3DevKitC: BoardVariant = {
       functions: [
         { category: "gpio", label: "GPIO15", description: "General-purpose I/O" },
         { category: "adc", label: "ADC2_CH4", description: "ADC2 channel 4" },
+        { category: "clock", label: "XTAL_32K_P", description: "32.768 kHz crystal oscillator input" },
       ],
       warnings: [],
     },
@@ -191,6 +192,7 @@ export const esp32S3DevKitC: BoardVariant = {
       functions: [
         { category: "gpio", label: "GPIO16", description: "General-purpose I/O" },
         { category: "adc", label: "ADC2_CH5", description: "ADC2 channel 5" },
+        { category: "clock", label: "XTAL_32K_N", description: "32.768 kHz crystal oscillator output" },
       ],
       warnings: [],
     },
@@ -233,32 +235,6 @@ export const esp32S3DevKitC: BoardVariant = {
     {
       position: 13,
       side: "left",
-      label: "GPIO19",
-      gpio: 19,
-      functions: [
-        { category: "gpio", label: "GPIO19", description: "General-purpose I/O" },
-        { category: "usb", label: "USB D-", description: "USB OTG D- signal" },
-      ],
-      warnings: [
-        { severity: "warning", text: "Used by USB OTG — do not use if USB is needed" },
-      ],
-    },
-    {
-      position: 14,
-      side: "left",
-      label: "GPIO20",
-      gpio: 20,
-      functions: [
-        { category: "gpio", label: "GPIO20", description: "General-purpose I/O" },
-        { category: "usb", label: "USB D+", description: "USB OTG D+ signal" },
-      ],
-      warnings: [
-        { severity: "warning", text: "Used by USB OTG — do not use if USB is needed" },
-      ],
-    },
-    {
-      position: 15,
-      side: "left",
       label: "GPIO3",
       gpio: 3,
       functions: [
@@ -266,10 +242,12 @@ export const esp32S3DevKitC: BoardVariant = {
         { category: "adc", label: "ADC1_CH2", description: "ADC1 channel 2" },
         { category: "touch", label: "Touch3", description: "Capacitive touch sensor 3" },
       ],
-      warnings: [],
+      warnings: [
+        { severity: "info", text: "Strapping pin for JTAG interface selection (when eFuse STRAP_JTAG_SEL is set)" },
+      ],
     },
     {
-      position: 16,
+      position: 14,
       side: "left",
       label: "GPIO46",
       gpio: 46,
@@ -283,7 +261,7 @@ export const esp32S3DevKitC: BoardVariant = {
       ],
     },
     {
-      position: 17,
+      position: 15,
       side: "left",
       label: "GPIO9",
       gpio: 9,
@@ -295,7 +273,7 @@ export const esp32S3DevKitC: BoardVariant = {
       warnings: [],
     },
     {
-      position: 18,
+      position: 16,
       side: "left",
       label: "GPIO10",
       gpio: 10,
@@ -303,12 +281,12 @@ export const esp32S3DevKitC: BoardVariant = {
         { category: "gpio", label: "GPIO10", description: "General-purpose I/O" },
         { category: "adc", label: "ADC1_CH9", description: "ADC1 channel 9" },
         { category: "touch", label: "Touch10", description: "Capacitive touch sensor 10" },
-        { category: "spi", label: "SPI3 CS", description: "FSPI chip-select" },
+        { category: "spi", label: "SPI3 CS", description: "FSPI chip-select (FSPICS0)" },
       ],
       warnings: [],
     },
     {
-      position: 19,
+      position: 17,
       side: "left",
       label: "GPIO11",
       gpio: 11,
@@ -316,12 +294,12 @@ export const esp32S3DevKitC: BoardVariant = {
         { category: "gpio", label: "GPIO11", description: "General-purpose I/O" },
         { category: "adc", label: "ADC2_CH0", description: "ADC2 channel 0" },
         { category: "touch", label: "Touch11", description: "Capacitive touch sensor 11" },
-        { category: "spi", label: "SPI3 MOSI", description: "FSPI MOSI" },
+        { category: "spi", label: "SPI3 MOSI", description: "FSPI MOSI (FSPID)" },
       ],
       warnings: [],
     },
     {
-      position: 20,
+      position: 18,
       side: "left",
       label: "GPIO12",
       gpio: 12,
@@ -329,12 +307,12 @@ export const esp32S3DevKitC: BoardVariant = {
         { category: "gpio", label: "GPIO12", description: "General-purpose I/O" },
         { category: "adc", label: "ADC2_CH1", description: "ADC2 channel 1" },
         { category: "touch", label: "Touch12", description: "Capacitive touch sensor 12" },
-        { category: "spi", label: "SPI3 CLK", description: "FSPI clock" },
+        { category: "spi", label: "SPI3 CLK", description: "FSPI clock (FSPICLK)" },
       ],
       warnings: [],
     },
     {
-      position: 21,
+      position: 19,
       side: "left",
       label: "GPIO13",
       gpio: 13,
@@ -342,12 +320,12 @@ export const esp32S3DevKitC: BoardVariant = {
         { category: "gpio", label: "GPIO13", description: "General-purpose I/O" },
         { category: "adc", label: "ADC2_CH2", description: "ADC2 channel 2" },
         { category: "touch", label: "Touch13", description: "Capacitive touch sensor 13" },
-        { category: "spi", label: "SPI3 MISO", description: "FSPI MISO" },
+        { category: "spi", label: "SPI3 MISO", description: "FSPI MISO (FSPIQ)" },
       ],
       warnings: [],
     },
     {
-      position: 22,
+      position: 20,
       side: "left",
       label: "GPIO14",
       gpio: 14,
@@ -358,8 +336,28 @@ export const esp32S3DevKitC: BoardVariant = {
       ],
       warnings: [],
     },
+    {
+      position: 21,
+      side: "left",
+      label: "5V",
+      gpio: null,
+      functions: [
+        { category: "power", label: "5V", description: "5V power from USB" },
+      ],
+      warnings: [],
+    },
+    {
+      position: 22,
+      side: "left",
+      label: "GND",
+      gpio: null,
+      functions: [
+        { category: "ground", label: "Ground", description: "Ground reference" },
+      ],
+      warnings: [],
+    },
 
-    // Right side (positions 23–44), top to bottom
+    // Right side — J3 header (positions 23–44), top to bottom
     {
       position: 23,
       side: "right",
@@ -373,17 +371,7 @@ export const esp32S3DevKitC: BoardVariant = {
     {
       position: 24,
       side: "right",
-      label: "5V",
-      gpio: null,
-      functions: [
-        { category: "power", label: "5V", description: "5V power from USB" },
-      ],
-      warnings: [],
-    },
-    {
-      position: 25,
-      side: "right",
-      label: "GPIO43",
+      label: "TX / GPIO43",
       gpio: 43,
       functions: [
         { category: "gpio", label: "GPIO43", description: "General-purpose I/O" },
@@ -394,9 +382,9 @@ export const esp32S3DevKitC: BoardVariant = {
       ],
     },
     {
-      position: 26,
+      position: 25,
       side: "right",
-      label: "GPIO44",
+      label: "RX / GPIO44",
       gpio: 44,
       functions: [
         { category: "gpio", label: "GPIO44", description: "General-purpose I/O" },
@@ -407,7 +395,7 @@ export const esp32S3DevKitC: BoardVariant = {
       ],
     },
     {
-      position: 27,
+      position: 26,
       side: "right",
       label: "GPIO1",
       gpio: 1,
@@ -419,7 +407,7 @@ export const esp32S3DevKitC: BoardVariant = {
       warnings: [],
     },
     {
-      position: 28,
+      position: 27,
       side: "right",
       label: "GPIO2",
       gpio: 2,
@@ -431,7 +419,7 @@ export const esp32S3DevKitC: BoardVariant = {
       warnings: [],
     },
     {
-      position: 29,
+      position: 28,
       side: "right",
       label: "GPIO42",
       gpio: 42,
@@ -442,7 +430,7 @@ export const esp32S3DevKitC: BoardVariant = {
       warnings: [],
     },
     {
-      position: 30,
+      position: 29,
       side: "right",
       label: "GPIO41",
       gpio: 41,
@@ -453,7 +441,7 @@ export const esp32S3DevKitC: BoardVariant = {
       warnings: [],
     },
     {
-      position: 31,
+      position: 30,
       side: "right",
       label: "GPIO40",
       gpio: 40,
@@ -464,7 +452,7 @@ export const esp32S3DevKitC: BoardVariant = {
       warnings: [],
     },
     {
-      position: 32,
+      position: 31,
       side: "right",
       label: "GPIO39",
       gpio: 39,
@@ -475,7 +463,7 @@ export const esp32S3DevKitC: BoardVariant = {
       warnings: [],
     },
     {
-      position: 33,
+      position: 32,
       side: "right",
       label: "GPIO38",
       gpio: 38,
@@ -485,38 +473,46 @@ export const esp32S3DevKitC: BoardVariant = {
       warnings: [],
     },
     {
-      position: 34,
+      position: 33,
       side: "right",
       label: "GPIO37",
       gpio: 37,
       functions: [
         { category: "gpio", label: "GPIO37", description: "General-purpose I/O" },
+        { category: "spi", label: "SPI2 MISO", description: "SPI2 MISO (FSPIQ / SUBSPIQ)" },
       ],
-      warnings: [],
+      warnings: [
+        { severity: "info", text: "Unavailable on modules with Octal SPI flash/PSRAM" },
+      ],
     },
     {
-      position: 35,
+      position: 34,
       side: "right",
       label: "GPIO36",
       gpio: 36,
       functions: [
         { category: "gpio", label: "GPIO36", description: "General-purpose I/O" },
+        { category: "spi", label: "SPI2 CLK", description: "SPI2 clock (FSPICLK / SUBSPICLK)" },
       ],
-      warnings: [],
+      warnings: [
+        { severity: "info", text: "Unavailable on modules with Octal SPI flash/PSRAM" },
+      ],
     },
     {
-      position: 36,
+      position: 35,
       side: "right",
       label: "GPIO35",
       gpio: 35,
       functions: [
         { category: "gpio", label: "GPIO35", description: "General-purpose I/O" },
-        { category: "spi", label: "SPI2 MISO", description: "SPI2 MISO" },
+        { category: "spi", label: "SPI2 MOSI", description: "SPI2 MOSI (FSPID / SUBSPID)" },
       ],
-      warnings: [],
+      warnings: [
+        { severity: "info", text: "Unavailable on modules with Octal SPI flash/PSRAM" },
+      ],
     },
     {
-      position: 37,
+      position: 36,
       side: "right",
       label: "GPIO0",
       gpio: 0,
@@ -529,7 +525,7 @@ export const esp32S3DevKitC: BoardVariant = {
       ],
     },
     {
-      position: 38,
+      position: 37,
       side: "right",
       label: "GPIO45",
       gpio: 45,
@@ -541,7 +537,7 @@ export const esp32S3DevKitC: BoardVariant = {
       ],
     },
     {
-      position: 39,
+      position: 38,
       side: "right",
       label: "GPIO48",
       gpio: 48,
@@ -549,11 +545,11 @@ export const esp32S3DevKitC: BoardVariant = {
         { category: "gpio", label: "GPIO48", description: "General-purpose I/O" },
       ],
       warnings: [
-        { severity: "info", text: "Connected to onboard RGB LED (WS2812)" },
+        { severity: "info", text: "Connected to onboard RGB LED (WS2812) on v1.0" },
       ],
     },
     {
-      position: 40,
+      position: 39,
       side: "right",
       label: "GPIO47",
       gpio: 47,
@@ -563,7 +559,7 @@ export const esp32S3DevKitC: BoardVariant = {
       warnings: [],
     },
     {
-      position: 41,
+      position: 40,
       side: "right",
       label: "GPIO21",
       gpio: 21,
@@ -574,14 +570,32 @@ export const esp32S3DevKitC: BoardVariant = {
       warnings: [],
     },
     {
+      position: 41,
+      side: "right",
+      label: "GPIO20",
+      gpio: 20,
+      functions: [
+        { category: "gpio", label: "GPIO20", description: "General-purpose I/O" },
+        { category: "adc", label: "ADC2_CH9", description: "ADC2 channel 9" },
+        { category: "usb", label: "USB D+", description: "USB OTG D+ signal" },
+      ],
+      warnings: [
+        { severity: "warning", text: "Used by USB OTG — do not use if USB is needed" },
+      ],
+    },
+    {
       position: 42,
       side: "right",
-      label: "GND",
-      gpio: null,
+      label: "GPIO19",
+      gpio: 19,
       functions: [
-        { category: "ground", label: "Ground", description: "Ground reference" },
+        { category: "gpio", label: "GPIO19", description: "General-purpose I/O" },
+        { category: "adc", label: "ADC2_CH8", description: "ADC2 channel 8" },
+        { category: "usb", label: "USB D-", description: "USB OTG D- signal" },
       ],
-      warnings: [],
+      warnings: [
+        { severity: "warning", text: "Used by USB OTG — do not use if USB is needed" },
+      ],
     },
     {
       position: 43,

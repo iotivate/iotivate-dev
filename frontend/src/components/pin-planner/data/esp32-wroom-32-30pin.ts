@@ -356,21 +356,6 @@ export const esp32Wroom32_30pin: BoardVariant = {
     {
       position: 20,
       side: "right",
-      label: "GPIO0",
-      gpio: 0,
-      functions: [
-        { category: "gpio", label: "GPIO0", description: "General-purpose I/O" },
-        { category: "adc", label: "ADC2_CH1", description: "12-bit ADC2 channel 1" },
-        { category: "touch", label: "Touch1", description: "Capacitive touch sensor 1" },
-        { category: "strapping", label: "Boot Mode", description: "LOW = download mode, HIGH = normal boot" },
-      ],
-      warnings: [
-        { severity: "danger", text: "Strapping pin — connected to BOOT button; LOW enters download mode" },
-      ],
-    },
-    {
-      position: 21,
-      side: "right",
       label: "GPIO4",
       gpio: 4,
       functions: [
@@ -381,9 +366,9 @@ export const esp32Wroom32_30pin: BoardVariant = {
       warnings: [],
     },
     {
-      position: 22,
+      position: 21,
       side: "right",
-      label: "GPIO16",
+      label: "RX2 / GPIO16",
       gpio: 16,
       functions: [
         { category: "gpio", label: "GPIO16", description: "General-purpose I/O" },
@@ -392,9 +377,9 @@ export const esp32Wroom32_30pin: BoardVariant = {
       warnings: [],
     },
     {
-      position: 23,
+      position: 22,
       side: "right",
-      label: "GPIO17",
+      label: "TX2 / GPIO17",
       gpio: 17,
       functions: [
         { category: "gpio", label: "GPIO17", description: "General-purpose I/O" },
@@ -403,7 +388,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
       warnings: [],
     },
     {
-      position: 24,
+      position: 23,
       side: "right",
       label: "GPIO5",
       gpio: 5,
@@ -416,7 +401,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
       ],
     },
     {
-      position: 25,
+      position: 24,
       side: "right",
       label: "GPIO18",
       gpio: 18,
@@ -427,7 +412,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
       warnings: [],
     },
     {
-      position: 26,
+      position: 25,
       side: "right",
       label: "GPIO19",
       gpio: 19,
@@ -438,17 +423,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
       warnings: [],
     },
     {
-      position: 27,
-      side: "right",
-      label: "GND",
-      gpio: null,
-      functions: [
-        { category: "ground", label: "Ground", description: "Ground reference" },
-      ],
-      warnings: [],
-    },
-    {
-      position: 28,
+      position: 26,
       side: "right",
       label: "GPIO21",
       gpio: 21,
@@ -459,7 +434,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
       warnings: [],
     },
     {
-      position: 29,
+      position: 27,
       side: "right",
       label: "RX0 / GPIO3",
       gpio: 3,
@@ -472,7 +447,7 @@ export const esp32Wroom32_30pin: BoardVariant = {
       ],
     },
     {
-      position: 30,
+      position: 28,
       side: "right",
       label: "TX0 / GPIO1",
       gpio: 1,
@@ -483,6 +458,28 @@ export const esp32Wroom32_30pin: BoardVariant = {
       warnings: [
         { severity: "danger", text: "Used by USB-UART bridge — outputs debug log at boot" },
       ],
+    },
+    {
+      position: 29,
+      side: "right",
+      label: "GPIO22",
+      gpio: 22,
+      functions: [
+        { category: "gpio", label: "GPIO22", description: "General-purpose I/O" },
+        { category: "i2c", label: "SCL", description: "Default I2C clock line" },
+      ],
+      warnings: [],
+    },
+    {
+      position: 30,
+      side: "right",
+      label: "GPIO23",
+      gpio: 23,
+      functions: [
+        { category: "gpio", label: "GPIO23", description: "General-purpose I/O" },
+        { category: "spi", label: "VSPI MOSI", description: "VSPI MOSI (default)" },
+      ],
+      warnings: [],
     },
   ],
 };
