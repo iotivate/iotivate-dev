@@ -30,6 +30,9 @@ export const metadata: Metadata = {
     icon: "/favicon-32.png",
     apple: "/apple-touch-icon.png",
   },
+  verification: {
+    google: "fLNVBoC2jsKnS2AAxVdLajzjmFdH38915Q8nVFxRW4o",
+  },
   openGraph: {
     type: "website",
     siteName: "iotivate.dev",
