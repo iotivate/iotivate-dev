@@ -23,7 +23,7 @@
 - Admin pages use reusable `Pagination` component from `src/components/admin/Pagination.tsx`
 - Webhook events logged to `WebhookEvent` table (processed/failed/ignored)
 - R2 file cleanup runs automatically on project delete via `app/services/r2_cleanup.py`
-- Cloudflare Web Analytics via edge (automatic for proxied domains, no JS snippet needed)
+- Cloudflare Web Analytics via JS beacon in `layout.tsx` (site on Vercel, not proxied through CF edge)
 - Database backups via `backend/scripts/backup.sh` (pg_dump + gzip + retention)
 - Alembic migrations in `backend/migrations/versions/`
 

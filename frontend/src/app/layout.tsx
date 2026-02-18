@@ -38,6 +38,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
+        <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "2e33c80f6fb84f47b23fcdb91e309f4a"}'></script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
