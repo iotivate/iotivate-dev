@@ -1,0 +1,2 @@
+export { default, runtime, size, contentType } from "./opengraph-image";
+export const alt = "iotivate.dev — Simplifying IoT, One Module at a Time";
