@@ -303,19 +303,6 @@ export const esp32Wroom32_30pin: BoardVariant = {
     {
       position: 16,
       side: "right",
-      label: "VIN",
-      gpio: null,
-      functions: [
-        { category: "power", label: "5V Input", description: "5V power input (or output when powered via USB)" },
-      ],
-      warnings: [
-        { severity: "warning", text: "Unregulated — connects directly to USB 5V" },
-        { severity: "info", text: "Can supply 5V to external devices when USB-powered" },
-      ],
-    },
-    {
-      position: 17,
-      side: "right",
       label: "GND",
       gpio: null,
       functions: [
@@ -324,22 +311,135 @@ export const esp32Wroom32_30pin: BoardVariant = {
       warnings: [],
     },
     {
+      position: 17,
+      side: "right",
+      label: "GPIO23",
+      gpio: 23,
+      functions: [
+        { category: "gpio", label: "GPIO23", description: "General-purpose I/O" },
+        { category: "spi", label: "VSPI MOSI", description: "VSPI MOSI (default)" },
+      ],
+      warnings: [],
+    },
+    {
       position: 18,
       side: "right",
-      label: "GPIO15",
-      gpio: 15,
+      label: "GPIO22",
+      gpio: 22,
       functions: [
-        { category: "gpio", label: "GPIO15", description: "General-purpose I/O" },
-        { category: "adc", label: "ADC2_CH3", description: "12-bit ADC2 channel 3" },
-        { category: "touch", label: "Touch3", description: "Capacitive touch sensor 3" },
-        { category: "spi", label: "HSPI CS", description: "HSPI chip-select (default)" },
+        { category: "gpio", label: "GPIO22", description: "General-purpose I/O" },
+        { category: "i2c", label: "SCL", description: "Default I2C clock line" },
       ],
-      warnings: [
-        { severity: "warning", text: "Strapping pin — outputs PWM at boot (controls debug log output)" },
-      ],
+      warnings: [],
     },
     {
       position: 19,
+      side: "right",
+      label: "TX0 / GPIO1",
+      gpio: 1,
+      functions: [
+        { category: "gpio", label: "GPIO1", description: "General-purpose I/O" },
+        { category: "uart", label: "UART0 TX", description: "UART0 transmit — used for USB serial" },
+      ],
+      warnings: [
+        { severity: "danger", text: "Used by USB-UART bridge — outputs debug log at boot" },
+      ],
+    },
+    {
+      position: 20,
+      side: "right",
+      label: "RX0 / GPIO3",
+      gpio: 3,
+      functions: [
+        { category: "gpio", label: "GPIO3", description: "General-purpose I/O" },
+        { category: "uart", label: "UART0 RX", description: "UART0 receive — used for USB serial" },
+      ],
+      warnings: [
+        { severity: "warning", text: "Used by USB-UART bridge — avoid using if serial monitor is needed" },
+      ],
+    },
+    {
+      position: 21,
+      side: "right",
+      label: "GPIO21",
+      gpio: 21,
+      functions: [
+        { category: "gpio", label: "GPIO21", description: "General-purpose I/O" },
+        { category: "i2c", label: "SDA", description: "Default I2C data line" },
+      ],
+      warnings: [],
+    },
+    {
+      position: 22,
+      side: "right",
+      label: "GPIO19",
+      gpio: 19,
+      functions: [
+        { category: "gpio", label: "GPIO19", description: "General-purpose I/O" },
+        { category: "spi", label: "VSPI MISO", description: "VSPI MISO (default)" },
+      ],
+      warnings: [],
+    },
+    {
+      position: 23,
+      side: "right",
+      label: "GPIO18",
+      gpio: 18,
+      functions: [
+        { category: "gpio", label: "GPIO18", description: "General-purpose I/O" },
+        { category: "spi", label: "VSPI CLK", description: "VSPI clock (default)" },
+      ],
+      warnings: [],
+    },
+    {
+      position: 24,
+      side: "right",
+      label: "GPIO5",
+      gpio: 5,
+      functions: [
+        { category: "gpio", label: "GPIO5", description: "General-purpose I/O" },
+        { category: "spi", label: "VSPI CS", description: "VSPI chip-select (default)" },
+      ],
+      warnings: [
+        { severity: "warning", text: "Strapping pin — outputs PWM at boot" },
+      ],
+    },
+    {
+      position: 25,
+      side: "right",
+      label: "TX2 / GPIO17",
+      gpio: 17,
+      functions: [
+        { category: "gpio", label: "GPIO17", description: "General-purpose I/O" },
+        { category: "uart", label: "UART2 TX", description: "UART2 transmit (default)" },
+      ],
+      warnings: [],
+    },
+    {
+      position: 26,
+      side: "right",
+      label: "RX2 / GPIO16",
+      gpio: 16,
+      functions: [
+        { category: "gpio", label: "GPIO16", description: "General-purpose I/O" },
+        { category: "uart", label: "UART2 RX", description: "UART2 receive (default)" },
+      ],
+      warnings: [],
+    },
+    {
+      position: 27,
+      side: "right",
+      label: "GPIO4",
+      gpio: 4,
+      functions: [
+        { category: "gpio", label: "GPIO4", description: "General-purpose I/O" },
+        { category: "adc", label: "ADC2_CH0", description: "12-bit ADC2 channel 0" },
+        { category: "touch", label: "Touch0", description: "Capacitive touch sensor 0" },
+      ],
+      warnings: [],
+    },
+    {
+      position: 28,
       side: "right",
       label: "GPIO2",
       gpio: 2,
@@ -354,132 +454,32 @@ export const esp32Wroom32_30pin: BoardVariant = {
       ],
     },
     {
-      position: 20,
-      side: "right",
-      label: "GPIO4",
-      gpio: 4,
-      functions: [
-        { category: "gpio", label: "GPIO4", description: "General-purpose I/O" },
-        { category: "adc", label: "ADC2_CH0", description: "12-bit ADC2 channel 0" },
-        { category: "touch", label: "Touch0", description: "Capacitive touch sensor 0" },
-      ],
-      warnings: [],
-    },
-    {
-      position: 21,
-      side: "right",
-      label: "RX2 / GPIO16",
-      gpio: 16,
-      functions: [
-        { category: "gpio", label: "GPIO16", description: "General-purpose I/O" },
-        { category: "uart", label: "UART2 RX", description: "UART2 receive (default)" },
-      ],
-      warnings: [],
-    },
-    {
-      position: 22,
-      side: "right",
-      label: "TX2 / GPIO17",
-      gpio: 17,
-      functions: [
-        { category: "gpio", label: "GPIO17", description: "General-purpose I/O" },
-        { category: "uart", label: "UART2 TX", description: "UART2 transmit (default)" },
-      ],
-      warnings: [],
-    },
-    {
-      position: 23,
-      side: "right",
-      label: "GPIO5",
-      gpio: 5,
-      functions: [
-        { category: "gpio", label: "GPIO5", description: "General-purpose I/O" },
-        { category: "spi", label: "VSPI CS", description: "VSPI chip-select (default)" },
-      ],
-      warnings: [
-        { severity: "warning", text: "Strapping pin — outputs PWM at boot" },
-      ],
-    },
-    {
-      position: 24,
-      side: "right",
-      label: "GPIO18",
-      gpio: 18,
-      functions: [
-        { category: "gpio", label: "GPIO18", description: "General-purpose I/O" },
-        { category: "spi", label: "VSPI CLK", description: "VSPI clock (default)" },
-      ],
-      warnings: [],
-    },
-    {
-      position: 25,
-      side: "right",
-      label: "GPIO19",
-      gpio: 19,
-      functions: [
-        { category: "gpio", label: "GPIO19", description: "General-purpose I/O" },
-        { category: "spi", label: "VSPI MISO", description: "VSPI MISO (default)" },
-      ],
-      warnings: [],
-    },
-    {
-      position: 26,
-      side: "right",
-      label: "GPIO21",
-      gpio: 21,
-      functions: [
-        { category: "gpio", label: "GPIO21", description: "General-purpose I/O" },
-        { category: "i2c", label: "SDA", description: "Default I2C data line" },
-      ],
-      warnings: [],
-    },
-    {
-      position: 27,
-      side: "right",
-      label: "RX0 / GPIO3",
-      gpio: 3,
-      functions: [
-        { category: "gpio", label: "GPIO3", description: "General-purpose I/O" },
-        { category: "uart", label: "UART0 RX", description: "UART0 receive — used for USB serial" },
-      ],
-      warnings: [
-        { severity: "warning", text: "Used by USB-UART bridge — avoid using if serial monitor is needed" },
-      ],
-    },
-    {
-      position: 28,
-      side: "right",
-      label: "TX0 / GPIO1",
-      gpio: 1,
-      functions: [
-        { category: "gpio", label: "GPIO1", description: "General-purpose I/O" },
-        { category: "uart", label: "UART0 TX", description: "UART0 transmit — used for USB serial" },
-      ],
-      warnings: [
-        { severity: "danger", text: "Used by USB-UART bridge — outputs debug log at boot" },
-      ],
-    },
-    {
       position: 29,
       side: "right",
-      label: "GPIO22",
-      gpio: 22,
+      label: "GPIO15",
+      gpio: 15,
       functions: [
-        { category: "gpio", label: "GPIO22", description: "General-purpose I/O" },
-        { category: "i2c", label: "SCL", description: "Default I2C clock line" },
+        { category: "gpio", label: "GPIO15", description: "General-purpose I/O" },
+        { category: "adc", label: "ADC2_CH3", description: "12-bit ADC2 channel 3" },
+        { category: "touch", label: "Touch3", description: "Capacitive touch sensor 3" },
+        { category: "spi", label: "HSPI CS", description: "HSPI chip-select (default)" },
       ],
-      warnings: [],
+      warnings: [
+        { severity: "warning", text: "Strapping pin — outputs PWM at boot (controls debug log output)" },
+      ],
     },
     {
       position: 30,
       side: "right",
-      label: "GPIO23",
-      gpio: 23,
+      label: "VIN",
+      gpio: null,
       functions: [
-        { category: "gpio", label: "GPIO23", description: "General-purpose I/O" },
-        { category: "spi", label: "VSPI MOSI", description: "VSPI MOSI (default)" },
+        { category: "power", label: "5V Input", description: "5V power input (or output when powered via USB)" },
       ],
-      warnings: [],
+      warnings: [
+        { severity: "warning", text: "Unregulated — connects directly to USB 5V" },
+        { severity: "info", text: "Can supply 5V to external devices when USB-powered" },
+      ],
     },
   ],
 };
