@@ -117,12 +117,12 @@ def create_checkout(
         "data": {
             "type": "checkouts",
             "attributes": {
-                "custom_data": {
-                    "user_id": str(user.id),
-                    "project_slug": data.project_slug,
-                },
                 "checkout_data": {
                     "email": user.email,
+                    "custom": {
+                        "user_id": str(user.id),
+                        "project_slug": data.project_slug,
+                    },
                 },
                 "product_options": {
                     "redirect_url": f"{settings.cors_origin_list[0]}/projects/{data.project_slug}",
@@ -380,12 +380,12 @@ def create_subscription_checkout(
         "data": {
             "type": "checkouts",
             "attributes": {
-                "custom_data": {
-                    "user_id": str(user.id),
-                    "checkout_type": "subscription",
-                },
                 "checkout_data": {
                     "email": user.email,
+                    "custom": {
+                        "user_id": str(user.id),
+                        "checkout_type": "subscription",
+                    },
                 },
                 "product_options": {
                     "redirect_url": f"{settings.cors_origin_list[0]}/pro?success=true",
