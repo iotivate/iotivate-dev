@@ -44,69 +44,40 @@ function ComponentRenderer({
 
   switch (comp.type) {
     case "chip": {
-      const pinDotSpacing = 12;
-      const pinDotsLeft = Math.floor(h / pinDotSpacing) - 1;
-      const pinDotsRight = pinDotsLeft;
-      const pinDotsBottom = Math.floor(w / pinDotSpacing) - 1;
       return (
         <g {...wrapperProps}>
           {hitArea}
-          {/* IC body */}
+          {/* Metal shield body */}
           <rect
             x={x}
             y={y}
             width={w}
             height={h}
-            rx={4}
+            rx={3}
             fill="url(#chip-body)"
-            stroke={isHighlighted ? "var(--color-accent)" : "#1a1a1a"}
+            stroke={isHighlighted ? "var(--color-accent)" : "#444"}
             strokeWidth={isHighlighted ? 2 : 1}
           />
+          {/* Subtle inner bevel */}
+          <rect
+            x={x + 2}
+            y={y + 2}
+            width={w - 4}
+            height={h - 4}
+            rx={2}
+            fill="none"
+            stroke="rgba(255,255,255,0.05)"
+            strokeWidth={0.5}
+          />
           {/* Pin-1 dot marker */}
-          <circle cx={x + 10} cy={y + 10} r={3} fill="#555" />
-          {/* Peripheral pin dots — left edge */}
-          {Array.from({ length: pinDotsLeft }).map((_, i) => (
-            <rect
-              key={`cl-${i}`}
-              x={x - 2}
-              y={y + 14 + i * pinDotSpacing}
-              width={4}
-              height={6}
-              rx={1}
-              fill="#888"
-            />
-          ))}
-          {/* Right edge */}
-          {Array.from({ length: pinDotsRight }).map((_, i) => (
-            <rect
-              key={`cr-${i}`}
-              x={x + w - 2}
-              y={y + 14 + i * pinDotSpacing}
-              width={4}
-              height={6}
-              rx={1}
-              fill="#888"
-            />
-          ))}
-          {/* Bottom edge */}
-          {Array.from({ length: pinDotsBottom }).map((_, i) => (
-            <rect
-              key={`cb-${i}`}
-              x={x + 14 + i * pinDotSpacing}
-              y={y + h - 2}
-              width={6}
-              height={4}
-              rx={1}
-              fill="#888"
-            />
-          ))}
+          <circle cx={x + 10} cy={y + 10} r={2.5} fill="#555" />
           {/* Silkscreen label */}
           <text
             x={cx}
-            y={cy - 6}
+            y={cy - 4}
             textAnchor="middle"
             dominantBaseline="central"
-            fill={isHighlighted ? "var(--color-accent)" : "rgba(255,255,255,0.7)"}
+            fill={isHighlighted ? "var(--color-accent)" : "rgba(255,255,255,0.65)"}
             fontSize={9}
             fontFamily="ui-monospace, monospace"
             fontWeight={500}
@@ -114,13 +85,12 @@ function ComponentRenderer({
           >
             {comp.label}
           </text>
-          {/* Chip family sub-label */}
           <text
             x={cx}
-            y={cy + 8}
+            y={cy + 10}
             textAnchor="middle"
             dominantBaseline="central"
-            fill="rgba(255,255,255,0.35)"
+            fill="rgba(255,255,255,0.3)"
             fontSize={7}
             fontFamily="ui-monospace, monospace"
             className="select-none pointer-events-none"
@@ -132,25 +102,26 @@ function ComponentRenderer({
     }
 
     case "usb-micro": {
-      // Trapezoidal USB-Micro connector shape
-      const inset = 6;
-      const shellPath = `M${x},${y + h} L${x},${y + 3} Q${x},${y} ${x + 3},${y} L${x + w - 3},${y} Q${x + w},${y} ${x + w},${y + 3} L${x + w},${y + h} L${x + w - inset},${y + h - 4} L${x + inset},${y + h - 4} Z`;
       return (
         <g {...wrapperProps}>
           {hitArea}
-          {/* Metallic shell */}
-          <path
-            d={shellPath}
+          {/* Flat metallic body */}
+          <rect
+            x={x}
+            y={y}
+            width={w}
+            height={h}
+            rx={3}
             fill="url(#usb-metallic)"
             stroke={isHighlighted ? "var(--color-accent)" : "#666"}
             strokeWidth={isHighlighted ? 1.5 : 0.75}
           />
-          {/* Inner cavity */}
+          {/* Inner port opening */}
           <rect
-            x={x + inset + 2}
-            y={y + 5}
-            width={w - (inset + 2) * 2}
-            height={h - 14}
+            x={x + 8}
+            y={y + 6}
+            width={w - 16}
+            height={h - 12}
             rx={2}
             fill="#1a1a1a"
           />
@@ -172,12 +143,11 @@ function ComponentRenderer({
     }
 
     case "usb-c": {
-      // Pill-shaped USB-C connector
       const rr = h / 2;
       return (
         <g {...wrapperProps}>
           {hitArea}
-          {/* Metallic shell */}
+          {/* Pill-shaped metallic shell */}
           <rect
             x={x}
             y={y}
@@ -188,28 +158,15 @@ function ComponentRenderer({
             stroke={isHighlighted ? "var(--color-accent)" : "#666"}
             strokeWidth={isHighlighted ? 1.5 : 0.75}
           />
-          {/* Inner cavity */}
+          {/* Inner port opening */}
           <rect
-            x={x + 5}
-            y={y + 5}
-            width={w - 10}
-            height={h - 10}
-            rx={rr - 4}
+            x={x + 6}
+            y={y + 6}
+            width={w - 12}
+            height={h - 12}
+            rx={Math.max(rr - 5, 2)}
             fill="#1a1a1a"
           />
-          {/* Center contact row */}
-          {Array.from({ length: 6 }).map((_, i) => (
-            <rect
-              key={`uc-${i}`}
-              x={x + 12 + i * 8}
-              y={y + h / 2 - 1.5}
-              width={4}
-              height={3}
-              rx={0.5}
-              fill="#c0a030"
-              opacity={0.7}
-            />
-          ))}
           {/* Label */}
           <text
             x={cx}
@@ -228,69 +185,59 @@ function ComponentRenderer({
     }
 
     case "antenna": {
-      // Copper zigzag antenna trace with keep-out outline
-      const zigW = w - 10;
-      const zigH = h - 8;
-      const startX = x + 5;
-      const startY = y + 4;
-      const segments = 8;
-      const segW = zigW / segments;
-      let zigzagPoints = `${startX},${startY + zigH / 2}`;
-      for (let i = 0; i < segments; i++) {
-        const sx = startX + i * segW + segW / 2;
-        const sy = i % 2 === 0 ? startY : startY + zigH;
-        const ex = startX + (i + 1) * segW;
-        const ey = startY + zigH / 2;
-        zigzagPoints += ` ${sx},${sy} ${ex},${ey}`;
-      }
       return (
         <g {...wrapperProps}>
           {hitArea}
-          {/* Keep-out zone dashed outline */}
+          {/* Subtle dashed keep-out outline */}
           <rect
             x={x}
             y={y}
             width={w}
             height={h}
             rx={2}
-            fill="none"
-            stroke={isHighlighted ? "var(--color-accent)" : "rgba(255,200,50,0.25)"}
+            fill="rgba(255,255,255,0.02)"
+            stroke={isHighlighted ? "var(--color-accent)" : "rgba(255,255,255,0.15)"}
             strokeWidth={0.75}
             strokeDasharray="4 2"
           />
-          {/* Zigzag antenna trace */}
-          <polyline
-            points={zigzagPoints}
-            fill="none"
-            stroke={isHighlighted ? "var(--color-accent)" : "#c0863a"}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          {/* Small antenna icon — simple wifi-like arcs */}
+          <circle
+            cx={cx}
+            cy={cy + 4}
+            r={1.5}
+            fill={isHighlighted ? "var(--color-accent)" : "rgba(255,255,255,0.4)"}
           />
-          {/* ANT label */}
+          {[6, 10, 14].map((r, i) => (
+            <path
+              key={`arc-${i}`}
+              d={`M${cx - r},${cy + 4} A${r},${r} 0 0,1 ${cx + r},${cy + 4}`}
+              fill="none"
+              stroke={isHighlighted ? "var(--color-accent)" : "rgba(255,255,255,0.25)"}
+              strokeWidth={1}
+              opacity={1 - i * 0.2}
+            />
+          ))}
+          {/* Label */}
           <text
-            x={x + 14}
+            x={cx}
             y={y + h + 10}
-            textAnchor="start"
+            textAnchor="middle"
             fill={isHighlighted ? "var(--color-accent)" : "rgba(255,255,255,0.35)"}
             fontSize={6}
             fontFamily="ui-monospace, monospace"
             className="select-none pointer-events-none"
           >
-            ANT
+            PCB Antenna
           </text>
         </g>
       );
     }
 
     case "led": {
-      // Small single-color LED with glow
       const r = Math.min(w, h) / 2;
       return (
         <g {...wrapperProps}>
           {hitArea}
-          {/* Copper pad base */}
-          <rect x={x} y={y} width={w} height={h} rx={2} fill="#8a7040" />
           {/* LED glow */}
           <circle
             cx={cx}
@@ -298,11 +245,10 @@ function ComponentRenderer({
             r={r * 0.8}
             fill="#ff3030"
             filter="url(#led-glow)"
-            opacity={0.9}
+            opacity={0.85}
           />
-          {/* LED die center */}
+          {/* LED die */}
           <circle cx={cx} cy={cy} r={r * 0.35} fill="#ff6060" />
-          {/* Highlight ring */}
           {isHighlighted && (
             <circle
               cx={cx}
@@ -318,12 +264,11 @@ function ComponentRenderer({
     }
 
     case "rgb-led": {
-      // Colorful addressable RGB LED — the most eye-catching element
       const r = Math.min(w, h) / 2;
       return (
         <g {...wrapperProps}>
           {hitArea}
-          {/* Pad body */}
+          {/* Small pad body */}
           <rect
             x={x - 2}
             y={y - 2}
@@ -331,82 +276,63 @@ function ComponentRenderer({
             height={h + 4}
             rx={3}
             fill="#2a2a2a"
-            stroke={isHighlighted ? "var(--color-accent)" : "#555"}
+            stroke={isHighlighted ? "var(--color-accent)" : "#444"}
             strokeWidth={isHighlighted ? 1.5 : 0.5}
           />
-          {/* RGB outer glow */}
+          {/* RGB glow */}
           <circle
             cx={cx}
             cy={cy}
-            r={r + 4}
+            r={r + 3}
             fill="url(#rgb-led-glow)"
             filter="url(#led-glow)"
-            opacity={0.6}
+            opacity={0.5}
           />
-          {/* Main colored ring */}
           <circle
             cx={cx}
             cy={cy}
             r={r}
             fill="url(#rgb-led-glow)"
-            opacity={0.9}
+            opacity={0.85}
           />
-          {/* Bright inner die */}
-          <circle cx={cx} cy={cy} r={r * 0.35} fill="#fff" opacity={0.85} />
-          {/* GPIO label */}
+          {/* Inner die */}
+          <circle cx={cx} cy={cy} r={r * 0.3} fill="#fff" opacity={0.8} />
+          {/* Label */}
           <text
             x={cx}
             y={y + h + 12}
             textAnchor="middle"
-            fill={isHighlighted ? "var(--color-accent)" : "rgba(255,255,255,0.45)"}
-            fontSize={6}
+            fill={isHighlighted ? "var(--color-accent)" : "rgba(255,255,255,0.4)"}
+            fontSize={5.5}
             fontFamily="ui-monospace, monospace"
             className="select-none pointer-events-none"
           >
-            {comp.label}
+            RGB
           </text>
         </g>
       );
     }
 
     case "button": {
-      // Tactile switch: outer metallic ring + inner cap
       const btnR = Math.min(w, h) / 2;
       return (
         <g {...wrapperProps}>
           {hitArea}
-          {/* 4 corner pads */}
-          {[
-            [x, y],
-            [x + w - 4, y],
-            [x, y + h - 4],
-            [x + w - 4, y + h - 4],
-          ].map(([px, py], i) => (
-            <rect
-              key={`bp-${i}`}
-              x={px}
-              y={py}
-              width={4}
-              height={4}
-              rx={0.5}
-              fill="#c0a030"
-            />
-          ))}
-          {/* Outer metallic ring */}
+          {/* Outer ring */}
           <circle
             cx={cx}
             cy={cy}
             r={btnR}
             fill="url(#usb-metallic)"
-            stroke={isHighlighted ? "var(--color-accent)" : "#777"}
+            stroke={isHighlighted ? "var(--color-accent)" : "#666"}
             strokeWidth={isHighlighted ? 1.5 : 0.75}
           />
-          {/* Inner raised cap */}
+          {/* Inner cap */}
           <circle
             cx={cx}
             cy={cy}
-            r={btnR * 0.6}
-            fill="#3a3a3a"
+            r={btnR * 0.55}
+            fill="#333"
             stroke="#555"
             strokeWidth={0.5}
           />
@@ -427,13 +353,10 @@ function ComponentRenderer({
     }
 
     case "ldo": {
-      // SOT-223 voltage regulator: dark body + 3 bottom pads + 1 top tab
       return (
         <g {...wrapperProps}>
           {hitArea}
-          {/* Top tab pad */}
-          <rect x={x + 5} y={y - 3} width={w - 10} height={6} rx={1} fill="#c0a030" />
-          {/* IC body */}
+          {/* Small IC body */}
           <rect
             x={x}
             y={y}
@@ -441,21 +364,9 @@ function ComponentRenderer({
             height={h}
             rx={2}
             fill="url(#chip-body)"
-            stroke={isHighlighted ? "var(--color-accent)" : "#333"}
+            stroke={isHighlighted ? "var(--color-accent)" : "#444"}
             strokeWidth={isHighlighted ? 1.5 : 0.75}
           />
-          {/* 3 bottom pads */}
-          {[0, 1, 2].map((i) => (
-            <rect
-              key={`lp-${i}`}
-              x={x + 4 + i * ((w - 12) / 2)}
-              y={y + h - 2}
-              width={6}
-              height={5}
-              rx={1}
-              fill="#c0a030"
-            />
-          ))}
           {/* Label */}
           <text
             x={cx}
