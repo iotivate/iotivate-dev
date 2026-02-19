@@ -6,17 +6,20 @@ import { MATERIAL_PRESETS, computePrintEstimate } from "./utils";
 
 interface CostEstimatorPanelProps {
   volume: number; // mm³ (already includes scaleFactor³)
+  surfaceArea: number; // mm² (already includes scaleFactor²)
   unit: Unit;
   onClose: () => void;
 }
 
 export default function CostEstimatorPanel({
   volume,
+  surfaceArea,
   onClose,
 }: CostEstimatorPanelProps) {
   const [material, setMaterial] = useState("PLA");
   const [customDensity, setCustomDensity] = useState(1.24);
   const [infill, setInfill] = useState(20);
+  const [wallThickness, setWallThickness] = useState(1.2);
   const [diameter, setDiameter] = useState<1.75 | 2.85>(1.75);
   const [costPerKg, setCostPerKg] = useState(25.0);
 
@@ -30,12 +33,14 @@ export default function CostEstimatorPanel({
     () =>
       computePrintEstimate({
         volumeMm3: volume,
+        surfaceAreaMm2: surfaceArea,
         infillPercent: infill,
+        wallThicknessMm: wallThickness,
         densityGPerCm3: density,
         filamentDiameterMm: diameter,
         costPerKg,
       }),
-    [volume, infill, density, diameter, costPerKg]
+    [volume, surfaceArea, infill, wallThickness, density, diameter, costPerKg]
   );
 
   return (
@@ -106,6 +111,24 @@ export default function CostEstimatorPanel({
           <span className="text-foreground tabular-nums w-10 text-right">
             {infill}%
           </span>
+        </div>
+
+        {/* Wall thickness */}
+        <label className="text-muted flex items-center">Walls</label>
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min={0.4}
+            max={5}
+            step={0.4}
+            value={wallThickness}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              if (!isNaN(v) && v >= 0.4 && v <= 5) setWallThickness(v);
+            }}
+            className="w-20 px-2 py-1 text-sm bg-transparent border border-border rounded tabular-nums text-foreground"
+          />
+          <span className="text-muted text-xs">mm</span>
         </div>
 
         {/* Filament diameter */}

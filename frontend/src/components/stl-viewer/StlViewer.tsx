@@ -1110,6 +1110,7 @@ export default function StlViewer({ isPro = false }: StlViewerProps) {
       {showCostPanel && isPro && displayMetrics && (
         <CostEstimatorPanel
           volume={displayMetrics.volume}
+          surfaceArea={displayMetrics.surfaceArea}
           unit={unit}
           onClose={() => setShowCostPanel(false)}
         />

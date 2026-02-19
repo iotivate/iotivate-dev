@@ -174,14 +174,25 @@ export const MATERIAL_PRESETS: MaterialPreset[] = [
 
 export function computePrintEstimate(opts: {
   volumeMm3: number;
+  surfaceAreaMm2: number;
   infillPercent: number;
+  wallThicknessMm: number;
   densityGPerCm3: number;
   filamentDiameterMm: number;
   costPerKg: number;
 }): CostEstimate {
-  const { volumeMm3, infillPercent, densityGPerCm3, filamentDiameterMm, costPerKg } = opts;
+  const {
+    volumeMm3, surfaceAreaMm2, infillPercent, wallThicknessMm,
+    densityGPerCm3, filamentDiameterMm, costPerKg,
+  } = opts;
 
-  const effectiveVolumeMm3 = volumeMm3 * (infillPercent / 100);
+  // Shell volume = surface area × wall thickness (approximation).
+  // Capped to total volume so thin/small parts don't overshoot.
+  const shellVolumeMm3 = Math.min(surfaceAreaMm2 * wallThicknessMm, volumeMm3);
+  const interiorVolumeMm3 = volumeMm3 - shellVolumeMm3;
+
+  // Shell is solid; only interior gets the infill percentage
+  const effectiveVolumeMm3 = shellVolumeMm3 + interiorVolumeMm3 * (infillPercent / 100);
   const effectiveVolumeCm3 = effectiveVolumeMm3 / 1000;
   const weightGrams = effectiveVolumeCm3 * densityGPerCm3;
 
