@@ -7,8 +7,11 @@ venv/
 
 # Environment
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
 # Build
 frontend/.next/
