@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import PageHeader from "@/components/PageHeader";
 import WebFlasher from "@/components/WebFlasher";
 import { PinPlanner } from "@/components/pin-planner";
-import StlViewer from "@/components/StlViewer";
 import SerialMonitorWithPro from "./SerialMonitorWithPro";
+import StlViewerWithPro from "./StlViewerWithPro";
 import { getTool, getTools } from "@/lib/api";
 import { JsonLd, ORGANIZATION } from "@/lib/jsonld";
 
@@ -13,7 +13,7 @@ const TOOL_COMPONENTS: Record<string, React.ComponentType> = {
   "esp32-web-flasher": WebFlasher,
   "serial-monitor": SerialMonitorWithPro,
   "esp32-pin-planner": PinPlanner,
-  "stl-viewer": StlViewer,
+  "stl-viewer": StlViewerWithPro,
 };
 
 interface Props {

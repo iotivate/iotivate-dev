@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import Link from "next/link";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -11,7 +12,82 @@ interface Dimensions {
   z: number;
 }
 
-export default function StlViewer() {
+interface MeshMetrics {
+  volume: number;
+  surfaceArea: number;
+}
+
+interface MeasurePoint {
+  position: THREE.Vector3;
+  marker: THREE.Mesh;
+}
+
+function ProBadge({ feature }: { feature: string }) {
+  return (
+    <Link
+      href="/pro"
+      className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-accent transition-colors"
+      title={`${feature} requires iotivate Pro`}
+    >
+      <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-accent/10 text-accent border border-accent/20">
+        PRO
+      </span>
+    </Link>
+  );
+}
+
+function computeMeshMetrics(geometry: THREE.BufferGeometry): MeshMetrics {
+  const pos = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  let volume = 0;
+  let surfaceArea = 0;
+
+  const vA = new THREE.Vector3();
+  const vB = new THREE.Vector3();
+  const vC = new THREE.Vector3();
+  const cross = new THREE.Vector3();
+
+  const triCount = index ? index.count / 3 : pos.count / 3;
+
+  for (let i = 0; i < triCount; i++) {
+    let ia: number, ib: number, ic: number;
+    if (index) {
+      ia = index.getX(i * 3);
+      ib = index.getX(i * 3 + 1);
+      ic = index.getX(i * 3 + 2);
+    } else {
+      ia = i * 3;
+      ib = i * 3 + 1;
+      ic = i * 3 + 2;
+    }
+
+    vA.fromBufferAttribute(pos, ia);
+    vB.fromBufferAttribute(pos, ib);
+    vC.fromBufferAttribute(pos, ic);
+
+    // Signed volume via tetrahedra method
+    volume +=
+      vA.x * (vB.y * vC.z - vC.y * vB.z) -
+      vB.x * (vA.y * vC.z - vC.y * vA.z) +
+      vC.x * (vA.y * vB.z - vB.y * vA.z);
+
+    // Surface area via cross product
+    const edge1 = new THREE.Vector3().subVectors(vB, vA);
+    const edge2 = new THREE.Vector3().subVectors(vC, vA);
+    cross.crossVectors(edge1, edge2);
+    surfaceArea += cross.length() * 0.5;
+  }
+
+  volume = Math.abs(volume) / 6;
+
+  return { volume, surfaceArea };
+}
+
+interface StlViewerProps {
+  isPro?: boolean;
+}
+
+export default function StlViewer({ isPro = false }: StlViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -21,13 +97,32 @@ export default function StlViewer() {
   const meshRef = useRef<THREE.Mesh | null>(null);
   const gridRef = useRef<THREE.GridHelper | null>(null);
   const frameRef = useRef<number>(0);
+  const clippingPlaneRef = useRef<THREE.Plane>(
+    new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)
+  );
+  const measureGroupRef = useRef<THREE.Group>(new THREE.Group());
+  const raycasterRef = useRef<THREE.Raycaster>(new THREE.Raycaster());
 
   const [fileName, setFileName] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<Dimensions | null>(null);
+  const [metrics, setMetrics] = useState<MeshMetrics | null>(null);
   const [color, setColor] = useState("#5BA8A0");
   const [wireframe, setWireframe] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Cross-section state
+  const [clippingEnabled, setClippingEnabled] = useState(false);
+  const [clipPosition, setClipPosition] = useState(0.5);
+  const [clipBounds, setClipBounds] = useState<{ min: number; max: number }>({
+    min: 0,
+    max: 100,
+  });
+
+  // Measure state
+  const [measureMode, setMeasureMode] = useState(false);
+  const [measurePoints, setMeasurePoints] = useState<MeasurePoint[]>([]);
+  const [measureDistance, setMeasureDistance] = useState<number | null>(null);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -38,6 +133,8 @@ export default function StlViewer() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a2e);
     sceneRef.current = scene;
+
+    scene.add(measureGroupRef.current);
 
     const camera = new THREE.PerspectiveCamera(
       50,
@@ -51,9 +148,11 @@ export default function StlViewer() {
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
+      preserveDrawingBuffer: true,
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.localClippingEnabled = true;
     rendererRef.current = renderer;
 
     const controls = new OrbitControls(camera, canvas);
@@ -131,49 +230,77 @@ export default function StlViewer() {
     material.wireframe = wireframe;
   }, [wireframe]);
 
-  const fitCameraToObject = useCallback(
-    (mesh: THREE.Mesh) => {
-      const camera = cameraRef.current;
-      const controls = controlsRef.current;
-      if (!camera || !controls) return;
+  // Update clipping plane
+  useEffect(() => {
+    if (!meshRef.current) return;
+    const material = meshRef.current.material as THREE.MeshStandardMaterial;
 
-      const box = new THREE.Box3().setFromObject(mesh);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const fov = camera.fov * (Math.PI / 180);
-      const distance = maxDim / (2 * Math.tan(fov / 2)) * 1.5;
+    if (clippingEnabled) {
+      const yValue =
+        clipBounds.min + clipPosition * (clipBounds.max - clipBounds.min);
+      clippingPlaneRef.current.set(new THREE.Vector3(0, -1, 0), yValue);
+      material.clippingPlanes = [clippingPlaneRef.current];
+      material.side = THREE.DoubleSide;
+      material.clipShadows = true;
+    } else {
+      material.clippingPlanes = [];
+      material.side = THREE.FrontSide;
+    }
+    material.needsUpdate = true;
+  }, [clippingEnabled, clipPosition, clipBounds]);
 
-      controls.target.copy(center);
-      camera.position.set(
-        center.x + distance * 0.7,
-        center.y + distance * 0.7,
-        center.z + distance * 0.7
-      );
-      camera.near = distance / 100;
-      camera.far = distance * 100;
-      camera.updateProjectionMatrix();
-      controls.update();
+  const fitCameraToObject = useCallback((mesh: THREE.Mesh) => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) return;
 
-      // Resize grid to match model
-      const scene = sceneRef.current;
-      if (scene && gridRef.current) {
-        scene.remove(gridRef.current);
-        gridRef.current.dispose();
-        const gridSize = maxDim * 3;
-        const grid = new THREE.GridHelper(
-          gridSize,
-          20,
-          0x444466,
-          0x333355
-        );
-        grid.position.y = box.min.y;
-        scene.add(grid);
-        gridRef.current = grid;
+    const box = new THREE.Box3().setFromObject(mesh);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera.fov * (Math.PI / 180);
+    const distance = (maxDim / (2 * Math.tan(fov / 2))) * 1.5;
+
+    controls.target.copy(center);
+    camera.position.set(
+      center.x + distance * 0.7,
+      center.y + distance * 0.7,
+      center.z + distance * 0.7
+    );
+    camera.near = distance / 100;
+    camera.far = distance * 100;
+    camera.updateProjectionMatrix();
+    controls.update();
+
+    // Resize grid to match model
+    const scene = sceneRef.current;
+    if (scene && gridRef.current) {
+      scene.remove(gridRef.current);
+      gridRef.current.dispose();
+      const gridSize = maxDim * 3;
+      const grid = new THREE.GridHelper(gridSize, 20, 0x444466, 0x333355);
+      grid.position.y = box.min.y;
+      scene.add(grid);
+      gridRef.current = grid;
+    }
+  }, []);
+
+  const clearMeasurement = useCallback(() => {
+    const group = measureGroupRef.current;
+    group.children.forEach((child) => {
+      if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
+        child.geometry.dispose();
+        if (Array.isArray(child.material)) {
+          child.material.forEach((m) => m.dispose());
+        } else {
+          (child.material as THREE.Material).dispose();
+        }
       }
-    },
-    []
-  );
+    });
+    group.clear();
+    setMeasurePoints([]);
+    setMeasureDistance(null);
+  }, []);
 
   const loadSTL = useCallback(
     (file: File) => {
@@ -225,6 +352,22 @@ export default function StlViewer() {
             z: Math.round(size.z * 100) / 100,
           });
 
+          // Compute metrics
+          const m = computeMeshMetrics(geometry);
+          setMetrics({
+            volume: Math.round(m.volume * 100) / 100,
+            surfaceArea: Math.round(m.surfaceArea * 100) / 100,
+          });
+
+          // Set clip bounds
+          setClipBounds({ min: box.min.y, max: box.max.y });
+          setClipPosition(0.5);
+
+          // Reset clipping and measurement
+          setClippingEnabled(false);
+          clearMeasurement();
+          setMeasureMode(false);
+
           setFileName(file.name);
           fitCameraToObject(mesh);
         } catch {
@@ -236,7 +379,7 @@ export default function StlViewer() {
       };
       reader.readAsArrayBuffer(file);
     },
-    [color, wireframe, fitCameraToObject]
+    [color, wireframe, fitCameraToObject, clearMeasurement]
   );
 
   const handleDrop = useCallback(
@@ -262,6 +405,114 @@ export default function StlViewer() {
       fitCameraToObject(meshRef.current);
     }
   }, [fitCameraToObject]);
+
+  // Screenshot export
+  const handleScreenshot = useCallback(() => {
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    if (!renderer || !scene || !camera) return;
+
+    renderer.render(scene, camera);
+    const dataURL = renderer.domElement.toDataURL("image/png");
+    const link = document.createElement("a");
+    const baseName = fileName
+      ? fileName.replace(/\.stl$/i, "")
+      : "stl";
+    link.download = `${baseName}-screenshot.png`;
+    link.href = dataURL;
+    link.click();
+  }, [fileName]);
+
+  // Measure mode click handler
+  const handleCanvasClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!measureMode || !meshRef.current) return;
+
+      const container = containerRef.current;
+      const camera = cameraRef.current;
+      if (!container || !camera) return;
+
+      const rect = container.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+
+      raycasterRef.current.setFromCamera(mouse, camera);
+      const intersects = raycasterRef.current.intersectObject(meshRef.current);
+
+      if (intersects.length === 0) return;
+
+      const point = intersects[0].point.clone();
+      const group = measureGroupRef.current;
+
+      // Create marker sphere
+      const markerGeo = new THREE.SphereGeometry(
+        meshRef.current.geometry.boundingSphere
+          ? meshRef.current.geometry.boundingSphere.radius * 0.015
+          : 0.5,
+        16,
+        16
+      );
+      const markerMat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+      const marker = new THREE.Mesh(markerGeo, markerMat);
+      marker.position.copy(point);
+      group.add(marker);
+
+      const newPoint: MeasurePoint = { position: point, marker };
+
+      if (measurePoints.length === 0) {
+        // First point
+        setMeasurePoints([newPoint]);
+        setMeasureDistance(null);
+      } else if (measurePoints.length === 1) {
+        // Second point — draw line and show distance
+        const p1 = measurePoints[0].position;
+        const p2 = point;
+
+        const lineGeo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+        const lineMat = new THREE.LineBasicMaterial({
+          color: 0xff4444,
+          linewidth: 2,
+        });
+        const line = new THREE.Line(lineGeo, lineMat);
+        group.add(line);
+
+        const dist = p1.distanceTo(p2);
+        setMeasurePoints([measurePoints[0], newPoint]);
+        setMeasureDistance(Math.round(dist * 100) / 100);
+      } else {
+        // Third click — reset and start new measurement
+        clearMeasurement();
+        // Place new first point
+        const freshMarkerGeo = new THREE.SphereGeometry(
+          meshRef.current!.geometry.boundingSphere
+            ? meshRef.current!.geometry.boundingSphere.radius * 0.015
+            : 0.5,
+          16,
+          16
+        );
+        const freshMarkerMat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+        const freshMarker = new THREE.Mesh(freshMarkerGeo, freshMarkerMat);
+        freshMarker.position.copy(point);
+        group.add(freshMarker);
+        setMeasurePoints([
+          { position: point, marker: freshMarker },
+        ]);
+        setMeasureDistance(null);
+      }
+    },
+    [measureMode, measurePoints, clearMeasurement]
+  );
+
+  // Toggle measure mode
+  const toggleMeasureMode = useCallback(() => {
+    if (measureMode) {
+      clearMeasurement();
+    }
+    setMeasureMode((prev) => !prev);
+  }, [measureMode, clearMeasurement]);
 
   return (
     <div className="space-y-4">
@@ -295,6 +546,74 @@ export default function StlViewer() {
           Reset View
         </button>
 
+        {/* Pro: Cross-Section */}
+        {isPro ? (
+          <button
+            onClick={() => setClippingEnabled((prev) => !prev)}
+            disabled={!meshRef.current}
+            className={`px-3 py-1.5 text-sm rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              clippingEnabled
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-border bg-surface hover:bg-surface-hover"
+            }`}
+          >
+            Cross-Section
+          </button>
+        ) : (
+          <Link
+            href="/pro"
+            className="px-3 py-1.5 text-sm rounded-md border border-border bg-surface hover:bg-surface-hover transition-colors flex items-center gap-1.5"
+            title="Cross-Section requires Pro"
+          >
+            Cross-Section{" "}
+            <span className="text-[9px] font-semibold text-accent">PRO</span>
+          </Link>
+        )}
+
+        {/* Pro: Measure */}
+        {isPro ? (
+          <button
+            onClick={toggleMeasureMode}
+            disabled={!meshRef.current}
+            className={`px-3 py-1.5 text-sm rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              measureMode
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-border bg-surface hover:bg-surface-hover"
+            }`}
+          >
+            Measure
+          </button>
+        ) : (
+          <Link
+            href="/pro"
+            className="px-3 py-1.5 text-sm rounded-md border border-border bg-surface hover:bg-surface-hover transition-colors flex items-center gap-1.5"
+            title="Measure requires Pro"
+          >
+            Measure{" "}
+            <span className="text-[9px] font-semibold text-accent">PRO</span>
+          </Link>
+        )}
+
+        {/* Pro: Screenshot */}
+        {isPro ? (
+          <button
+            onClick={handleScreenshot}
+            disabled={!meshRef.current}
+            className="px-3 py-1.5 text-sm rounded-md border border-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Screenshot
+          </button>
+        ) : (
+          <Link
+            href="/pro"
+            className="px-3 py-1.5 text-sm rounded-md border border-border bg-surface hover:bg-surface-hover transition-colors flex items-center gap-1.5"
+            title="Screenshot requires Pro"
+          >
+            Screenshot{" "}
+            <span className="text-[9px] font-semibold text-accent">PRO</span>
+          </Link>
+        )}
+
         <label className="ml-auto px-3 py-1.5 text-sm rounded-md border border-border bg-surface hover:bg-surface-hover cursor-pointer transition-colors">
           Open File
           <input
@@ -305,6 +624,31 @@ export default function StlViewer() {
           />
         </label>
       </div>
+
+      {/* Cross-section slider */}
+      {clippingEnabled && isPro && meshRef.current && (
+        <div className="flex items-center gap-3 px-3 py-2 bg-surface border border-border rounded-lg">
+          <span className="text-sm text-muted whitespace-nowrap">
+            Clip Y
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.005}
+            value={clipPosition}
+            onChange={(e) => setClipPosition(parseFloat(e.target.value))}
+            className="flex-1 accent-[#5BA8A0]"
+          />
+          <span className="text-sm text-muted tabular-nums w-20 text-right">
+            {(
+              clipBounds.min +
+              clipPosition * (clipBounds.max - clipBounds.min)
+            ).toFixed(1)}{" "}
+            mm
+          </span>
+        </div>
+      )}
 
       {/* Info bar */}
       {(fileName || dimensions) && (
@@ -319,6 +663,32 @@ export default function StlViewer() {
               {dimensions.x} &times; {dimensions.y} &times; {dimensions.z} mm
             </span>
           )}
+          {metrics && isPro && (
+            <>
+              <span>
+                Volume:{" "}
+                <span className="text-foreground">
+                  {metrics.volume.toLocaleString()} mm&sup3;
+                </span>
+              </span>
+              <span>
+                Surface area:{" "}
+                <span className="text-foreground">
+                  {metrics.surfaceArea.toLocaleString()} mm&sup2;
+                </span>
+              </span>
+            </>
+          )}
+          {metrics && !isPro && (
+            <>
+              <span className="flex items-center gap-1.5">
+                Volume <ProBadge feature="Volume" />
+              </span>
+              <span className="flex items-center gap-1.5">
+                Surface area <ProBadge feature="Surface area" />
+              </span>
+            </>
+          )}
         </div>
       )}
 
@@ -332,7 +702,9 @@ export default function StlViewer() {
       {/* Viewer */}
       <div
         ref={containerRef}
-        className="relative w-full rounded-lg border border-border overflow-hidden"
+        className={`relative w-full rounded-lg border border-border overflow-hidden ${
+          measureMode ? "cursor-crosshair" : ""
+        }`}
         style={{ height: "min(70vh, 600px)" }}
         onDragOver={(e) => {
           e.preventDefault();
@@ -340,8 +712,25 @@ export default function StlViewer() {
         }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
+        onClick={handleCanvasClick}
       >
         <canvas ref={canvasRef} className="w-full h-full block" />
+
+        {/* Measure distance overlay */}
+        {measureMode && measureDistance !== null && (
+          <div className="absolute top-3 left-3 px-3 py-1.5 bg-black/70 text-white text-sm rounded-lg pointer-events-none z-10 tabular-nums">
+            Distance: {measureDistance} mm
+          </div>
+        )}
+
+        {/* Measure mode hint */}
+        {measureMode && measureDistance === null && meshRef.current && (
+          <div className="absolute top-3 left-3 px-3 py-1.5 bg-black/50 text-white/70 text-xs rounded-lg pointer-events-none z-10">
+            {measurePoints.length === 0
+              ? "Click to place first point"
+              : "Click to place second point"}
+          </div>
+        )}
 
         {/* Drag overlay */}
         {isDragging && (
