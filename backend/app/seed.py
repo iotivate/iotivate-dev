@@ -23,6 +23,12 @@ def seed():
                 description="One-click installer for the WirelessEar project firmware.",
                 status="coming_soon",
             ),
+            Tool(
+                slug="stl-viewer",
+                name="STL Viewer",
+                description="Preview 3D-printable STL files in your browser. Rotate, zoom, measure dimensions, and inspect models before printing.",
+                status="active",
+            ),
         ]
         projects = [
             Project(
