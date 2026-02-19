@@ -84,7 +84,7 @@ export default function CostEstimatorPanel({
 
       {/* Material inputs */}
       <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-        <label className="text-muted flex items-center">Material</label>
+        <label className="text-muted flex items-center" title="Filament material type — each has a different density that affects weight and cost">Material</label>
         <select
           value={material}
           onChange={(e) => setMaterial(e.target.value)}
@@ -100,7 +100,7 @@ export default function CostEstimatorPanel({
 
         {material === "Custom" && (
           <>
-            <label className="text-muted flex items-center">
+            <label className="text-muted flex items-center" title="Material density in grams per cubic centimeter — determines weight from volume">
               Density (g/cm&sup3;)
             </label>
             <input
@@ -118,7 +118,7 @@ export default function CostEstimatorPanel({
           </>
         )}
 
-        <label className="text-muted flex items-center">Infill</label>
+        <label className="text-muted flex items-center" title="Percentage of the interior filled with material — 20% is typical, 100% is solid">Infill</label>
         <div className="flex items-center gap-2">
           <input
             type="range"
@@ -134,7 +134,7 @@ export default function CostEstimatorPanel({
           </span>
         </div>
 
-        <label className="text-muted flex items-center">Walls</label>
+        <label className="text-muted flex items-center" title="Shell/wall thickness — the solid outer perimeter of the print (e.g. 3 perimeters at 0.4mm = 1.2mm)">Walls</label>
         <div className="flex items-center gap-1">
           <input
             type="number"
@@ -151,7 +151,7 @@ export default function CostEstimatorPanel({
           <span className="text-muted text-xs">mm</span>
         </div>
 
-        <label className="text-muted flex items-center">Diameter</label>
+        <label className="text-muted flex items-center" title="Filament diameter — most printers use 1.75mm, some older models use 2.85mm">Diameter</label>
         <div className="flex items-center rounded-md border border-border overflow-hidden">
           <button
             onClick={() => setDiameter(1.75)}
@@ -175,7 +175,7 @@ export default function CostEstimatorPanel({
           </button>
         </div>
 
-        <label className="text-muted flex items-center">Filament</label>
+        <label className="text-muted flex items-center" title="Price you paid for a 1kg spool of filament">Filament</label>
         <div className="flex items-center gap-1">
           <span className="text-muted">$</span>
           <input
@@ -189,14 +189,14 @@ export default function CostEstimatorPanel({
             }}
             className="w-20 px-2 py-1 text-sm bg-transparent border border-border rounded tabular-nums text-foreground"
           />
-          <span className="text-muted text-xs">/kg</span>
+          <span className="text-muted text-xs">/1kg</span>
         </div>
       </div>
 
       {/* Machine & overhead inputs */}
       <div className="border-t border-border" />
       <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-        <label className="text-muted flex items-center">Print speed</label>
+        <label className="text-muted flex items-center" title="Average print speed from your slicer — used to estimate total print time">Print speed</label>
         <div className="flex items-center gap-1">
           <input
             type="number"
@@ -213,7 +213,7 @@ export default function CostEstimatorPanel({
           <span className="text-muted text-xs">mm/s</span>
         </div>
 
-        <label className="text-muted flex items-center">Printer power</label>
+        <label className="text-muted flex items-center" title="Power consumption of your printer in watts — typically 150-300W for FDM printers">Printer power</label>
         <div className="flex items-center gap-1">
           <input
             type="number"
@@ -230,7 +230,7 @@ export default function CostEstimatorPanel({
           <span className="text-muted text-xs">W</span>
         </div>
 
-        <label className="text-muted flex items-center">Electricity</label>
+        <label className="text-muted flex items-center" title="Your electricity rate — check your utility bill for the cost per kilowatt-hour">Electricity</label>
         <div className="flex items-center gap-1">
           <span className="text-muted">$</span>
           <input
@@ -248,7 +248,7 @@ export default function CostEstimatorPanel({
           <span className="text-muted text-xs">/kWh</span>
         </div>
 
-        <label className="text-muted flex items-center">Labor</label>
+        <label className="text-muted flex items-center" title="Hourly rate for your time — setup, monitoring, post-processing (set to 0 for personal use)">Labor</label>
         <div className="flex items-center gap-1">
           <span className="text-muted">$</span>
           <input
@@ -265,7 +265,7 @@ export default function CostEstimatorPanel({
           <span className="text-muted text-xs">/hr</span>
         </div>
 
-        <label className="text-muted flex items-center">Markup</label>
+        <label className="text-muted flex items-center" title="Profit margin added on top of total cost — useful if you sell prints (set to 0 for personal use)">Markup</label>
         <div className="flex items-center gap-1">
           <input
             type="number"
