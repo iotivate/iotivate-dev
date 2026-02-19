@@ -11,17 +11,33 @@ interface CostEstimatorPanelProps {
   onClose: () => void;
 }
 
+function formatTime(hours: number): string {
+  if (hours < 1 / 60) return "< 1 min";
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  if (h === 0) return `${m} min`;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 export default function CostEstimatorPanel({
   volume,
   surfaceArea,
   onClose,
 }: CostEstimatorPanelProps) {
+  // Material settings
   const [material, setMaterial] = useState("PLA");
   const [customDensity, setCustomDensity] = useState(1.24);
   const [infill, setInfill] = useState(20);
   const [wallThickness, setWallThickness] = useState(1.2);
   const [diameter, setDiameter] = useState<1.75 | 2.85>(1.75);
   const [costPerKg, setCostPerKg] = useState(25.0);
+
+  // Machine settings
+  const [printSpeed, setPrintSpeed] = useState(50);
+  const [printerWatts, setPrinterWatts] = useState(200);
+  const [electricityRate, setElectricityRate] = useState(0.12);
+  const [laborRate, setLaborRate] = useState(0);
+  const [markup, setMarkup] = useState(0);
 
   const density = useMemo(() => {
     if (material === "Custom") return customDensity;
@@ -39,8 +55,16 @@ export default function CostEstimatorPanel({
         densityGPerCm3: density,
         filamentDiameterMm: diameter,
         costPerKg,
+        printSpeedMmPerS: printSpeed,
+        printerWatts,
+        electricityPerKwh: electricityRate,
+        laborPerHour: laborRate,
+        markupPercent: markup,
       }),
-    [volume, surfaceArea, infill, wallThickness, density, diameter, costPerKg]
+    [
+      volume, surfaceArea, infill, wallThickness, density, diameter,
+      costPerKg, printSpeed, printerWatts, electricityRate, laborRate, markup,
+    ]
   );
 
   return (
@@ -58,9 +82,8 @@ export default function CostEstimatorPanel({
         </button>
       </div>
 
-      {/* Inputs */}
-      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-        {/* Material */}
+      {/* Material inputs */}
+      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
         <label className="text-muted flex items-center">Material</label>
         <select
           value={material}
@@ -75,7 +98,6 @@ export default function CostEstimatorPanel({
           <option value="Custom">Custom</option>
         </select>
 
-        {/* Custom density (only when Custom selected) */}
         {material === "Custom" && (
           <>
             <label className="text-muted flex items-center">
@@ -96,7 +118,6 @@ export default function CostEstimatorPanel({
           </>
         )}
 
-        {/* Infill */}
         <label className="text-muted flex items-center">Infill</label>
         <div className="flex items-center gap-2">
           <input
@@ -113,7 +134,6 @@ export default function CostEstimatorPanel({
           </span>
         </div>
 
-        {/* Wall thickness */}
         <label className="text-muted flex items-center">Walls</label>
         <div className="flex items-center gap-1">
           <input
@@ -131,7 +151,6 @@ export default function CostEstimatorPanel({
           <span className="text-muted text-xs">mm</span>
         </div>
 
-        {/* Filament diameter */}
         <label className="text-muted flex items-center">Diameter</label>
         <div className="flex items-center rounded-md border border-border overflow-hidden">
           <button
@@ -156,8 +175,7 @@ export default function CostEstimatorPanel({
           </button>
         </div>
 
-        {/* Cost per kg */}
-        <label className="text-muted flex items-center">Cost</label>
+        <label className="text-muted flex items-center">Filament</label>
         <div className="flex items-center gap-1">
           <span className="text-muted">$</span>
           <input
@@ -175,11 +193,101 @@ export default function CostEstimatorPanel({
         </div>
       </div>
 
+      {/* Machine & overhead inputs */}
+      <div className="border-t border-border" />
+      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+        <label className="text-muted flex items-center">Print speed</label>
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min={10}
+            max={300}
+            step={5}
+            value={printSpeed}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              if (!isNaN(v) && v >= 10) setPrintSpeed(v);
+            }}
+            className="w-20 px-2 py-1 text-sm bg-transparent border border-border rounded tabular-nums text-foreground"
+          />
+          <span className="text-muted text-xs">mm/s</span>
+        </div>
+
+        <label className="text-muted flex items-center">Printer power</label>
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min={0}
+            max={2000}
+            step={10}
+            value={printerWatts}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              if (!isNaN(v) && v >= 0) setPrinterWatts(v);
+            }}
+            className="w-20 px-2 py-1 text-sm bg-transparent border border-border rounded tabular-nums text-foreground"
+          />
+          <span className="text-muted text-xs">W</span>
+        </div>
+
+        <label className="text-muted flex items-center">Electricity</label>
+        <div className="flex items-center gap-1">
+          <span className="text-muted">$</span>
+          <input
+            type="number"
+            min={0}
+            max={1}
+            step={0.01}
+            value={electricityRate}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              if (!isNaN(v) && v >= 0) setElectricityRate(v);
+            }}
+            className="w-20 px-2 py-1 text-sm bg-transparent border border-border rounded tabular-nums text-foreground"
+          />
+          <span className="text-muted text-xs">/kWh</span>
+        </div>
+
+        <label className="text-muted flex items-center">Labor</label>
+        <div className="flex items-center gap-1">
+          <span className="text-muted">$</span>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={laborRate}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              if (!isNaN(v) && v >= 0) setLaborRate(v);
+            }}
+            className="w-20 px-2 py-1 text-sm bg-transparent border border-border rounded tabular-nums text-foreground"
+          />
+          <span className="text-muted text-xs">/hr</span>
+        </div>
+
+        <label className="text-muted flex items-center">Markup</label>
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min={0}
+            max={500}
+            step={5}
+            value={markup}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              if (!isNaN(v) && v >= 0) setMarkup(v);
+            }}
+            className="w-20 px-2 py-1 text-sm bg-transparent border border-border rounded tabular-nums text-foreground"
+          />
+          <span className="text-muted text-xs">%</span>
+        </div>
+      </div>
+
       {/* Divider */}
       <div className="border-t border-border" />
 
       {/* Results */}
-      <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
         <span className="text-muted">Weight</span>
         <span className="text-foreground tabular-nums">
           {estimate.weightGrams.toFixed(1)} g
@@ -188,16 +296,50 @@ export default function CostEstimatorPanel({
         <span className="text-foreground tabular-nums">
           {estimate.filamentLengthMeters.toFixed(2)} m
         </span>
-        <span className="text-muted">Est. Cost</span>
+        <span className="text-muted">Est. time</span>
+        <span className="text-foreground tabular-nums">
+          {formatTime(estimate.printTimeHours)}
+        </span>
+
+        <div className="col-span-2 border-t border-border/50 my-1" />
+
+        <span className="text-muted">Filament</span>
+        <span className="text-foreground tabular-nums">
+          ${estimate.filamentCost.toFixed(2)}
+        </span>
+        <span className="text-muted">Electricity</span>
+        <span className="text-foreground tabular-nums">
+          ${estimate.electricityCost.toFixed(2)}
+        </span>
+        {estimate.laborCost > 0 && (
+          <>
+            <span className="text-muted">Labor</span>
+            <span className="text-foreground tabular-nums">
+              ${estimate.laborCost.toFixed(2)}
+            </span>
+          </>
+        )}
+        {markup > 0 && (
+          <>
+            <span className="text-muted">Markup ({markup}%)</span>
+            <span className="text-foreground tabular-nums">
+              ${(estimate.totalCost - estimate.subtotal).toFixed(2)}
+            </span>
+          </>
+        )}
+
+        <div className="col-span-2 border-t border-border/50 my-1" />
+
+        <span className="text-foreground font-medium">Total</span>
         <span className="text-foreground tabular-nums font-medium">
-          ${estimate.costDollars.toFixed(2)}
+          ${estimate.totalCost.toFixed(2)}
         </span>
       </div>
 
       {/* Disclaimer */}
       <p className="text-xs text-muted/70">
-        Rough estimate &mdash; actual cost depends on walls, supports, and
-        slicer settings.
+        Rough estimate &mdash; actual cost depends on slicer settings,
+        supports, and machine specifics.
       </p>
     </div>
   );

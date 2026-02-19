@@ -49,5 +49,10 @@ export interface MaterialPreset {
 export interface CostEstimate {
   weightGrams: number;
   filamentLengthMeters: number;
-  costDollars: number;
+  printTimeHours: number;
+  filamentCost: number;
+  electricityCost: number;
+  laborCost: number;
+  subtotal: number;
+  totalCost: number;
 }

@@ -180,10 +180,17 @@ export function computePrintEstimate(opts: {
   densityGPerCm3: number;
   filamentDiameterMm: number;
   costPerKg: number;
+  printSpeedMmPerS: number;
+  printerWatts: number;
+  electricityPerKwh: number;
+  laborPerHour: number;
+  markupPercent: number;
 }): CostEstimate {
   const {
     volumeMm3, surfaceAreaMm2, infillPercent, wallThicknessMm,
     densityGPerCm3, filamentDiameterMm, costPerKg,
+    printSpeedMmPerS, printerWatts, electricityPerKwh,
+    laborPerHour, markupPercent,
   } = opts;
 
   // Shell volume = surface area × wall thickness (approximation).
@@ -199,15 +206,25 @@ export function computePrintEstimate(opts: {
   // Filament cross-section area in mm²
   const radiusMm = filamentDiameterMm / 2;
   const crossSectionMm2 = Math.PI * radiusMm * radiusMm;
-  // Volume of filament per mm of length = crossSection * 1mm (in mm³)
-  // Weight per mm of filament = crossSectionMm2 * 1mm / 1000 (cm³) * density (g/cm³)
-  // So length_mm = weightGrams / (densityGPerCm3 * crossSectionMm2 / 1000)
+  // length_mm = weightGrams / (densityGPerCm3 * crossSectionMm2 / 1000)
   const filamentLengthMm = weightGrams / (densityGPerCm3 * crossSectionMm2 / 1000);
   const filamentLengthMeters = filamentLengthMm / 1000;
 
-  const costDollars = (weightGrams / 1000) * costPerKg;
+  // Estimated print time from filament length and print speed
+  // This is a rough estimate — real time includes travel moves, retraction, etc.
+  const printTimeHours = filamentLengthMm / (printSpeedMmPerS * 3600);
 
-  return { weightGrams, filamentLengthMeters, costDollars };
+  // Cost breakdown
+  const filamentCost = (weightGrams / 1000) * costPerKg;
+  const electricityCost = (printerWatts / 1000) * printTimeHours * electricityPerKwh;
+  const laborCost = laborPerHour * printTimeHours;
+  const subtotal = filamentCost + electricityCost + laborCost;
+  const totalCost = subtotal * (1 + markupPercent / 100);
+
+  return {
+    weightGrams, filamentLengthMeters, printTimeHours,
+    filamentCost, electricityCost, laborCost, subtotal, totalCost,
+  };
 }
 
 // ---------- Thickness analysis ----------
