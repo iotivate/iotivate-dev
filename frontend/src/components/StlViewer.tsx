@@ -479,7 +479,6 @@ export default function StlViewer({ isPro = false }: StlViewerProps) {
     const maxDim = Math.max(size.x, size.y, size.z);
     const fov = cam.fov * (Math.PI / 180);
     const orbitRadius = (maxDim / (2 * Math.tan(fov / 2))) * 1.5;
-    const orbitY = center.y + orbitRadius * 0.4;
 
     const totalFrames = 120; // 4 seconds at 30fps
     let frame = 0;
@@ -500,11 +499,15 @@ export default function StlViewer({ isPro = false }: StlViewerProps) {
         return;
       }
 
-      const angle = (frame / totalFrames) * Math.PI * 2;
+      const t = frame / totalFrames;
+      // Azimuth: full 360° horizontal orbit
+      const azimuth = t * Math.PI * 2;
+      // Elevation: oscillate between ~25° and ~65° from top (shows top and side views)
+      const elevation = Math.PI * 0.25 + Math.sin(t * Math.PI * 2) * Math.PI * 0.2;
       cam.position.set(
-        center.x + orbitRadius * Math.cos(angle),
-        orbitY,
-        center.z + orbitRadius * Math.sin(angle)
+        center.x + orbitRadius * Math.sin(elevation) * Math.cos(azimuth),
+        center.y + orbitRadius * Math.cos(elevation),
+        center.z + orbitRadius * Math.sin(elevation) * Math.sin(azimuth)
       );
       ctrl.target.copy(center);
       ctrl.update();
@@ -535,7 +538,12 @@ export default function StlViewer({ isPro = false }: StlViewerProps) {
       raycasterRef.current.setFromCamera(mouse, camera);
       const intersects = raycasterRef.current.intersectObject(meshRef.current);
 
-      if (intersects.length === 0) return;
+      if (intersects.length === 0) {
+        // Clicked outside the model — exit measure mode
+        clearMeasurement();
+        setMeasureMode(false);
+        return;
+      }
 
       const point = intersects[0].point.clone();
       const group = measureGroupRef.current;
@@ -576,28 +584,26 @@ export default function StlViewer({ isPro = false }: StlViewerProps) {
         setMeasurePoints([measurePoints[0], newPoint]);
         setMeasureDistance(Math.round(dist * 100) / 100);
       } else {
-        // Third click — reset and start new measurement
+        // Third click — exit measure mode
         clearMeasurement();
-        // Place new first point
-        const freshMarkerGeo = new THREE.SphereGeometry(
-          meshRef.current!.geometry.boundingSphere
-            ? meshRef.current!.geometry.boundingSphere.radius * 0.015
-            : 0.5,
-          16,
-          16
-        );
-        const freshMarkerMat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
-        const freshMarker = new THREE.Mesh(freshMarkerGeo, freshMarkerMat);
-        freshMarker.position.copy(point);
-        group.add(freshMarker);
-        setMeasurePoints([
-          { position: point, marker: freshMarker },
-        ]);
-        setMeasureDistance(null);
+        setMeasureMode(false);
       }
     },
     [measureMode, measurePoints, clearMeasurement]
   );
+
+  // Escape key exits measure mode
+  useEffect(() => {
+    if (!measureMode) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        clearMeasurement();
+        setMeasureMode(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [measureMode, clearMeasurement]);
 
   // Toggle measure mode
   const toggleMeasureMode = useCallback(() => {
@@ -833,8 +839,8 @@ export default function StlViewer({ isPro = false }: StlViewerProps) {
         {measureMode && measureDistance === null && meshRef.current && (
           <div className="absolute top-3 left-3 px-3 py-1.5 bg-black/50 text-white/70 text-xs rounded-lg pointer-events-none z-10">
             {measurePoints.length === 0
-              ? "Click to place first point"
-              : "Click to place second point"}
+              ? "Click model to place first point \u00b7 Esc to exit"
+              : "Click model to place second point \u00b7 Esc to exit"}
           </div>
         )}
 
