@@ -233,6 +233,60 @@ export default function WebFlasher({ firmwareUrl }: WebFlasherProps) {
 
   return (
     <div className="space-y-6">
+      {/* Quick start guide */}
+      <details className="group border border-border rounded-lg">
+        <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none text-sm font-medium hover:bg-surface/50 transition-colors">
+          <span>How to flash multiple .bin files (bootloader + partition + firmware)</span>
+          <svg className="w-4 h-4 text-muted transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </summary>
+        <div className="px-4 pb-4 text-sm text-muted space-y-3 border-t border-border pt-3">
+          <p>
+            ESP32 firmware typically consists of three <code className="text-foreground bg-surface px-1 py-0.5 rounded text-xs">.bin</code> files,
+            each written to a specific flash address:
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="py-1.5 pr-4 font-semibold text-foreground">Offset</th>
+                  <th className="py-1.5 pr-4 font-semibold text-foreground">File</th>
+                  <th className="py-1.5 font-semibold text-foreground">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-border/50">
+                  <td className="py-1.5 pr-4 text-accent">0x0</td>
+                  <td className="py-1.5 pr-4">bootloader.bin</td>
+                  <td className="py-1.5">First-stage bootloader</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="py-1.5 pr-4 text-accent">0x8000</td>
+                  <td className="py-1.5 pr-4">partitions.bin</td>
+                  <td className="py-1.5">Partition table layout</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5 pr-4 text-accent">0x10000</td>
+                  <td className="py-1.5 pr-4">firmware.bin</td>
+                  <td className="py-1.5">Application firmware</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Click <strong className="text-foreground">Connect Device</strong> and select your ESP32 from the browser prompt</li>
+            <li>Click <strong className="text-foreground">+ Add file</strong> to create a row for each .bin file (3 total)</li>
+            <li>Set the offset and select the matching .bin for each row</li>
+            <li>Click <strong className="text-foreground">Flash Firmware</strong> — all files are written in sequence</li>
+          </ol>
+          <p className="text-xs">
+            These are the default offsets for ESP-IDF and Arduino. If your project uses a custom partition table,
+            check your build output or <code className="text-foreground bg-surface px-1 py-0.5 rounded">partitions.csv</code> for the correct addresses.
+          </p>
+        </div>
+      </details>
+
       {/* Browser support check */}
       {!isSupported && (
         <div className="p-4 border border-red-500/30 bg-red-500/5 rounded-lg text-sm">
