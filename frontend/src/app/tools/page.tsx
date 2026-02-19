@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import PcbBackground from "@/components/PcbBackground";
 import { getTools, type Tool } from "@/lib/api";
 import { JsonLd } from "@/lib/jsonld";
 
@@ -46,10 +47,15 @@ export default async function ToolsPage() {
           },
         }}
       />
-      <PageHeader
-        title="Tools"
-        description="Web-based tools for ESP32 and IoT development. No installs, no drivers — just your browser."
-      />
+      <div className="relative">
+        <PcbBackground />
+        <div className="relative z-10">
+          <PageHeader
+            title="Tools"
+            description="Web-based tools for ESP32 and IoT development. No installs, no drivers — just your browser."
+          />
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {tools.map((tool) => (
           <Link

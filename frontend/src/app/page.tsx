@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { JsonLd, WEBSITE, ORGANIZATION } from "@/lib/jsonld";
+import PcbBackground from "@/components/PcbBackground";
 
 export default function Home() {
   return (
@@ -12,28 +13,31 @@ export default function Home() {
         }}
       />
       {/* Hero */}
-      <section className="py-20 sm:py-32">
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl">
-          Simplifying IoT, One Module at a Time.
-        </h1>
-        <p className="mt-6 text-lg sm:text-xl text-muted max-w-2xl leading-relaxed">
-          We build practical tools, firmware, and hardware that make ESP32 and
-          IoT projects easier to create, share, and deploy — without the
-          complexity.
-        </p>
-        <div className="mt-10 flex flex-wrap gap-4">
-          <Link
-            href="/tools"
-            className="inline-flex items-center px-6 py-3 bg-accent text-white font-medium rounded-lg hover:bg-accent-hover transition-colors"
-          >
-            Launch Tools
-          </Link>
-          <Link
-            href="/projects"
-            className="inline-flex items-center px-6 py-3 border border-border font-medium rounded-lg hover:bg-surface transition-colors"
-          >
-            Explore Projects
-          </Link>
+      <section className="relative py-20 sm:py-32">
+        <PcbBackground />
+        <div className="relative z-10">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl">
+            Simplifying IoT, One Module at a Time.
+          </h1>
+          <p className="mt-6 text-lg sm:text-xl text-muted max-w-2xl leading-relaxed">
+            We build practical tools, firmware, and hardware that make ESP32 and
+            IoT projects easier to create, share, and deploy — without the
+            complexity.
+          </p>
+          <div className="mt-10 flex flex-wrap gap-4">
+            <Link
+              href="/tools"
+              className="inline-flex items-center px-6 py-3 bg-accent text-white font-medium rounded-lg hover:bg-accent-hover transition-colors"
+            >
+              Launch Tools
+            </Link>
+            <Link
+              href="/projects"
+              className="inline-flex items-center px-6 py-3 border border-border font-medium rounded-lg hover:bg-surface transition-colors"
+            >
+              Explore Projects
+            </Link>
+          </div>
         </div>
       </section>
 
