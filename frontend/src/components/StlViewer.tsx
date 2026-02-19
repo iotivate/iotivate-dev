@@ -124,6 +124,9 @@ export default function StlViewer({ isPro = false }: StlViewerProps) {
   const [measurePoints, setMeasurePoints] = useState<MeasurePoint[]>([]);
   const [measureDistance, setMeasureDistance] = useState<number | null>(null);
 
+  // Animation export state
+  const [isRecording, setIsRecording] = useState(false);
+
   // Initialize Three.js scene
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -424,6 +427,96 @@ export default function StlViewer({ isPro = false }: StlViewerProps) {
     link.click();
   }, [fileName]);
 
+  // Turntable animation export
+  const handleExportAnimation = useCallback(() => {
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    const mesh = meshRef.current;
+    if (!renderer || !scene || !camera || !controls || !mesh || isRecording)
+      return;
+
+    // Capture narrowed refs for use inside nested closures
+    const ren = renderer;
+    const scn = scene;
+    const cam = camera;
+    const ctrl = controls;
+
+    setIsRecording(true);
+
+    const canvas = ren.domElement;
+    const stream = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, {
+      mimeType: "video/webm;codecs=vp9",
+    });
+    const chunks: Blob[] = [];
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const baseName = fileName ? fileName.replace(/\.stl$/i, "") : "stl";
+      link.download = `${baseName}-turntable.webm`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+      setIsRecording(false);
+    };
+
+    // Save current camera state to restore after recording
+    const startPos = cam.position.clone();
+    const startTarget = ctrl.target.clone();
+
+    // Compute orbit parameters from the mesh bounding box
+    const box = new THREE.Box3().setFromObject(mesh);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = cam.fov * (Math.PI / 180);
+    const orbitRadius = (maxDim / (2 * Math.tan(fov / 2))) * 1.5;
+    const orbitY = center.y + orbitRadius * 0.4;
+
+    const totalFrames = 120; // 4 seconds at 30fps
+    let frame = 0;
+
+    recorder.start();
+
+    const prevDamping = ctrl.enableDamping;
+    ctrl.enableDamping = false;
+
+    function captureFrame() {
+      if (frame >= totalFrames) {
+        ctrl.enableDamping = prevDamping;
+        ctrl.target.copy(startTarget);
+        cam.position.copy(startPos);
+        cam.updateProjectionMatrix();
+        ctrl.update();
+        recorder.stop();
+        return;
+      }
+
+      const angle = (frame / totalFrames) * Math.PI * 2;
+      cam.position.set(
+        center.x + orbitRadius * Math.cos(angle),
+        orbitY,
+        center.z + orbitRadius * Math.sin(angle)
+      );
+      ctrl.target.copy(center);
+      ctrl.update();
+      ren.render(scn, cam);
+
+      frame++;
+      requestAnimationFrame(captureFrame);
+    }
+
+    captureFrame();
+  }, [fileName, isRecording]);
+
   // Measure mode click handler
   const handleCanvasClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -594,22 +687,35 @@ export default function StlViewer({ isPro = false }: StlViewerProps) {
           </Link>
         )}
 
-        {/* Pro: Screenshot */}
+        {/* Screenshot (free) */}
+        <button
+          onClick={handleScreenshot}
+          disabled={!meshRef.current}
+          className="px-3 py-1.5 text-sm rounded-md border border-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Screenshot
+        </button>
+
+        {/* Pro: Export Animation */}
         {isPro ? (
           <button
-            onClick={handleScreenshot}
-            disabled={!meshRef.current}
-            className="px-3 py-1.5 text-sm rounded-md border border-border bg-surface hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            onClick={handleExportAnimation}
+            disabled={!meshRef.current || isRecording}
+            className={`px-3 py-1.5 text-sm rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              isRecording
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-border bg-surface hover:bg-surface-hover"
+            }`}
           >
-            Screenshot
+            {isRecording ? "Recording..." : "Export Animation"}
           </button>
         ) : (
           <Link
             href="/pro"
             className="px-3 py-1.5 text-sm rounded-md border border-border bg-surface hover:bg-surface-hover transition-colors flex items-center gap-1.5"
-            title="Screenshot requires Pro"
+            title="Export Animation requires Pro"
           >
-            Screenshot{" "}
+            Export Animation{" "}
             <span className="text-[9px] font-semibold text-accent">PRO</span>
           </Link>
         )}
