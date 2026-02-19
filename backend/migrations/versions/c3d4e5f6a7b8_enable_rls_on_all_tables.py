@@ -21,6 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 # get zero access. The FastAPI backend connects as the DB owner,
 # so RLS does not apply to it.
 TABLES = [
+    "alembic_version",
     "contactmessage",
     "project",
     "tool",
