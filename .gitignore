@@ -29,6 +29,7 @@ Thumbs.db
 PROJECT_TEMPLATE.md
 TOOLS_ROADMAP.md
 VERIFICATION_CHECKLIST.md
+INVERTER_MONITOR.md
 
 # Docker
 docker-compose.override.yml
