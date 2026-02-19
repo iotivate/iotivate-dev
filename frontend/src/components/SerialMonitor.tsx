@@ -85,6 +85,7 @@ export default function SerialMonitor({ isPro = false }: SerialMonitorProps) {
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   const logIdRef = useRef(0);
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const consoleContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const plotStartRef = useRef<number>(Date.now());
@@ -137,8 +138,8 @@ export default function SerialMonitor({ isPro = false }: SerialMonitorProps) {
   }
 
   useEffect(() => {
-    if (autoScroll && logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (autoScroll && consoleContainerRef.current) {
+      consoleContainerRef.current.scrollTop = consoleContainerRef.current.scrollHeight;
     }
   }, [logs, autoScroll]);
 
@@ -830,7 +831,7 @@ export default function SerialMonitor({ isPro = false }: SerialMonitorProps) {
               </span>
               <span className="text-xs text-muted">{logs.length} lines</span>
             </div>
-            <div className={`${viewMode === "split" ? "h-64" : "h-80"} overflow-y-auto bg-background font-mono text-sm`}>
+            <div ref={consoleContainerRef} className={`${viewMode === "split" ? "h-64" : "h-80"} overflow-y-auto bg-background font-mono text-sm`}>
               {filteredLogs.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted text-sm">
                   {logs.length === 0 ? "No data yet. Connect to a device to start." : "No matches found."}
