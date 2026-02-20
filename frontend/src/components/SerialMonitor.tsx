@@ -83,6 +83,8 @@ export default function SerialMonitor({ isPro = false }: SerialMonitorProps) {
 
   const portRef = useRef<SerialPort | null>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const disconnectingRef = useRef(false);
+  const readLoopPromiseRef = useRef<Promise<void> | null>(null);
   const logIdRef = useRef(0);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const consoleContainerRef = useRef<HTMLDivElement>(null);
@@ -298,7 +300,8 @@ export default function SerialMonitor({ isPro = false }: SerialMonitorProps) {
       addLog("rx", `Connected at ${baudRate} baud`);
 
       // Start reading
-      readLoop(port);
+      disconnectingRef.current = false;
+      readLoopPromiseRef.current = readLoop(port);
     } catch (err) {
       setState("disconnected");
       if (err instanceof Error && err.name !== "NotFoundError") {
@@ -319,7 +322,7 @@ export default function SerialMonitor({ isPro = false }: SerialMonitorProps) {
       }
     };
 
-    while (port.readable) {
+    while (port.readable && !disconnectingRef.current) {
       const reader = port.readable.getReader();
       readerRef.current = reader;
 
@@ -371,10 +374,16 @@ export default function SerialMonitor({ isPro = false }: SerialMonitorProps) {
   }
 
   async function disconnect() {
+    disconnectingRef.current = true;
     try {
       if (readerRef.current) {
         await readerRef.current.cancel();
         readerRef.current = null;
+      }
+      // Wait for readLoop to exit and release its reader lock
+      if (readLoopPromiseRef.current) {
+        await readLoopPromiseRef.current;
+        readLoopPromiseRef.current = null;
       }
       if (portRef.current) {
         await portRef.current.close();
@@ -383,6 +392,7 @@ export default function SerialMonitor({ isPro = false }: SerialMonitorProps) {
     } catch {
       // Ignore close errors
     }
+    disconnectingRef.current = false;
     setState("disconnected");
     addLog("rx", "Disconnected");
   }
