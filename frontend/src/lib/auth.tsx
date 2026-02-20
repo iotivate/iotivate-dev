@@ -24,7 +24,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  login: (username: string, password: string, rememberMe?: boolean) => Promise<{ ok: boolean; error?: string }>;
   register: (email: string, username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
 }
@@ -140,9 +140,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     init();
   }, [fetchUser]);
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, password: string, rememberMe?: boolean) => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
+      const loginUrl = rememberMe
+        ? `${API_URL}/api/auth/login?remember_me=true`
+        : `${API_URL}/api/auth/login`;
+      const res = await fetch(loginUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ username, password }),

@@ -18,6 +18,7 @@ from app.schemas.auth import (
 )
 from app.auth import (
     REFRESH_TOKEN_EXPIRE_DAYS,
+    REMEMBER_ME_EXPIRE_DAYS,
     create_access_token,
     create_refresh_token,
     create_reset_token,
@@ -67,16 +68,18 @@ def register(request: Request, data: RegisterRequest, session: Session = Depends
     return user
 
 
-def _set_refresh_cookie(response: Response, token: str) -> None:
-    response.set_cookie(
+def _set_refresh_cookie(response: Response, token: str, remember: bool = False) -> None:
+    kwargs: dict = dict(
         key="refresh_token",
         value=token,
         httponly=True,
         secure=True,
         samesite="lax",
         path="/api/auth",
-        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
+    if remember:
+        kwargs["max_age"] = REMEMBER_ME_EXPIRE_DAYS * 86400
+    response.set_cookie(**kwargs)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -84,6 +87,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
 def login(
     request: Request,
     response: Response,
+    remember_me: bool = False,
     form: OAuth2PasswordRequestForm = Depends(),
     session: Session = Depends(get_session),
 ):
@@ -105,8 +109,8 @@ def login(
         )
 
     access_token = create_access_token({"sub": user.username})
-    refresh_token = create_refresh_token(user)
-    _set_refresh_cookie(response, refresh_token)
+    refresh_token = create_refresh_token(user, remember=remember_me)
+    _set_refresh_cookie(response, refresh_token, remember=remember_me)
     logger.info("User logged in: %s", user.username)
     return TokenResponse(access_token=access_token)
 
@@ -124,10 +128,10 @@ def refresh(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="No refresh token",
         )
-    user = verify_refresh_token(refresh_token, session)
+    user, remember = verify_refresh_token(refresh_token, session)
     new_access_token = create_access_token({"sub": user.username})
-    new_refresh_token = create_refresh_token(user)
-    _set_refresh_cookie(response, new_refresh_token)
+    new_refresh_token = create_refresh_token(user, remember=remember)
+    _set_refresh_cookie(response, new_refresh_token, remember=remember)
     return TokenResponse(access_token=new_access_token)
 
 

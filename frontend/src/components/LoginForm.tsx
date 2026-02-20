@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 export default function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,7 +23,7 @@ export default function LoginForm() {
     const username = (form.elements.namedItem("username") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
 
-    const result = await login(username, password);
+    const result = await login(username, password, rememberMe);
     setIsLoading(false);
 
     if (result.ok) {
@@ -68,7 +69,16 @@ export default function LoginForm() {
           className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
         />
       </div>
-      <div className="flex justify-end -mt-4">
+      <div className="flex items-center justify-between -mt-4">
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="h-4 w-4 rounded border-border text-accent focus:ring-accent/50"
+          />
+          Remember me
+        </label>
         <Link
           href="/forgot-password"
           className="text-sm text-accent hover:underline"
