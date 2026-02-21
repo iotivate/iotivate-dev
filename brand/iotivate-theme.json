@@ -1,0 +1,62 @@
+{
+  "brand": "iotivate",
+  "version": "1.0.0",
+
+  "colors": {
+    "accent": {
+      "light": "#5BA8A0",
+      "dark": "#6BB8B0"
+    },
+    "accent-hover": {
+      "light": "#4a9189",
+      "dark": "#8DCDC6"
+    },
+    "background": {
+      "light": "#ffffff",
+      "dark": "#0a0a0a"
+    },
+    "foreground": {
+      "light": "#111827",
+      "dark": "#ededed"
+    },
+    "muted": {
+      "light": "#6b7280",
+      "dark": "#9ca3af"
+    },
+    "border": {
+      "light": "#e5e7eb",
+      "dark": "#27272a"
+    },
+    "surface": {
+      "light": "#f9fafb",
+      "dark": "#18181b"
+    },
+    "status": {
+      "error": "#F87171",
+      "warning": "#FACC15",
+      "success": "#4ADE80",
+      "info": "#60A5FA"
+    },
+    "plot": [
+      "#5BA8A0",
+      "#E879F9",
+      "#FACC15",
+      "#F87171",
+      "#60A5FA",
+      "#4ADE80",
+      "#FB923C",
+      "#A78BFA"
+    ]
+  },
+
+  "typography": {
+    "sans": "Geist, system-ui, sans-serif",
+    "mono": "Geist Mono, ui-monospace, monospace"
+  },
+
+  "spacing": {
+    "radius-sm": "0.375rem",
+    "radius-md": "0.5rem",
+    "radius-lg": "0.75rem"
+  }
+}
