@@ -473,6 +473,65 @@ export default function PcbBackground({ className = "" }: { className?: string }
         </defs>
         <rect width="100%" height="100%" fill="url(#pcb-traces)" />
       </svg>
+
+      {/* Simple animated pulse dots positioned over key circuit elements */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Main MCU chip pulse - positioned at center of pattern */}
+        <div
+          className="absolute w-12 h-12 rounded border border-accent/60 pcb-animate-chip-primary"
+          style={{
+            left: '33%',
+            top: '35%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
+
+        {/* Secondary chip pulse - positioned at pattern location */}
+        <div
+          className="absolute w-8 h-8 rounded border border-accent/40 pcb-animate-chip-secondary"
+          style={{
+            left: '77%',
+            top: '77%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
+
+        {/* USB chip pulse - positioned at pattern location */}
+        <div
+          className="absolute w-6 h-10 rounded border border-accent/40 pcb-animate-chip-tertiary"
+          style={{
+            left: '85%',
+            top: '15%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
+
+        {/* Via cluster pulse dots */}
+        <div
+          className="absolute w-2 h-2 rounded-full bg-accent pcb-animate-via-cluster-1"
+          style={{
+            left: '36%',
+            top: '37%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
+        <div
+          className="absolute w-2 h-2 rounded-full bg-accent pcb-animate-via-cluster-2"
+          style={{
+            left: '79%',
+            top: '79%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
+        <div
+          className="absolute w-1 h-1 rounded-full bg-accent pcb-animate-via-cluster-3"
+          style={{
+            left: '6%',
+            top: '35%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        />
+      </div>
     </div>
   );
 }
