@@ -58,5 +58,12 @@
     "radius-sm": "0.375rem",
     "radius-md": "0.5rem",
     "radius-lg": "0.75rem"
+  },
+
+  "social": {
+    "youtube": "https://www.youtube.com/@iotivate",
+    "tiktok": "https://www.tiktok.com/@iotivate",
+    "instagram": "https://www.instagram.com/iotivate.dev",
+    "linkedin": "https://www.linkedin.com/company/iotivate/"
   }
 }

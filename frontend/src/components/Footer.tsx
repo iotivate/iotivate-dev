@@ -1,11 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
+import SocialLinks from "./SocialLinks";
 
 export default function Footer() {
   return (
     <footer className="border-t border-border mt-auto">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center gap-2">
               <Image src="/logo.png" alt="iotivate.dev" width={28} height={28} />
@@ -16,6 +17,9 @@ export default function Footer() {
             <p className="text-sm text-muted mt-2">
               Simplifying IoT, One Module at a Time.
             </p>
+            <div className="mt-4">
+              <SocialLinks />
+            </div>
           </div>
           <div>
             <p className="font-semibold text-sm mb-3">Platform</p>
