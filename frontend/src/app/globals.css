@@ -29,3 +29,114 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/* PCB Animation Keyframes */
+@keyframes pcb-pulse-primary {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor);
+    opacity: 0.8;
+  }
+  50% {
+    filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 8px currentColor) drop-shadow(0 0 12px currentColor);
+    opacity: 1;
+  }
+}
+
+@keyframes pcb-pulse-secondary {
+  0%, 100% {
+    filter: drop-shadow(0 0 1px currentColor);
+    opacity: 0.6;
+  }
+  50% {
+    filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor);
+    opacity: 0.9;
+  }
+}
+
+@keyframes pcb-pulse-via {
+  0%, 100% {
+    filter: drop-shadow(0 0 1px currentColor);
+    opacity: 0.7;
+  }
+  50% {
+    filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor);
+    opacity: 1;
+  }
+}
+
+/* PCB Animation Classes */
+.pcb-animate-chip-primary {
+  animation: pcb-pulse-primary 3s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.pcb-animate-chip-secondary {
+  animation: pcb-pulse-secondary 2.5s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
+.pcb-animate-chip-tertiary {
+  animation: pcb-pulse-secondary 2.8s ease-in-out infinite;
+  animation-delay: 1.6s;
+}
+
+.pcb-animate-via-cluster-1 {
+  animation: pcb-pulse-via 2.2s ease-in-out infinite;
+  animation-delay: 0.4s;
+}
+
+.pcb-animate-via-cluster-2 {
+  animation: pcb-pulse-via 2.4s ease-in-out infinite;
+  animation-delay: 1.2s;
+}
+
+.pcb-animate-via-cluster-3 {
+  animation: pcb-pulse-via 2.6s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+/* Hover Effects */
+.pcb-background:hover .pcb-animate-chip-primary {
+  animation-duration: 1.5s;
+  filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor) drop-shadow(0 0 18px currentColor);
+}
+
+.pcb-background:hover .pcb-animate-chip-secondary,
+.pcb-background:hover .pcb-animate-chip-tertiary {
+  animation-duration: 1.8s;
+  filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 8px currentColor);
+}
+
+.pcb-background:hover .pcb-animate-via-cluster-1,
+.pcb-background:hover .pcb-animate-via-cluster-2,
+.pcb-background:hover .pcb-animate-via-cluster-3 {
+  animation-duration: 1.2s;
+  filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor);
+}
+
+/* Hero Content Animation */
+@keyframes hero-fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-animate-title {
+  animation: hero-fade-in-up 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+.hero-animate-description {
+  animation: hero-fade-in-up 0.8s ease-out 0.15s forwards;
+  opacity: 0;
+}
+
+.hero-animate-buttons {
+  animation: hero-fade-in-up 0.8s ease-out 0.3s forwards;
+  opacity: 0;
+}

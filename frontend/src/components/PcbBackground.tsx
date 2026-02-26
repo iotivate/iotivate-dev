@@ -2,7 +2,7 @@ export default function PcbBackground({ className = "" }: { className?: string }
   return (
     <div
       aria-hidden="true"
-      className={`absolute inset-0 pointer-events-none overflow-hidden text-accent opacity-[0.07] ${className}`}
+      className={`pcb-background absolute inset-0 pointer-events-none overflow-hidden text-accent opacity-[0.07] ${className}`}
     >
       <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -17,17 +17,19 @@ export default function PcbBackground({ className = "" }: { className?: string }
             {/* ================================================
                 QFN CHIP #1 — main MCU, centered at (220, 230)
                 ================================================ */}
-            <rect x="198" y="208" width="44" height="44" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <rect x="198" y="208" width="44" height="44" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" className="pcb-animate-chip-primary" />
             {/* Thermal via grid (3×3) */}
-            <circle cx="210" cy="220" r="2" fill="currentColor" />
-            <circle cx="220" cy="220" r="2" fill="currentColor" />
-            <circle cx="230" cy="220" r="2" fill="currentColor" />
-            <circle cx="210" cy="230" r="2" fill="currentColor" />
-            <circle cx="220" cy="230" r="2" fill="currentColor" />
-            <circle cx="230" cy="230" r="2" fill="currentColor" />
-            <circle cx="210" cy="240" r="2" fill="currentColor" />
-            <circle cx="220" cy="240" r="2" fill="currentColor" />
-            <circle cx="230" cy="240" r="2" fill="currentColor" />
+            <g className="pcb-animate-via-cluster-1">
+              <circle cx="210" cy="220" r="2" fill="currentColor" />
+              <circle cx="220" cy="220" r="2" fill="currentColor" />
+              <circle cx="230" cy="220" r="2" fill="currentColor" />
+              <circle cx="210" cy="230" r="2" fill="currentColor" />
+              <circle cx="220" cy="230" r="2" fill="currentColor" />
+              <circle cx="230" cy="230" r="2" fill="currentColor" />
+              <circle cx="210" cy="240" r="2" fill="currentColor" />
+              <circle cx="220" cy="240" r="2" fill="currentColor" />
+              <circle cx="230" cy="240" r="2" fill="currentColor" />
+            </g>
             <circle cx="194" cy="198" r="2.5" fill="currentColor" />
             {/* Top pads */}
             <rect x="201" y="194" width="6" height="13" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
@@ -53,12 +55,14 @@ export default function PcbBackground({ className = "" }: { className?: string }
             {/* ================================================
                 QFN CHIP #2 — secondary IC (e.g. flash), at (480, 480)
                 ================================================ */}
-            <rect x="460" y="460" width="38" height="38" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <rect x="460" y="460" width="38" height="38" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" className="pcb-animate-chip-secondary" />
             {/* Thermal vias (2×2) */}
-            <circle cx="472" cy="472" r="2" fill="currentColor" />
-            <circle cx="486" cy="472" r="2" fill="currentColor" />
-            <circle cx="472" cy="486" r="2" fill="currentColor" />
-            <circle cx="486" cy="486" r="2" fill="currentColor" />
+            <g className="pcb-animate-via-cluster-2">
+              <circle cx="472" cy="472" r="2" fill="currentColor" />
+              <circle cx="486" cy="472" r="2" fill="currentColor" />
+              <circle cx="472" cy="486" r="2" fill="currentColor" />
+              <circle cx="486" cy="486" r="2" fill="currentColor" />
+            </g>
             <circle cx="456" cy="456" r="2" fill="currentColor" />
             {/* Top pads */}
             <rect x="465" y="449" width="6" height="10" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
@@ -78,7 +82,7 @@ export default function PcbBackground({ className = "" }: { className?: string }
             {/* ================================================
                 SOIC-8 CHIP #3 — e.g. USB-UART bridge, at (520, 90)
                 ================================================ */}
-            <rect x="505" y="60" width="30" height="55" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="3 2" />
+            <rect x="505" y="60" width="30" height="55" rx="1" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="3 2" className="pcb-animate-chip-tertiary" />
             <circle cx="510" cy="64" r="2" fill="currentColor" />
             {/* Left pads */}
             <rect x="496" y="66" width="10" height="6" rx="0.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
@@ -299,26 +303,28 @@ export default function PcbBackground({ className = "" }: { className?: string }
             {/* ================================================
                 VIA STITCHING — flanking USB differential pair
                 ================================================ */}
-            <circle cx="20" cy="170" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="20" cy="170" r="1" fill="currentColor" />
-            <circle cx="20" cy="190" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="20" cy="190" r="1" fill="currentColor" />
-            <circle cx="20" cy="210" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="20" cy="210" r="1" fill="currentColor" />
-            <circle cx="20" cy="230" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="20" cy="230" r="1" fill="currentColor" />
-            <circle cx="20" cy="250" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="20" cy="250" r="1" fill="currentColor" />
-            <circle cx="48" cy="170" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="48" cy="170" r="1" fill="currentColor" />
-            <circle cx="48" cy="190" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="48" cy="190" r="1" fill="currentColor" />
-            <circle cx="48" cy="210" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="48" cy="210" r="1" fill="currentColor" />
-            <circle cx="48" cy="230" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="48" cy="230" r="1" fill="currentColor" />
-            <circle cx="48" cy="250" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="48" cy="250" r="1" fill="currentColor" />
+            <g className="pcb-animate-via-cluster-3">
+              <circle cx="20" cy="170" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="20" cy="170" r="1" fill="currentColor" />
+              <circle cx="20" cy="190" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="20" cy="190" r="1" fill="currentColor" />
+              <circle cx="20" cy="210" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="20" cy="210" r="1" fill="currentColor" />
+              <circle cx="20" cy="230" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="20" cy="230" r="1" fill="currentColor" />
+              <circle cx="20" cy="250" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="20" cy="250" r="1" fill="currentColor" />
+              <circle cx="48" cy="170" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="48" cy="170" r="1" fill="currentColor" />
+              <circle cx="48" cy="190" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="48" cy="190" r="1" fill="currentColor" />
+              <circle cx="48" cy="210" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="48" cy="210" r="1" fill="currentColor" />
+              <circle cx="48" cy="230" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="48" cy="230" r="1" fill="currentColor" />
+              <circle cx="48" cy="250" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="48" cy="250" r="1" fill="currentColor" />
+            </g>
 
             {/* Via stitching near chip #3 */}
             <circle cx="575" cy="125" r="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
