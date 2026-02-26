@@ -48,7 +48,12 @@ ALLOWED_HTML_ATTRS = {
 def sanitize_html(html: str | None) -> str | None:
     if html is None:
         return None
-    return bleach.clean(html, tags=ALLOWED_HTML_TAGS, attributes=ALLOWED_HTML_ATTRS, strip=True)
+    try:
+        return bleach.clean(html, tags=ALLOWED_HTML_TAGS, attributes=ALLOWED_HTML_ATTRS, strip=True)
+    except Exception as e:
+        logger.error("Bleach sanitization failed: %s", str(e))
+        # Fallback: return empty string for safety if bleach fails
+        return ""
 
 
 # --- Schemas ---
@@ -225,22 +230,68 @@ def create_project(
     session: Session = Depends(get_session),
     _: User = Depends(get_admin_user),
 ) -> dict:
-    existing = session.exec(select(Project).where(Project.slug == data.slug)).first()
-    if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Project with this slug already exists")
+    try:
+        logger.info("Creating project with slug: %s", data.slug)
 
-    # Sanitize HTML fields
-    data.overview = sanitize_html(data.overview)
-    if data.build_guide:
-        for step in data.build_guide:
-            step.content = sanitize_html(step.content) or ""
+        # Check for existing project
+        existing = session.exec(select(Project).where(Project.slug == data.slug)).first()
+        if existing:
+            logger.warning("Project slug already exists: %s", data.slug)
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Project with this slug already exists")
 
-    model_data = create_data_to_model(data)
-    project = Project(**model_data)
-    session.add(project)
-    session.commit()
-    session.refresh(project)
-    return project_to_response(project)
+        # Sanitize HTML fields
+        try:
+            logger.debug("Sanitizing HTML content")
+            data.overview = sanitize_html(data.overview)
+            if data.build_guide:
+                for step in data.build_guide:
+                    step.content = sanitize_html(step.content) or ""
+            logger.debug("HTML sanitization completed")
+        except Exception as e:
+            logger.error("HTML sanitization failed: %s", str(e))
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"HTML sanitization failed: {str(e)}")
+
+        # Convert data to model format
+        try:
+            logger.debug("Converting data to model format")
+            model_data = create_data_to_model(data)
+            logger.debug("Model data conversion completed")
+        except Exception as e:
+            logger.error("Data conversion failed: %s", str(e))
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Data conversion failed: {str(e)}")
+
+        # Create and save project
+        try:
+            logger.debug("Creating project model")
+            project = Project(**model_data)
+            logger.debug("Adding project to session")
+            session.add(project)
+            logger.debug("Committing project to database")
+            session.commit()
+            logger.debug("Refreshing project from database")
+            session.refresh(project)
+            logger.info("Project created successfully with ID: %s", project.id)
+        except Exception as e:
+            logger.error("Database operation failed: %s", str(e))
+            session.rollback()
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database operation failed: {str(e)}")
+
+        # Convert to response format
+        try:
+            logger.debug("Converting project to response format")
+            response = project_to_response(project)
+            logger.debug("Response conversion completed")
+            return response
+        except Exception as e:
+            logger.error("Response conversion failed: %s", str(e))
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Response conversion failed: {str(e)}")
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        logger.exception("Unexpected error in create_project")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Unexpected error: {str(e)}")
 
 
 @router.put("/projects/{project_id}")
