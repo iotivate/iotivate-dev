@@ -76,3 +76,61 @@ def delete_r2_objects(urls: list[str], r2_client=None) -> int:
             logger.exception("Failed to delete R2 object: %s", key)
 
     return deleted
+
+
+def delete_r2_folder(folder_path: str, r2_client=None) -> int:
+    """Delete entire R2 folder and all its contents.
+
+    Args:
+        folder_path: Path like "projects/project-slug/" (with trailing slash)
+        r2_client: Optional R2 client instance
+
+    Returns the number of successfully deleted objects.
+    """
+    if r2_client is None:
+        from app.api.upload import get_r2_client
+        r2_client = get_r2_client()
+
+    if r2_client is None:
+        logger.warning("R2 not configured, skipping cleanup of folder: %s", folder_path)
+        return 0
+
+    if not folder_path.endswith('/'):
+        folder_path = folder_path + '/'
+
+    try:
+        # List all objects with the folder prefix
+        response = r2_client.list_objects_v2(
+            Bucket=settings.r2_bucket_name,
+            Prefix=folder_path
+        )
+
+        if 'Contents' not in response:
+            logger.info("No objects found in folder: %s", folder_path)
+            return 0
+
+        # Delete all objects in the folder
+        objects_to_delete = []
+        for obj in response['Contents']:
+            objects_to_delete.append({'Key': obj['Key']})
+
+        if objects_to_delete:
+            delete_response = r2_client.delete_objects(
+                Bucket=settings.r2_bucket_name,
+                Delete={'Objects': objects_to_delete}
+            )
+
+            deleted_count = len(delete_response.get('Deleted', []))
+            failed_count = len(delete_response.get('Errors', []))
+
+            if failed_count > 0:
+                logger.warning("Failed to delete %d objects from folder: %s", failed_count, folder_path)
+
+            logger.info("Successfully deleted %d objects from folder: %s", deleted_count, folder_path)
+            return deleted_count
+
+        return 0
+
+    except Exception as e:
+        logger.exception("Failed to delete folder: %s", folder_path)
+        return 0

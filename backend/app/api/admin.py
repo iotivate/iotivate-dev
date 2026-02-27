@@ -354,10 +354,17 @@ def delete_project(
     project = session.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    # Clean up R2 files before deleting the project
-    r2_urls = extract_r2_urls_from_project(project)
-    if r2_urls:
-        delete_r2_objects(r2_urls)
+
+    # Clean up entire R2 project folder before deleting the project
+    try:
+        from app.services.r2_cleanup import delete_r2_folder
+        folder_path = f"projects/{project.slug}/"
+        deleted_count = delete_r2_folder(folder_path)
+        logger.info("Deleted %d files from R2 folder: %s", deleted_count, folder_path)
+    except Exception as e:
+        logger.error("Failed to clean up R2 folder for project %s: %s", project.slug, str(e))
+        # Continue with database deletion even if R2 cleanup fails
+
     session.delete(project)
     session.commit()
 
