@@ -143,6 +143,7 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
   const [stagedCircuit, setStagedCircuit] = useState<StagedFile | null>(null);
   const [stagedFirmware, setStagedFirmware] = useState<StagedFile | null>(null);
   const [stagedApk, setStagedApk] = useState<StagedFile | null>(null);
+  const [stagedGuideImages, setStagedGuideImages] = useState<StagedFile[]>([]);
 
   // Build guide image insertion
   const [uploadingStepImage, setUploadingStepImage] = useState<number | null>(null);
@@ -231,6 +232,33 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
         };
       }
 
+      // Upload staged guide images and replace placeholders in build guide content
+      let updatedBuildGuide = [...form.build_guide];
+      if (stagedGuideImages.length > 0) {
+        setSaveProgress("Uploading guide images...");
+        const imageResults = await uploadStagedFiles(
+          stagedGuideImages,
+          `${folder}/guide`,
+          token,
+          (current, total, filename) =>
+            setSaveProgress(`Uploading guide image ${current}/${total}: ${filename}`)
+        );
+
+        // Replace staged image placeholders with actual URLs in build guide content
+        imageResults.forEach((result, index) => {
+          const stagedFile = stagedGuideImages[index];
+          const placeholder = `[STAGED_IMAGE:${stagedFile.id}]`;
+
+          updatedBuildGuide = updatedBuildGuide.map(step => ({
+            ...step,
+            content: step.content.replace(placeholder, `<img src="${result.url}" alt="" />`)
+          }));
+        });
+
+        // Clear staged images
+        setStagedGuideImages([]);
+      }
+
       // Save the project
       setSaveProgress("Saving project...");
       const url = isEdit
@@ -247,7 +275,7 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
         firmware: updatedFirmware,
         app: updatedApp,
         parts: form.parts.length > 0 ? form.parts : null,
-        build_guide: form.build_guide.length > 0 ? form.build_guide : null,
+        build_guide: updatedBuildGuide.length > 0 ? updatedBuildGuide : null,
       };
 
       const res = await authFetch(url, {
@@ -318,49 +346,42 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
   }
 
   function handleInsertImage(stepIndex: number) {
-    if (!token) return;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-    input.onchange = async () => {
+    input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
 
-      setUploadingStepImage(stepIndex);
-      try {
-        const staged: StagedFile = {
-          file,
-          preview: URL.createObjectURL(file),
-          id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        };
-        const folder = `projects/${form.slug || "new"}/guide`;
-        const [result] = await uploadStagedFiles([staged], folder, token);
-        URL.revokeObjectURL(staged.preview);
+      const staged: StagedFile = {
+        file,
+        preview: URL.createObjectURL(file),
+        id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      };
 
-        const imgTag = `<img src="${result.url}" alt="" />`;
-        const textarea = stepContentRefs.current[stepIndex];
-        const currentContent = form.build_guide[stepIndex].content;
+      // Add to staged images for upload when save is clicked
+      setStagedGuideImages(prev => [...prev, staged]);
 
-        let newContent: string;
-        if (textarea && textarea === document.activeElement) {
-          const start = textarea.selectionStart;
-          const end = textarea.selectionEnd;
-          newContent = currentContent.slice(0, start) + imgTag + currentContent.slice(end);
-        } else {
-          newContent = currentContent + imgTag;
-        }
+      // Insert placeholder in content that will be replaced when uploaded
+      const placeholderTag = `[STAGED_IMAGE:${staged.id}]`;
+      const textarea = stepContentRefs.current[stepIndex];
+      const currentContent = form.build_guide[stepIndex].content;
 
-        updateStep(stepIndex, "content", newContent);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to upload image");
-      } finally {
-        setUploadingStepImage(null);
+      let newContent: string;
+      if (textarea && textarea === document.activeElement) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        newContent = currentContent.slice(0, start) + placeholderTag + currentContent.slice(end);
+      } else {
+        newContent = currentContent + placeholderTag;
       }
+
+      updateStep(stepIndex, "content", newContent);
     };
     input.click();
   }
 
-  const totalPendingFiles = stagedDownloads.length + (stagedCircuit ? 1 : 0) + (stagedFirmware ? 1 : 0) + (stagedApk ? 1 : 0);
+  const totalPendingFiles = stagedDownloads.length + (stagedCircuit ? 1 : 0) + (stagedFirmware ? 1 : 0) + (stagedApk ? 1 : 0) + stagedGuideImages.length;
 
   return (
     <div className="space-y-6">
@@ -736,6 +757,25 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
           >
             + Add Step
           </button>
+
+          {/* Staged guide images (pending upload) */}
+          {stagedGuideImages.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-accent">
+                Pending Upload ({stagedGuideImages.length} image{stagedGuideImages.length > 1 ? "s" : ""})
+              </h4>
+              {stagedGuideImages.map((staged) => (
+                <StagedFilePreview
+                  key={staged.id}
+                  staged={staged}
+                  onRemove={() => {
+                    setStagedGuideImages(prev => prev.filter(img => img.id !== staged.id));
+                    URL.revokeObjectURL(staged.preview);
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
