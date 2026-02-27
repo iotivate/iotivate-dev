@@ -239,6 +239,9 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
 
       const payload = {
         ...form,
+        // Convert empty strings to null for optional fields
+        youtube_id: form.youtube_id.trim() === "" ? null : form.youtube_id,
+        overview: form.overview.trim() === "" ? null : form.overview,
         downloads: updatedDownloads.length > 0 ? updatedDownloads : null,
         circuit: updatedCircuit,
         firmware: updatedFirmware,
