@@ -13,6 +13,10 @@ export default async function ProjectsPage() {
   const result = await getProjects();
   const projects = result?.items || [];
 
+  // Debug logging
+  console.log('Projects API result:', result);
+  console.log('Projects count:', projects.length);
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <PageHeader
