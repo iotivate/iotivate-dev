@@ -87,7 +87,7 @@ const emptyForm: ProjectFormData = {
   firmware: null,
   app: null,
   support: null,
-  is_published: false,
+  is_published: true, // Default to published for new projects
 };
 
 function mergeFormData(initial?: Partial<ProjectFormData>): ProjectFormData {
@@ -1024,7 +1024,9 @@ export default function ProjectEditor({ initialData, projectId, isEdit = false }
             onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
             className="rounded border-border"
           />
-          <span className="text-sm">Publish immediately</span>
+          <span className="text-sm">
+            {form.is_published ? "✅ Published (visible on website)" : "🔒 Draft (admin only)"}
+          </span>
         </label>
         <div className="flex items-center gap-3">
           {saveProgress && (
