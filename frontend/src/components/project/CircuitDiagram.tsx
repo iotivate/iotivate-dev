@@ -49,6 +49,15 @@ export default function CircuitDiagram({ src, alt = "Circuit Diagram", downloadU
             src={src}
             alt={alt}
             className="w-full h-auto"
+            onError={(e) => {
+              console.error('Failed to load circuit diagram:', src);
+              (e.target as HTMLImageElement).style.display = 'none';
+              const parent = (e.target as HTMLImageElement).parentElement;
+              if (parent) {
+                parent.innerHTML = '<div class="text-center text-red-400 py-8">Failed to load circuit diagram</div>';
+              }
+            }}
+            onLoad={() => console.log('Circuit diagram loaded successfully:', src)}
           />
         </div>
       </div>

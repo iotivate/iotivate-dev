@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import VideoEmbed from "./VideoEmbed";
 import PartsList, { type Part } from "./PartsList";
@@ -79,6 +80,32 @@ export default function ProjectPage({ data }: ProjectPageProps) {
   const hasPartsOrDownloads = data.parts || data.downloads;
   const hasFirmwareOrApp = data.firmware || data.app;
 
+  useEffect(() => {
+    // Add error handling to all images after component mounts
+    const images = document.querySelectorAll('.prose img');
+    images.forEach((img: HTMLImageElement) => {
+      const handleError = () => {
+        console.error('Build guide image failed to load:', img.src);
+        img.style.border = '2px dashed red';
+        img.style.padding = '8px';
+        img.alt = 'Failed to load image: ' + img.src;
+      };
+
+      const handleLoad = () => {
+        console.log('Build guide image loaded successfully:', img.src);
+      };
+
+      img.addEventListener('error', handleError);
+      img.addEventListener('load', handleLoad);
+
+      // Cleanup
+      return () => {
+        img.removeEventListener('error', handleError);
+        img.removeEventListener('load', handleLoad);
+      };
+    });
+  }, [data.buildGuide]);
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <PageHeader title={data.title} description={data.description} />
@@ -124,18 +151,23 @@ export default function ProjectPage({ data }: ProjectPageProps) {
         {data.buildGuide && data.buildGuide.length > 0 && (
           <section className="prose prose-invert max-w-none">
             <h2>Build Guide</h2>
-            {data.buildGuide.map((step, index) => (
-              <div key={index}>
-                <h3>{step.title}</h3>
-                <div dangerouslySetInnerHTML={{ __html: step.content }} />
-                {step.warning && (
-                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 my-4 not-prose">
-                    <strong className="text-yellow-400">Warning:</strong>{" "}
-                    <span className="text-yellow-200/80">{step.warning}</span>
-                  </div>
-                )}
-              </div>
-            ))}
+            {data.buildGuide.map((step, index) => {
+              // Debug logging for build guide content
+              console.log(`Build Guide Step ${index + 1} content:`, step.content);
+
+              return (
+                <div key={index}>
+                  <h3>{step.title}</h3>
+                  <div dangerouslySetInnerHTML={{ __html: step.content }} />
+                  {step.warning && (
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 my-4 not-prose">
+                      <strong className="text-yellow-400">Warning:</strong>{" "}
+                      <span className="text-yellow-200/80">{step.warning}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </section>
         )}
 

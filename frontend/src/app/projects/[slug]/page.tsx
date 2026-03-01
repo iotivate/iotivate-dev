@@ -71,6 +71,13 @@ export default async function ProjectSlugPage({ params }: Props) {
     notFound();
   }
 
+  // Debug logging for project data
+  console.log('Project data:', project);
+  console.log('Circuit data:', project.circuit);
+  if (project.build_guide) {
+    console.log('Build guide steps:', project.build_guide.length);
+  }
+
   const tags = project.tags.split(",").filter(Boolean);
   const projectData = transformToProjectData(project);
   const hasDetailedContent = project.overview || project.parts || project.downloads ||
