@@ -53,16 +53,11 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
       setDownloadProgress(0);
       addLog("Downloading firmware from server...");
 
-      let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-
       try {
         // Start download timeout (30 seconds)
         timeoutId = setTimeout(() => {
           cancelled = true;
           addLog("⚠ Download timeout after 30 seconds");
-          if (reader) {
-            reader.cancel().catch(() => {});
-          }
         }, 30000);
 
         const response = await fetch(firmwareUrl);
@@ -73,86 +68,53 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         const contentLength = response.headers.get('content-length');
         const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
 
-        addLog(`Starting download${totalBytes > 0 ? ` (${(totalBytes / 1024).toFixed(1)} KB)` : " (size unknown)"}`);
+        addLog(`Starting download${totalBytes > 0 ? ` (${(totalBytes / 1024).toFixed(1)} KB)` : " (estimated ~1MB firmware)"}`);
 
-        // Use ReadableStream for progress tracking
-        if (!response.body) {
-          throw new Error("Response body is not readable");
-        }
-        reader = response.body.getReader();
+        // Use simple ArrayBuffer approach for reliable downloads
+        const progressInterval = setInterval(() => {
+          if (cancelled) {
+            clearInterval(progressInterval);
+            return;
+          }
 
-        const chunks: Uint8Array[] = [];
-        let receivedBytes = 0;
-        let chunkCount = 0;
+          // Simulate realistic progress for firmware downloads
+          const elapsed = Date.now() - downloadStart;
+          const expectedDuration = totalBytes > 0 ? Math.max(totalBytes / (200 * 1024), 2) * 1000 : 3000; // 200KB/s or 3 seconds
+          const simulatedProgress = Math.min(Math.round((elapsed / expectedDuration) * 95), 95);
 
-        let lastChunkTime = Date.now();
+          setDownloadProgress(simulatedProgress);
+
+          if (simulatedProgress % 20 === 0 && simulatedProgress > 0) {
+            addLog(`Download progress: ${simulatedProgress}%`);
+          }
+        }, 200);
+
+        let arrayBuffer: ArrayBuffer;
+        const downloadStart = Date.now();
 
         try {
-          while (!cancelled) {
-            const readResult = await Promise.race([
-              reader.read(),
-              new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('Read timeout')), 5000)
-              )
-            ]);
+          // Simple, reliable download approach
+          arrayBuffer = await response.arrayBuffer();
 
-            const { done, value } = readResult;
+          clearInterval(progressInterval);
 
-            if (done) {
-              addLog(`✓ Stream completed after ${chunkCount} chunks`);
-              break;
-            }
-
-            if (cancelled) return;
-
-            if (!value) {
-              // Check if we've been waiting too long without data
-              if (Date.now() - lastChunkTime > 3000 && receivedBytes > 100 * 1024) {
-                addLog(`⚠ No data received for 3 seconds, assuming download complete`);
-                break;
-              }
-              continue;
-            }
-
-            lastChunkTime = Date.now();
-
-            chunks.push(value);
-            receivedBytes += value.length;
-            chunkCount++;
-
-            // Update progress if we know the total size
-            if (totalBytes > 0) {
-              const percentage = Math.round((receivedBytes / totalBytes) * 100);
-              setDownloadProgress(percentage);
-
-              // Log progress every 25%
-              if (percentage % 25 === 0) {
-                addLog(`Download progress: ${percentage}% (${(receivedBytes / 1024).toFixed(1)} KB)`);
-              }
-            } else {
-              // Unknown size - show bytes received and simulate progress
-              const kbReceived = receivedBytes / 1024;
-
-              // Dynamic progress based on actual received data
-              const estimatedSize = Math.max(receivedBytes * 1.1, 1024 * 1024); // Use actual size + 10% buffer
-              const estimatedPercentage = Math.min(Math.round((receivedBytes / estimatedSize) * 100), 98);
-              setDownloadProgress(estimatedPercentage);
-
-              // Log every 256KB received
-              if (Math.floor(kbReceived / 256) > Math.floor((receivedBytes - value.length) / 1024 / 256)) {
-                addLog(`Downloaded: ${kbReceived.toFixed(1)} KB`);
-              }
-            }
+          if (cancelled) {
+            addLog("Download cancelled");
+            return;
           }
-        } catch (readError) {
-          if (readError instanceof Error && readError.message === 'Read timeout' && receivedBytes > 100 * 1024) {
-            addLog(`⚠ Read timeout after ${chunkCount} chunks, assuming download complete`);
-          } else {
-            throw readError;
+
+          addLog(`✓ Download completed: ${(arrayBuffer.byteLength / 1024).toFixed(1)} KB`);
+
+        } catch (downloadError) {
+          clearInterval(progressInterval);
+
+          if (cancelled) {
+            addLog("Download cancelled");
+            return;
           }
+
+          throw downloadError;
         }
-
-        if (cancelled) return;
 
         // Clear timeout since we completed successfully
         if (timeoutId) {
@@ -160,15 +122,8 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
           timeoutId = null;
         }
 
-        addLog(`Assembling firmware from ${chunkCount} chunks (${receivedBytes} bytes)`);
-
-        // Combine all chunks into single Uint8Array
-        const data = new Uint8Array(receivedBytes);
-        let offset = 0;
-        for (const chunk of chunks) {
-          data.set(chunk, offset);
-          offset += chunk.length;
-        }
+        // Convert ArrayBuffer to Uint8Array
+        const data = new Uint8Array(arrayBuffer);
 
         const filename = firmwareUrl.split("/").pop() || "firmware.bin";
         const sizeKB = (data.length / 1024).toFixed(1);
@@ -202,16 +157,9 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         setState("error");
         setDownloadProgress(0);
       } finally {
-        // Clean up timeout and reader
+        // Clean up timeout
         if (timeoutId) {
           clearTimeout(timeoutId);
-        }
-        if (reader) {
-          try {
-            await reader.cancel();
-          } catch {
-            // Ignore cleanup errors
-          }
         }
       }
     }
