@@ -56,9 +56,13 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
       try {
         // Start download timeout (30 seconds)
         timeoutId = setTimeout(() => {
-          cancelled = true;
-          addLog("⚠ Download timeout after 30 seconds");
+          if (!cancelled) {
+            cancelled = true;
+            addLog("⚠ Download timeout after 30 seconds");
+          }
         }, 30000);
+
+        addLog("Download timeout set for 30 seconds");
 
         const response = await fetch(firmwareUrl);
         if (!response.ok) {
@@ -71,6 +75,9 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         addLog(`Starting download${totalBytes > 0 ? ` (${(totalBytes / 1024).toFixed(1)} KB)` : " (estimated ~1MB firmware)"}`);
 
         // Use simple ArrayBuffer approach for reliable downloads
+        const downloadStart = Date.now();
+        let arrayBuffer: ArrayBuffer;
+
         const progressInterval = setInterval(() => {
           if (cancelled) {
             clearInterval(progressInterval);
@@ -89,27 +96,28 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
           }
         }, 200);
 
-        let arrayBuffer: ArrayBuffer;
-        const downloadStart = Date.now();
-
         try {
+          addLog("Calling response.arrayBuffer()...");
+
           // Simple, reliable download approach
           arrayBuffer = await response.arrayBuffer();
 
+          addLog("response.arrayBuffer() completed successfully");
           clearInterval(progressInterval);
 
           if (cancelled) {
-            addLog("Download cancelled");
+            addLog("Download cancelled after arrayBuffer completion");
             return;
           }
 
           addLog(`✓ Download completed: ${(arrayBuffer.byteLength / 1024).toFixed(1)} KB`);
 
         } catch (downloadError) {
+          addLog(`arrayBuffer() failed: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}`);
           clearInterval(progressInterval);
 
           if (cancelled) {
-            addLog("Download cancelled");
+            addLog("Download cancelled during error handling");
             return;
           }
 
