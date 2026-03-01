@@ -83,7 +83,8 @@ export default function ProjectPage({ data }: ProjectPageProps) {
   useEffect(() => {
     // Add error handling to all images after component mounts
     const images = document.querySelectorAll('.prose img');
-    images.forEach((img: HTMLImageElement) => {
+    images.forEach((element) => {
+      const img = element as HTMLImageElement;
       const handleError = () => {
         console.error('Build guide image failed to load:', img.src);
         img.style.border = '2px dashed red';
