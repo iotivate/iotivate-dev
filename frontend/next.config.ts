@@ -32,7 +32,7 @@ const securityHeaders = [
       "object-src https://files.iotivate.dev",
       "media-src 'self' https://files.iotivate.dev",
       "frame-src https://www.youtube.com https://app.lemonsqueezy.com https://*.lemonsqueezy.com",
-      "connect-src 'self' https://app.lemonsqueezy.com https://assets.lemonsqueezy.com https://iotivate-backend.onrender.com https://cloudflareinsights.com",
+      "connect-src 'self' https://files.iotivate.dev https://app.lemonsqueezy.com https://assets.lemonsqueezy.com https://iotivate-backend.onrender.com https://cloudflareinsights.com",
       "frame-ancestors 'none'",
     ].join("; "),
   },
