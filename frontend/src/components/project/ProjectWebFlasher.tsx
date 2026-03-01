@@ -76,10 +76,10 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         addLog(`Starting download${totalBytes > 0 ? ` (${(totalBytes / 1024).toFixed(1)} KB)` : " (size unknown)"}`);
 
         // Use ReadableStream for progress tracking
-        reader = response.body?.getReader();
-        if (!reader) {
+        if (!response.body) {
           throw new Error("Response body is not readable");
         }
+        reader = response.body.getReader();
 
         const chunks: Uint8Array[] = [];
         let receivedBytes = 0;
