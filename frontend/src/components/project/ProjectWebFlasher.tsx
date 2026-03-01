@@ -85,44 +85,70 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         let receivedBytes = 0;
         let chunkCount = 0;
 
-        while (!cancelled) {
-          const { done, value } = await reader.read();
+        let lastChunkTime = Date.now();
 
-          if (done) {
-            addLog(`✓ Stream completed after ${chunkCount} chunks`);
-            break;
+        try {
+          while (!cancelled) {
+            const readResult = await Promise.race([
+              reader.read(),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Read timeout')), 5000)
+              )
+            ]);
+
+            const { done, value } = readResult;
+
+            if (done) {
+              addLog(`✓ Stream completed after ${chunkCount} chunks`);
+              break;
+            }
+
+            if (cancelled) return;
+
+            if (!value) {
+              // Check if we've been waiting too long without data
+              if (Date.now() - lastChunkTime > 3000 && receivedBytes > 100 * 1024) {
+                addLog(`⚠ No data received for 3 seconds, assuming download complete`);
+                break;
+              }
+              continue;
+            }
+
+            lastChunkTime = Date.now();
+
+            chunks.push(value);
+            receivedBytes += value.length;
+            chunkCount++;
+
+            // Update progress if we know the total size
+            if (totalBytes > 0) {
+              const percentage = Math.round((receivedBytes / totalBytes) * 100);
+              setDownloadProgress(percentage);
+
+              // Log progress every 25%
+              if (percentage % 25 === 0) {
+                addLog(`Download progress: ${percentage}% (${(receivedBytes / 1024).toFixed(1)} KB)`);
+              }
+            } else {
+              // Unknown size - show bytes received and simulate progress
+              const kbReceived = receivedBytes / 1024;
+
+              // Dynamic progress based on actual received data
+              const estimatedSize = Math.max(receivedBytes * 1.1, 1024 * 1024); // Use actual size + 10% buffer
+              const estimatedPercentage = Math.min(Math.round((receivedBytes / estimatedSize) * 100), 98);
+              setDownloadProgress(estimatedPercentage);
+
+              // Log every 256KB received
+              if (Math.floor(kbReceived / 256) > Math.floor((receivedBytes - value.length) / 1024 / 256)) {
+                addLog(`Downloaded: ${kbReceived.toFixed(1)} KB`);
+              }
+            }
           }
-
-          if (cancelled) return;
-
-          if (!value) continue;
-
-          chunks.push(value);
-          receivedBytes += value.length;
-          chunkCount++;
-
-          // Update progress if we know the total size
-          if (totalBytes > 0) {
-            const percentage = Math.round((receivedBytes / totalBytes) * 100);
-            setDownloadProgress(percentage);
-
-            // Log progress every 25%
-            if (percentage % 25 === 0) {
-              addLog(`Download progress: ${percentage}% (${(receivedBytes / 1024).toFixed(1)} KB)`);
-            }
+        } catch (readError) {
+          if (readError instanceof Error && readError.message === 'Read timeout' && receivedBytes > 100 * 1024) {
+            addLog(`⚠ Read timeout after ${chunkCount} chunks, assuming download complete`);
           } else {
-            // Unknown size - show bytes received and simulate progress
-            const kbReceived = receivedBytes / 1024;
-
-            // Dynamic progress based on actual received data
-            const estimatedSize = Math.max(receivedBytes * 1.1, 1024 * 1024); // Use actual size + 10% buffer
-            const estimatedPercentage = Math.min(Math.round((receivedBytes / estimatedSize) * 100), 98);
-            setDownloadProgress(estimatedPercentage);
-
-            // Log every 256KB received
-            if (Math.floor(kbReceived / 256) > Math.floor((receivedBytes - value.length) / 1024 / 256)) {
-              addLog(`Downloaded: ${kbReceived.toFixed(1)} KB`);
-            }
+            throw readError;
           }
         }
 
