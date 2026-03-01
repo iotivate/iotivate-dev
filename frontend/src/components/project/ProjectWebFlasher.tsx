@@ -105,11 +105,6 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
           addLog("response.arrayBuffer() completed successfully");
           clearInterval(progressInterval);
 
-          if (cancelled) {
-            addLog("Download cancelled after arrayBuffer completion");
-            return;
-          }
-
           addLog(`✓ Download completed: ${(arrayBuffer.byteLength / 1024).toFixed(1)} KB`);
 
         } catch (downloadError) {
@@ -128,6 +123,12 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         if (timeoutId) {
           clearTimeout(timeoutId);
           timeoutId = null;
+        }
+
+        // Check if cancelled by user/external source (not our internal timeout)
+        if (cancelled) {
+          addLog("Download cancelled by user");
+          return;
         }
 
         // Convert ArrayBuffer to Uint8Array
@@ -174,6 +175,7 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
 
     downloadFirmwareWithRetry();
     return () => {
+      console.log("useEffect cleanup called - setting cancelled = true");
       cancelled = true;
       if (timeoutId) {
         clearTimeout(timeoutId);
