@@ -93,8 +93,18 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
               addLog(`Download progress: ${percentage}% (${(receivedBytes / 1024).toFixed(1)} KB)`);
             }
           } else {
-            // Unknown size - show received bytes
-            addLog(`Downloaded: ${(receivedBytes / 1024).toFixed(1)} KB`);
+            // Unknown size - show bytes received and simulate progress
+            const kbReceived = receivedBytes / 1024;
+
+            // Simulate progress based on typical firmware sizes (estimate 500KB - 2MB)
+            const estimatedSize = 1024 * 1024; // 1MB estimate
+            const estimatedPercentage = Math.min(Math.round((receivedBytes / estimatedSize) * 100), 95);
+            setDownloadProgress(estimatedPercentage);
+
+            // Log every 128KB received
+            if (Math.floor(kbReceived / 128) > Math.floor((receivedBytes - value.length) / 1024 / 128)) {
+              addLog(`Downloaded: ${kbReceived.toFixed(1)} KB`);
+            }
           }
         }
 
@@ -284,7 +294,9 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
       case "connected":
         return firmware ? `Ready to flash: ${chipInfo || "ESP32"}` : "Preparing firmware...";
       case "downloading":
-        return `Downloading firmware... ${downloadProgress}%`;
+        return downloadProgress > 0
+          ? `Downloading firmware... ${downloadProgress}%`
+          : "Downloading firmware...";
       case "flashing":
         return `Flashing firmware... ${progress}%`;
       case "done":
@@ -338,13 +350,26 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted">
             <span>Downloading firmware...</span>
-            <span>{downloadProgress}%</span>
+            <span>{downloadProgress > 0 ? `${downloadProgress}%` : "In progress..."}</span>
           </div>
           <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-blue-500 transition-all duration-300 ease-out"
-              style={{ width: `${downloadProgress}%` }}
-            />
+            {downloadProgress > 0 ? (
+              <div
+                className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                style={{ width: `${downloadProgress}%` }}
+              />
+            ) : (
+              // Indeterminate progress bar for unknown size
+              <div className="h-full bg-blue-500/20 relative overflow-hidden">
+                <div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500 to-transparent w-full"
+                  style={{
+                    animation: 'shimmer 1.5s ease-in-out infinite',
+                    transform: 'translateX(-100%)'
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
