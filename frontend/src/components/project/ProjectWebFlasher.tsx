@@ -46,13 +46,25 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
     if (!firmwareUrl || firmware || state !== "connected") return;
 
     let cancelled = false;
+    let timeoutId: NodeJS.Timeout | null = null;
 
-    async function downloadFirmware() {
+    async function downloadFirmwareWithRetry(retryCount = 0) {
       setState("downloading");
       setDownloadProgress(0);
       addLog("Downloading firmware from server...");
 
+      let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
       try {
+        // Start download timeout (30 seconds)
+        timeoutId = setTimeout(() => {
+          cancelled = true;
+          addLog("⚠ Download timeout after 30 seconds");
+          if (reader) {
+            reader.cancel().catch(() => {});
+          }
+        }, 30000);
+
         const response = await fetch(firmwareUrl);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -61,27 +73,35 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         const contentLength = response.headers.get('content-length');
         const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
 
-        if (totalBytes > 0) {
-          addLog(`Firmware size: ${(totalBytes / 1024).toFixed(1)} KB`);
-        }
+        addLog(`Starting download${totalBytes > 0 ? ` (${(totalBytes / 1024).toFixed(1)} KB)` : " (size unknown)"}`);
 
         // Use ReadableStream for progress tracking
-        const reader = response.body?.getReader();
+        reader = response.body?.getReader();
         if (!reader) {
           throw new Error("Response body is not readable");
         }
 
         const chunks: Uint8Array[] = [];
         let receivedBytes = 0;
+        let chunkCount = 0;
 
-        while (true) {
-          const { done, value } = await reader.read();
+        while (!cancelled) {
+          const readResult = await reader.read();
+          const { done, value } = readResult;
 
-          if (done) break;
-          if (cancelled) return;
+          if (done) {
+            addLog(`✓ Stream completed after ${chunkCount} chunks`);
+            break;
+          }
+
+          if (cancelled) {
+            addLog("Download cancelled during processing");
+            return;
+          }
 
           chunks.push(value);
           receivedBytes += value.length;
+          chunkCount++;
 
           // Update progress if we know the total size
           if (totalBytes > 0) {
@@ -89,24 +109,34 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
             setDownloadProgress(percentage);
 
             // Log progress every 25%
-            if (percentage % 25 === 0 || percentage === 100) {
+            if (percentage % 25 === 0) {
               addLog(`Download progress: ${percentage}% (${(receivedBytes / 1024).toFixed(1)} KB)`);
             }
           } else {
             // Unknown size - show bytes received and simulate progress
             const kbReceived = receivedBytes / 1024;
 
-            // Simulate progress based on typical firmware sizes (estimate 500KB - 2MB)
+            // Simulate progress based on typical firmware sizes (estimate 1MB)
             const estimatedSize = 1024 * 1024; // 1MB estimate
             const estimatedPercentage = Math.min(Math.round((receivedBytes / estimatedSize) * 100), 95);
             setDownloadProgress(estimatedPercentage);
 
-            // Log every 128KB received
-            if (Math.floor(kbReceived / 128) > Math.floor((receivedBytes - value.length) / 1024 / 128)) {
+            // Log every 256KB received
+            if (Math.floor(kbReceived / 256) > Math.floor((receivedBytes - value.length) / 1024 / 256)) {
               addLog(`Downloaded: ${kbReceived.toFixed(1)} KB`);
             }
           }
         }
+
+        if (cancelled) return;
+
+        // Clear timeout since we completed successfully
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+
+        addLog(`Assembling firmware from ${chunkCount} chunks (${receivedBytes} bytes)`);
 
         // Combine all chunks into single Uint8Array
         const data = new Uint8Array(receivedBytes);
@@ -115,8 +145,6 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
           data.set(chunk, offset);
           offset += chunk.length;
         }
-
-        if (cancelled) return;
 
         const filename = firmwareUrl.split("/").pop() || "firmware.bin";
         const sizeKB = (data.length / 1024).toFixed(1);
@@ -127,18 +155,50 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         addLog(`✓ Firmware ready: ${filename} (${sizeKB} KB)`);
 
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled) {
+          addLog("Download cancelled");
+          return;
+        }
 
         const message = err instanceof Error ? err.message : "Failed to download firmware";
+        addLog(`✗ Download error: ${message}`);
+
+        // Retry once for network errors
+        if (retryCount === 0 && (message.includes("fetch") || message.includes("network") || message.includes("timeout"))) {
+          addLog("Retrying download in 2 seconds...");
+          setTimeout(() => {
+            if (!cancelled) {
+              downloadFirmwareWithRetry(1);
+            }
+          }, 2000);
+          return;
+        }
+
         setError(`Download failed: ${message}`);
         setState("error");
-        addLog(`✗ Error: ${message}`);
         setDownloadProgress(0);
+      } finally {
+        // Clean up timeout and reader
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        if (reader) {
+          try {
+            await reader.cancel();
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
       }
     }
 
-    downloadFirmware();
-    return () => { cancelled = true; };
+    downloadFirmwareWithRetry();
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [firmwareUrl, firmware, state, addLog]);
 
   const terminal = {
