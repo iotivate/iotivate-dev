@@ -1,0 +1,368 @@
+"use client";
+
+import { useState, useRef, useCallback, useEffect } from "react";
+import { ESPLoader, Transport, type LoaderOptions } from "esptool-js";
+
+type FlashState = "idle" | "connecting" | "connected" | "downloading" | "flashing" | "done" | "error";
+
+interface ProjectWebFlasherProps {
+  firmwareUrl: string;
+}
+
+interface FirmwareData {
+  data: Uint8Array;
+  size: number;
+  filename: string;
+}
+
+/**
+ * Specialized firmware flasher for project firmware that's already uploaded to R2.
+ * Provides a streamlined experience compared to the generic WebFlasher tool:
+ * - Auto-downloads firmware from R2 when device connects
+ * - Pre-configured for single merged firmware file at 0x0
+ * - Simplified UI focused on project firmware flashing workflow
+ */
+export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProps) {
+  const [state, setState] = useState<FlashState>("idle");
+  const [log, setLog] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [chipInfo, setChipInfo] = useState<string | null>(null);
+  const [firmware, setFirmware] = useState<FirmwareData | null>(null);
+
+  const espLoaderRef = useRef<ESPLoader | null>(null);
+  const transportRef = useRef<Transport | null>(null);
+
+  const addLog = useCallback((msg: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLog((prev) => [...prev.slice(-50), `[${timestamp}] ${msg}`]);
+  }, []);
+
+  const isSupported = typeof navigator !== "undefined" && "serial" in navigator;
+
+  // Auto-download firmware when device connects
+  useEffect(() => {
+    if (!firmwareUrl || firmware || state !== "connected") return;
+
+    let cancelled = false;
+
+    async function downloadFirmware() {
+      setState("downloading");
+      addLog("Downloading firmware from server...");
+
+      try {
+        const response = await fetch(firmwareUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+        const data = new Uint8Array(buffer);
+
+        if (cancelled) return;
+
+        const filename = firmwareUrl.split("/").pop() || "firmware.bin";
+        const sizeKB = (data.length / 1024).toFixed(1);
+
+        setFirmware({ data, size: data.length, filename });
+        setState("connected");
+        addLog(`Firmware ready: ${filename} (${sizeKB} KB)`);
+
+      } catch (err) {
+        if (cancelled) return;
+
+        const message = err instanceof Error ? err.message : "Failed to download firmware";
+        setError(`Download failed: ${message}`);
+        setState("error");
+        addLog(`Error: ${message}`);
+      }
+    }
+
+    downloadFirmware();
+    return () => { cancelled = true; };
+  }, [firmwareUrl, firmware, state, addLog]);
+
+  const terminal = {
+    clean: () => setLog([]),
+    writeLine: (data: string) => addLog(data),
+    write: (data: string) => addLog(data),
+  };
+
+  const connect = useCallback(async () => {
+    if (!isSupported) {
+      setError("Web Serial API not supported. Use Chrome, Edge, or Opera on desktop.");
+      return;
+    }
+
+    setState("connecting");
+    setError(null);
+    setChipInfo(null);
+    setFirmware(null);
+
+    try {
+      const port = await navigator.serial.requestPort();
+      transportRef.current = new Transport(port, true);
+
+      const loaderOptions: LoaderOptions = {
+        transport: transportRef.current,
+        baudrate: 115200,
+        romBaudrate: 115200,
+        terminal,
+        debugLogging: false,
+      };
+
+      espLoaderRef.current = new ESPLoader(loaderOptions);
+      const chip = await espLoaderRef.current.main();
+
+      setChipInfo(chip);
+      setState("connected");
+      addLog(`Connected to ${chip}`);
+
+      // Get MAC address for identification
+      try {
+        const macAddr = await espLoaderRef.current.chip.readMac(espLoaderRef.current);
+        addLog(`MAC Address: ${macAddr}`);
+      } catch {
+        // MAC reading is optional, don't fail connection
+        addLog("Could not read MAC address");
+      }
+
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Connection failed";
+      setState("error");
+      setError(message);
+      addLog(`Connection error: ${message}`);
+    }
+  }, [isSupported, addLog]);
+
+  const disconnect = useCallback(async () => {
+    try {
+      if (transportRef.current) {
+        await transportRef.current.disconnect();
+        await transportRef.current.waitForUnlock(1500);
+      }
+    } catch {
+      // Ignore disconnect errors
+    }
+
+    espLoaderRef.current = null;
+    transportRef.current = null;
+    setState("idle");
+    setChipInfo(null);
+    setProgress(0);
+    setFirmware(null);
+    addLog("Disconnected");
+  }, [addLog]);
+
+  const flash = useCallback(async () => {
+    if (!espLoaderRef.current || !firmware) {
+      setError("Device not connected or firmware not ready");
+      return;
+    }
+
+    setState("flashing");
+    setProgress(0);
+    setError(null);
+
+    try {
+      addLog(`Flashing firmware: ${firmware.filename}`);
+      addLog("Erasing and writing flash memory...");
+
+      // Convert Uint8Array to string for esptool-js
+      const firmwareString = Array.from(firmware.data)
+        .map((byte) => String.fromCharCode(byte))
+        .join("");
+
+      await espLoaderRef.current.writeFlash({
+        fileArray: [{
+          address: 0x0, // Flash merged firmware at start of memory
+          data: firmwareString,
+        }],
+        flashSize: "keep",
+        flashMode: "keep",
+        flashFreq: "keep",
+        eraseAll: false,
+        compress: true,
+        reportProgress: (fileIndex: number, written: number, total: number) => {
+          const percentage = Math.round((written / total) * 100);
+          setProgress(percentage);
+
+          if (percentage % 10 === 0 || percentage === 100) {
+            addLog(`Progress: ${percentage}%`);
+          }
+        },
+        calculateMD5Hash: (image: string) => {
+          // Return first 32 chars as simple hash for display
+          return image.slice(0, 32);
+        },
+      });
+
+      setState("done");
+      addLog("✓ Firmware flashed successfully!");
+      addLog("You can now disconnect your device or reset it to run the new firmware.");
+
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Flash operation failed";
+      setState("error");
+      setError(message);
+      addLog(`Flash error: ${message}`);
+    }
+  }, [firmware, addLog]);
+
+  const getStatusColor = () => {
+    switch (state) {
+      case "connected":
+      case "done":
+        return "bg-green-500";
+      case "connecting":
+      case "downloading":
+      case "flashing":
+        return "bg-yellow-500 animate-pulse";
+      case "error":
+        return "bg-red-500";
+      default:
+        return "bg-gray-500";
+    }
+  };
+
+  const getStatusText = () => {
+    switch (state) {
+      case "idle":
+        return "Ready to connect";
+      case "connecting":
+        return "Connecting to device...";
+      case "connected":
+        return firmware ? `Ready to flash: ${chipInfo || "ESP32"}` : "Preparing firmware...";
+      case "downloading":
+        return "Downloading firmware...";
+      case "flashing":
+        return `Flashing firmware... ${progress}%`;
+      case "done":
+        return "Flash complete!";
+      case "error":
+        return error || "Error occurred";
+      default:
+        return "Unknown state";
+    }
+  };
+
+  if (!isSupported) {
+    return (
+      <div className="p-6 border border-red-500/30 bg-red-500/5 rounded-lg">
+        <div className="flex items-center gap-3 mb-3">
+          <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="font-semibold text-red-500">Browser Not Supported</span>
+        </div>
+        <p className="text-sm text-muted">
+          Web Serial API is required for firmware flashing. Please use Chrome, Edge, or Opera on desktop.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Connection Status */}
+      <div className="flex items-center gap-3">
+        <div className={`w-3 h-3 rounded-full ${getStatusColor()}`} />
+        <span className="font-medium">{getStatusText()}</span>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="p-4 border border-red-500/30 bg-red-500/5 rounded-lg">
+          <div className="flex items-center gap-2 text-red-500 text-sm font-medium mb-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Error
+          </div>
+          <p className="text-sm text-muted">{error}</p>
+        </div>
+      )}
+
+      {/* Progress Bar */}
+      {state === "flashing" && (
+        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-accent transition-all duration-300 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex gap-3">
+        {state === "idle" || state === "error" ? (
+          <button
+            onClick={connect}
+            className="px-6 py-2.5 bg-accent text-white font-medium rounded-lg hover:bg-accent-hover transition-colors"
+          >
+            Connect Device
+          </button>
+        ) : state === "connected" && firmware ? (
+          <>
+            <button
+              onClick={flash}
+              className="px-6 py-2.5 bg-accent text-white font-medium rounded-lg hover:bg-accent-hover transition-colors"
+            >
+              Flash Firmware
+            </button>
+            <button
+              onClick={disconnect}
+              className="px-6 py-2.5 border border-border font-medium rounded-lg hover:bg-surface transition-colors"
+            >
+              Disconnect
+            </button>
+          </>
+        ) : state === "done" ? (
+          <button
+            onClick={disconnect}
+            className="px-6 py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Done
+          </button>
+        ) : (
+          <button
+            onClick={disconnect}
+            disabled={state === "connecting" || state === "downloading" || state === "flashing"}
+            className="px-6 py-2.5 border border-border font-medium rounded-lg hover:bg-surface transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+
+      {/* Console Log */}
+      {log.length > 0 && (
+        <details className="group">
+          <summary className="cursor-pointer select-none flex items-center justify-between p-3 border border-border rounded-lg hover:bg-surface/50 transition-colors">
+            <span className="text-sm font-medium">Console Output</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted">{log.length} messages</span>
+              <svg className="w-4 h-4 text-muted transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </summary>
+          <div className="mt-2 border border-border rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-surface">
+              <span className="text-xs font-medium text-muted">Flash Log</span>
+              <button
+                onClick={() => setLog([])}
+                className="text-xs text-muted hover:text-foreground transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+            <pre className="p-3 text-xs font-mono leading-relaxed max-h-48 overflow-y-auto bg-background text-muted">
+              {log.join("\n")}
+            </pre>
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}

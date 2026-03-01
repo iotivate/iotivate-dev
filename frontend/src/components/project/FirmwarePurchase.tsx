@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, authFetch } from "@/lib/auth";
-import WebFlasher from "@/components/WebFlasher";
+import ProjectWebFlasher from "./ProjectWebFlasher";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -201,15 +201,24 @@ export default function FirmwarePurchase({
               <span className="font-medium">{isFree ? "Free" : "Purchased"}</span>
             </div>
 
-            <button
-              onClick={() => setShowFlasher(!showFlasher)}
-              className="w-full px-4 py-2.5 bg-accent text-white font-medium rounded-lg hover:bg-accent-hover transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              {showFlasher ? "Hide Flasher" : "Flash Now"}
-            </button>
+            {firmwareUrl ? (
+              <button
+                onClick={() => setShowFlasher(!showFlasher)}
+                className="w-full px-4 py-2.5 bg-accent text-white font-medium rounded-lg hover:bg-accent-hover transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                {showFlasher ? "Hide Flasher" : "Flash Firmware"}
+              </button>
+            ) : (
+              <div className="w-full px-4 py-2.5 border border-yellow-500/30 bg-yellow-500/5 rounded-lg flex items-center justify-center gap-2 text-yellow-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm">Firmware not available</span>
+              </div>
+            )}
 
             {sourceCodeUrl && (
               <a
@@ -229,9 +238,9 @@ export default function FirmwarePurchase({
       </div>
 
       {/* Embedded flasher */}
-      {isPurchased && showFlasher && (
+      {isPurchased && showFlasher && firmwareUrl && (
         <div className="border-t border-border p-4">
-          <WebFlasher firmwareUrl={firmwareUrl} />
+          <ProjectWebFlasher firmwareUrl={firmwareUrl} />
         </div>
       )}
     </div>
