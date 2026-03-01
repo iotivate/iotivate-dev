@@ -27,6 +27,7 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const [chipInfo, setChipInfo] = useState<string | null>(null);
   const [firmware, setFirmware] = useState<FirmwareData | null>(null);
 
@@ -48,6 +49,7 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
 
     async function downloadFirmware() {
       setState("downloading");
+      setDownloadProgress(0);
       addLog("Downloading firmware from server...");
 
       try {
@@ -56,8 +58,53 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        const buffer = await response.arrayBuffer();
-        const data = new Uint8Array(buffer);
+        const contentLength = response.headers.get('content-length');
+        const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+
+        if (totalBytes > 0) {
+          addLog(`Firmware size: ${(totalBytes / 1024).toFixed(1)} KB`);
+        }
+
+        // Use ReadableStream for progress tracking
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("Response body is not readable");
+        }
+
+        const chunks: Uint8Array[] = [];
+        let receivedBytes = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) break;
+          if (cancelled) return;
+
+          chunks.push(value);
+          receivedBytes += value.length;
+
+          // Update progress if we know the total size
+          if (totalBytes > 0) {
+            const percentage = Math.round((receivedBytes / totalBytes) * 100);
+            setDownloadProgress(percentage);
+
+            // Log progress every 25%
+            if (percentage % 25 === 0 || percentage === 100) {
+              addLog(`Download progress: ${percentage}% (${(receivedBytes / 1024).toFixed(1)} KB)`);
+            }
+          } else {
+            // Unknown size - show received bytes
+            addLog(`Downloaded: ${(receivedBytes / 1024).toFixed(1)} KB`);
+          }
+        }
+
+        // Combine all chunks into single Uint8Array
+        const data = new Uint8Array(receivedBytes);
+        let offset = 0;
+        for (const chunk of chunks) {
+          data.set(chunk, offset);
+          offset += chunk.length;
+        }
 
         if (cancelled) return;
 
@@ -65,8 +112,9 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         const sizeKB = (data.length / 1024).toFixed(1);
 
         setFirmware({ data, size: data.length, filename });
+        setDownloadProgress(100);
         setState("connected");
-        addLog(`Firmware ready: ${filename} (${sizeKB} KB)`);
+        addLog(`✓ Firmware ready: ${filename} (${sizeKB} KB)`);
 
       } catch (err) {
         if (cancelled) return;
@@ -74,7 +122,8 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         const message = err instanceof Error ? err.message : "Failed to download firmware";
         setError(`Download failed: ${message}`);
         setState("error");
-        addLog(`Error: ${message}`);
+        addLog(`✗ Error: ${message}`);
+        setDownloadProgress(0);
       }
     }
 
@@ -150,6 +199,7 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
     setState("idle");
     setChipInfo(null);
     setProgress(0);
+    setDownloadProgress(0);
     setFirmware(null);
     addLog("Disconnected");
   }, [addLog]);
@@ -234,7 +284,7 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
       case "connected":
         return firmware ? `Ready to flash: ${chipInfo || "ESP32"}` : "Preparing firmware...";
       case "downloading":
-        return "Downloading firmware...";
+        return `Downloading firmware... ${downloadProgress}%`;
       case "flashing":
         return `Flashing firmware... ${progress}%`;
       case "done":
@@ -283,13 +333,35 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
         </div>
       )}
 
-      {/* Progress Bar */}
+      {/* Download Progress Bar */}
+      {state === "downloading" && (
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-muted">
+            <span>Downloading firmware...</span>
+            <span>{downloadProgress}%</span>
+          </div>
+          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 transition-all duration-300 ease-out"
+              style={{ width: `${downloadProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Flash Progress Bar */}
       {state === "flashing" && (
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-accent transition-all duration-300 ease-out"
-            style={{ width: `${progress}%` }}
-          />
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-muted">
+            <span>Flashing firmware...</span>
+            <span>{progress}%</span>
+          </div>
+          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accent transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
       )}
 
