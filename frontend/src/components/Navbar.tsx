@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -100,79 +101,111 @@ interface MobileMenuProps {
 }
 
 function MobileMenu({ pathname, user, isLoading, logout, isPro }: MobileMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const toggleMenu = () => setIsOpen(!isOpen);
+  const closeMenu = () => setIsOpen(false);
+
   return (
-    <details className="md:hidden relative">
-      <summary className="list-none cursor-pointer p-2">
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 6h16M4 12h16M4 18h16"
-          />
-        </svg>
-      </summary>
-      <div className="absolute right-0 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg py-2">
-        {navLinks.map(({ href, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`block px-4 py-2 text-sm ${
-              pathname === href
-                ? "text-accent bg-accent/10"
-                : "text-muted hover:text-foreground"
-            }`}
+    <div className="md:hidden relative">
+      <button onClick={toggleMenu} className="p-2 cursor-pointer">
+        {isOpen ? (
+          // Close icon (X)
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            {label}
-          </Link>
-        ))}
-        <div className="border-t border-border mt-2 pt-2">
-          {isLoading ? (
-            <span className="block px-4 py-2 text-sm text-muted">...</span>
-          ) : user ? (
-            <>
-              <div className="flex items-center gap-2 px-4 py-2">
-                <span className="text-sm text-muted">{user.username}</span>
-                {isPro ? (
-                  <span className="px-1.5 py-0.5 text-xs font-semibold rounded bg-accent/10 text-accent border border-accent/20">
-                    PRO
-                  </span>
-                ) : (
-                  <Link href="/pro" className="text-xs text-accent hover:underline">
-                    Upgrade
-                  </Link>
-                )}
-              </div>
-              <button
-                onClick={logout}
-                className="block w-full text-left px-4 py-2 text-sm text-muted hover:text-foreground"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="block px-4 py-2 text-sm text-muted hover:text-foreground"
-              >
-                Login
-              </Link>
-              <Link
-                href="/register"
-                className="block px-4 py-2 text-sm text-accent"
-              >
-                Register
-              </Link>
-            </>
-          )}
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        ) : (
+          // Hamburger icon
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg py-2">
+          {navLinks.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={closeMenu}
+              className={`block px-4 py-2 text-sm ${
+                pathname === href
+                  ? "text-accent bg-accent/10"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+          <div className="border-t border-border mt-2 pt-2">
+            {isLoading ? (
+              <span className="block px-4 py-2 text-sm text-muted">...</span>
+            ) : user ? (
+              <>
+                <div className="flex items-center gap-2 px-4 py-2">
+                  <span className="text-sm text-muted">{user.username}</span>
+                  {isPro ? (
+                    <span className="px-1.5 py-0.5 text-xs font-semibold rounded bg-accent/10 text-accent border border-accent/20">
+                      PRO
+                    </span>
+                  ) : (
+                    <Link href="/pro" onClick={closeMenu} className="text-xs text-accent hover:underline">
+                      Upgrade
+                    </Link>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    closeMenu();
+                  }}
+                  className="block w-full text-left px-4 py-2 text-sm text-muted hover:text-foreground"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={closeMenu}
+                  className="block px-4 py-2 text-sm text-muted hover:text-foreground"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={closeMenu}
+                  className="block px-4 py-2 text-sm text-accent"
+                >
+                  Register
+                </Link>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-    </details>
+      )}
+    </div>
   );
 }
