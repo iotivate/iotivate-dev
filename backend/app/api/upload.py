@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import time
 import uuid
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 import boto3
@@ -32,7 +33,18 @@ ALLOWED_EXTENSIONS = {
 
 ALL_ALLOWED = [ext for exts in ALLOWED_EXTENSIONS.values() for ext in exts]
 
+# Default file size limit
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+
+# Increased limits for specific file types
+FILE_SIZE_LIMITS = {
+    "app": 200 * 1024 * 1024,      # 200MB for APK/IPA files
+    "archive": 500 * 1024 * 1024,  # 500MB for archives
+    "model": 100 * 1024 * 1024,    # 100MB for 3D models
+    "firmware": 50 * 1024 * 1024,  # 50MB for firmware
+    "document": 25 * 1024 * 1024,  # 25MB for documents
+    "image": 10 * 1024 * 1024,     # 10MB for images
+}
 
 
 def get_r2_client():
@@ -45,7 +57,12 @@ def get_r2_client():
         endpoint_url=f"https://{settings.r2_account_id}.r2.cloudflarestorage.com",
         aws_access_key_id=settings.r2_access_key_id,
         aws_secret_access_key=settings.r2_secret_access_key,
-        config=Config(signature_version="s3v4"),
+        config=Config(
+            signature_version="s3v4",
+            connect_timeout=60,    # 60 seconds to connect
+            read_timeout=300,      # 5 minutes for large file uploads
+            retries={'max_attempts': 3}  # Retry failed uploads
+        ),
     )
 
 
@@ -102,12 +119,18 @@ async def upload_file(
     # Read file content
     content = await file.read()
 
-    # Check file size
-    if len(content) > MAX_FILE_SIZE:
+    # Check file size based on category
+    file_category = get_file_category(file.filename or "")
+    size_limit = FILE_SIZE_LIMITS.get(file_category, MAX_FILE_SIZE)
+
+    if len(content) > size_limit:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+            detail=f"File too large. Maximum size for {file_category} files is {size_limit // (1024*1024)}MB"
         )
+
+    logger.info("Uploading %s file: %s (%.1f MB)",
+                file_category, file.filename, len(content) / (1024*1024))
 
     # Generate unique filename: strip dangerous characters, prevent overwrites
     raw_filename = file.filename or "file"
@@ -125,12 +148,29 @@ async def upload_file(
     # Upload to R2
     try:
         client = get_r2_client()
+        file_size_mb = len(content) / (1024*1024)
+
+        logger.info("Starting R2 upload: %s (%.1f MB)", object_key, file_size_mb)
+
+        # For large files (>10MB), log progress
+        if file_size_mb > 10:
+            logger.info("Uploading large file, this may take several minutes...")
+
+        start_time = time.time()
+
         client.put_object(
             Bucket=settings.r2_bucket_name,
             Key=object_key,
             Body=content,
             ContentType=content_type,
         )
+
+        upload_time = time.time() - start_time
+        upload_speed = file_size_mb / upload_time if upload_time > 0 else 0
+
+        logger.info("R2 upload completed: %s in %.1fs (%.1f MB/s)",
+                    object_key, upload_time, upload_speed)
+
     except Exception as e:
         logger.exception("R2 upload failed for key=%s", object_key)
         raise HTTPException(
