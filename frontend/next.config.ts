@@ -28,7 +28,7 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://app.lemonsqueezy.com https://assets.lemonsqueezy.com https://static.cloudflareinsights.com",
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self'",
-      "img-src 'self' data: blob: https://files.iotivate.dev https://app.lemonsqueezy.com https://assets.lemonsqueezy.com",
+      "img-src 'self' data: blob: https: https://files.iotivate.dev https://app.lemonsqueezy.com https://assets.lemonsqueezy.com https://github.com https://raw.githubusercontent.com https://user-images.githubusercontent.com https://camo.githubusercontent.com",
       "object-src https://files.iotivate.dev",
       "media-src 'self' https://files.iotivate.dev",
       "frame-src https://www.youtube.com https://app.lemonsqueezy.com https://*.lemonsqueezy.com",
