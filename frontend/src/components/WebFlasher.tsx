@@ -2,8 +2,10 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ESPLoader, Transport, type LoaderOptions } from "esptool-js";
+import ProGate from "./ProGate";
 
 type FlashState = "idle" | "connecting" | "connected" | "flashing" | "done" | "error";
+type BatchMode = "single" | "manual" | "auto";
 
 interface FileEntry {
   offset: string;
@@ -12,11 +14,33 @@ interface FileEntry {
   fromServer?: boolean;
 }
 
-interface WebFlasherProps {
-  firmwareUrl?: string;
+interface BatchDevice {
+  id: string;
+  name: string;
+  serialNumber?: string;
+  firmware: FileEntry[];
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'skipped';
+  errorMessage?: string;
+  flashTime?: number;
+  completedAt?: Date;
 }
 
-export default function WebFlasher({ firmwareUrl }: WebFlasherProps) {
+interface BatchJob {
+  id: string;
+  name: string;
+  devices: BatchDevice[];
+  mode: BatchMode;
+  created: Date;
+  completed?: Date;
+  currentDeviceIndex: number;
+}
+
+interface WebFlasherProps {
+  firmwareUrl?: string;
+  isPro?: boolean;
+}
+
+export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherProps) {
   const [state, setState] = useState<FlashState>("idle");
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +50,11 @@ export default function WebFlasher({ firmwareUrl }: WebFlasherProps) {
   const [files, setFiles] = useState<FileEntry[]>([
     { offset: "0x0", file: null, data: null },
   ]);
+
+  // Batch mode state (Pro features)
+  const [batchMode, setBatchMode] = useState<BatchMode>("single");
+  const [batchJob, setBatchJob] = useState<BatchJob | null>(null);
+  const [showBatchBuilder, setShowBatchBuilder] = useState(false);
 
   const espLoaderRef = useRef<ESPLoader | null>(null);
   const transportRef = useRef<Transport | null>(null);
@@ -313,6 +342,140 @@ export default function WebFlasher({ firmwareUrl }: WebFlasherProps) {
           </p>
         </div>
       </details>
+
+      {/* Batch Flashing Mode (Pro Feature) */}
+      {isPro && (
+        <div className="border border-border rounded-lg overflow-hidden">
+          <div className="px-4 py-3 bg-surface border-b border-border">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Flashing Mode</h3>
+              <span className="text-xs px-2 py-1 rounded-full bg-accent/10 text-accent border border-accent/20">
+                PRO
+              </span>
+            </div>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setBatchMode("single")}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  batchMode === "single"
+                    ? "bg-accent text-white"
+                    : "border border-border hover:bg-surface"
+                }`}
+              >
+                Single Device
+              </button>
+              <button
+                onClick={() => setBatchMode("manual")}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  batchMode === "manual"
+                    ? "bg-accent text-white"
+                    : "border border-border hover:bg-surface"
+                }`}
+              >
+                Batch (Manual)
+              </button>
+              <button
+                onClick={() => setBatchMode("auto")}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  batchMode === "auto"
+                    ? "bg-accent text-white"
+                    : "border border-border hover:bg-surface"
+                }`}
+              >
+                Batch (Auto)
+              </button>
+            </div>
+
+            {batchMode !== "single" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted">
+                    {batchMode === "manual"
+                      ? "Guided workflow with manual device swapping"
+                      : "Automatic detection and flashing sequence"
+                    }
+                  </span>
+                  <button
+                    onClick={() => setShowBatchBuilder(!showBatchBuilder)}
+                    className="text-sm text-accent hover:underline"
+                  >
+                    {showBatchBuilder ? "Hide" : "Setup"} Batch Queue
+                  </button>
+                </div>
+
+                {showBatchBuilder && (
+                  <div className="border border-border rounded-lg p-4 bg-surface/30">
+                    <div className="text-center py-8 text-muted">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 text-accent mb-4">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2 text-foreground">Batch Queue Builder</h3>
+                      <p className="text-sm max-w-md mx-auto mb-4">
+                        Coming soon! Set up multiple devices for sequential or automated flashing.
+                      </p>
+                      <div className="text-xs">
+                        <p>Features include:</p>
+                        <ul className="inline-block text-left mt-2 space-y-1">
+                          <li>• Device naming and serial number injection</li>
+                          <li>• Progress tracking across all devices</li>
+                          <li>• Quality assurance reporting</li>
+                          <li>• Automatic retry on failures</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Batch Flashing Promotion (Free users) */}
+      {!isPro && (
+        <div className="border border-border rounded-lg p-6 bg-surface/30">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-between w-full mb-4">
+              <div className="flex-1"></div>
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/10 text-accent">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div className="flex-1 flex justify-end">
+                <span className="text-xs px-2 py-1 rounded-full bg-accent/10 text-accent border border-accent/20">
+                  PRO
+                </span>
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Batch Flashing</h3>
+            <p className="text-sm text-muted mb-4 max-w-md mx-auto">
+              Flash multiple ESP32 devices with guided workflows, progress tracking, and quality assurance reporting.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted mb-4">
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">Manual Mode:</p>
+                <p>• Guided device swapping</p>
+                <p>• Quality control checkpoints</p>
+                <p>• Batch progress tracking</p>
+              </div>
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">Auto Mode:</p>
+                <p>• Automatic device detection</p>
+                <p>• Serial number injection</p>
+                <p>• Production reporting</p>
+              </div>
+            </div>
+            <ProGate featureName="Batch flashing">
+              <div></div>
+            </ProGate>
+          </div>
+        </div>
+      )}
 
       {/* Browser support check */}
       {!isSupported && (
