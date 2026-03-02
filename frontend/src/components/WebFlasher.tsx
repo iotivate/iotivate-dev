@@ -243,9 +243,23 @@ export default function WebFlasher({ firmwareUrl }: WebFlasherProps) {
         </summary>
         <div className="px-4 pb-4 text-sm text-muted space-y-3 border-t border-border pt-3">
           <p>
-            ESP32 firmware typically consists of three <code className="text-foreground bg-surface px-1 py-0.5 rounded text-xs">.bin</code> files,
-            each written to a specific flash address:
+            ESP32 firmware can be flashed in two ways: as separate files or as a single merged file.
           </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="font-medium text-foreground mb-2">Option 1: Merged Firmware (Recommended)</p>
+              <ul className="space-y-1 text-xs">
+                <li>• Use our <a href="/tools/esp32-firmware-merger" className="text-accent hover:underline">Firmware Merger</a> tool first</li>
+                <li>• Upload the single merged <code className="text-foreground bg-surface px-1 py-0.5 rounded">.bin</code> file</li>
+                <li>• Set offset to <code className="text-foreground bg-surface px-1 py-0.5 rounded">0x0</code></li>
+                <li>• Flash - all components are written to correct positions</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-2">Option 2: Separate Files (Traditional)</p>
+              <p className="text-xs mb-2">ESP32 firmware typically consists of three separate files:</p>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs font-mono">
               <thead>
@@ -274,12 +288,25 @@ export default function WebFlasher({ firmwareUrl }: WebFlasherProps) {
               </tbody>
             </table>
           </div>
-          <ol className="list-decimal list-inside space-y-1">
-            <li>Click <strong className="text-foreground">Connect Device</strong> and select your ESP32 from the browser prompt</li>
-            <li>Click <strong className="text-foreground">+ Add file</strong> to create a row for each .bin file (3 total)</li>
-            <li>Set the offset and select the matching .bin for each row</li>
-            <li>Click <strong className="text-foreground">Flash Firmware</strong> — all files are written in sequence</li>
-          </ol>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="font-medium text-foreground mb-2">For Merged Firmware:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Click <strong className="text-foreground">Connect Device</strong> and select your ESP32</li>
+                <li>Upload your merged .bin file at offset <code className="text-foreground bg-surface px-1 py-0.5 rounded">0x0</code></li>
+                <li>Click <strong className="text-foreground">Flash Firmware</strong></li>
+              </ol>
+            </div>
+            <div>
+              <p className="font-medium text-foreground mb-2">For Separate Files:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Click <strong className="text-foreground">Connect Device</strong> and select your ESP32</li>
+                <li>Click <strong className="text-foreground">+ Add file</strong> to create rows for each .bin file (3 total)</li>
+                <li>Set the offset and select the matching .bin for each row</li>
+                <li>Click <strong className="text-foreground">Flash Firmware</strong></li>
+              </ol>
+            </div>
+          </div>
           <p className="text-xs">
             These are the default offsets for ESP-IDF and Arduino. If your project uses a custom partition table,
             check your build output or <code className="text-foreground bg-surface px-1 py-0.5 rounded">partitions.csv</code> for the correct addresses.
