@@ -305,6 +305,10 @@ def update_project(
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
+    # Extract old R2 URLs before updating for cleanup
+    old_r2_urls = set(extract_r2_urls_from_project(project))
+    logger.info("Found %d existing R2 URLs for project %s", len(old_r2_urls), project.slug)
+
     # Sanitize HTML fields before processing
     if data.overview is not None:
         data.overview = sanitize_html(data.overview)
@@ -342,6 +346,22 @@ def update_project(
     session.add(project)
     session.commit()
     session.refresh(project)
+
+    # Clean up old R2 files that are no longer referenced
+    try:
+        new_r2_urls = set(extract_r2_urls_from_project(project))
+        urls_to_delete = old_r2_urls - new_r2_urls  # Files that were removed
+
+        if urls_to_delete:
+            logger.info("Cleaning up %d orphaned R2 files for project %s", len(urls_to_delete), project.slug)
+            deleted_count = delete_r2_objects(list(urls_to_delete))
+            logger.info("Successfully deleted %d orphaned R2 files", deleted_count)
+        else:
+            logger.info("No orphaned R2 files to clean up for project %s", project.slug)
+    except Exception as e:
+        logger.error("Failed to clean up orphaned R2 files for project %s: %s", project.slug, str(e))
+        # Don't fail the update if cleanup fails
+
     return project_to_response(project)
 
 
