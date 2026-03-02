@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ESPLoader, Transport, type LoaderOptions } from "esptool-js";
-import md5 from "js-md5";
+import { md5 } from "js-md5";
 
 type FlashState = "idle" | "connecting" | "connected" | "downloading" | "flashing" | "done" | "error";
 
