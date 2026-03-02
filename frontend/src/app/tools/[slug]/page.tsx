@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import PageHeader from "@/components/PageHeader";
 import WebFlasher from "@/components/WebFlasher";
+import FirmwareMerger from "@/components/FirmwareMerger";
 import { PinPlanner } from "@/components/pin-planner";
 import SerialMonitorWithPro from "./SerialMonitorWithPro";
 import StlViewerWithPro from "./StlViewerWithPro";
@@ -11,6 +12,7 @@ import { JsonLd, ORGANIZATION } from "@/lib/jsonld";
 // Map tool slugs to their components
 const TOOL_COMPONENTS: Record<string, React.ComponentType> = {
   "esp32-web-flasher": WebFlasher,
+  "esp32-firmware-merger": FirmwareMerger,
   "serial-monitor": SerialMonitorWithPro,
   "esp32-pin-planner": PinPlanner,
   "stl-viewer": StlViewerWithPro,
