@@ -9,6 +9,9 @@ interface AppDownloadProps {
   apkSize?: string;
   iosUrl?: string;
   features?: string[];
+  isFree?: boolean;
+  hasPurchased?: boolean;
+  onPurchaseClick?: () => void;
 }
 
 export default function AppDownload({
@@ -20,7 +23,12 @@ export default function AppDownload({
   apkSize,
   iosUrl,
   features = [],
+  isFree = true,
+  hasPurchased = false,
+  onPurchaseClick,
 }: AppDownloadProps) {
+  // Determine if APK should be available
+  const showAPK = isFree || hasPurchased;
   return (
     <div className="border border-border rounded-lg overflow-hidden">
       <div className="px-4 py-3 bg-surface border-b border-border">
@@ -87,7 +95,7 @@ export default function AppDownload({
           )}
 
           {/* Direct APK */}
-          {apkUrl && (
+          {apkUrl && showAPK && (
             <a
               href={apkUrl}
               download
@@ -106,11 +114,33 @@ export default function AppDownload({
               </div>
             </a>
           )}
+
+          {/* Purchase Required for APK */}
+          {apkUrl && !showAPK && (
+            <button
+              onClick={onPurchaseClick}
+              className="flex items-center gap-3 px-4 py-2.5 border border-yellow-500/30 bg-yellow-500/5 rounded-lg hover:bg-yellow-500/10 transition-colors"
+            >
+              <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <div className="text-left">
+                <div className="text-sm font-medium text-yellow-300">Purchase Required</div>
+                <div className="text-[10px] text-yellow-400/80">
+                  Get APK with firmware purchase
+                </div>
+              </div>
+            </button>
+          )}
         </div>
 
         {apkUrl && (
           <p className="text-xs text-muted">
-            APK download is included with firmware purchase. Enable "Install from unknown sources" to install.
+            {showAPK ? (
+              <>APK download is included with firmware purchase. Enable "Install from unknown sources" to install.</>
+            ) : (
+              <>APK download requires firmware purchase. Available after payment completion.</>
+            )}
           </p>
         )}
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useAuth } from "@/lib/auth";
 import PageHeader from "@/components/PageHeader";
 import VideoEmbed from "./VideoEmbed";
 import PartsList, { type Part } from "./PartsList";
@@ -79,6 +80,45 @@ interface ProjectPageProps {
 export default function ProjectPage({ data }: ProjectPageProps) {
   const hasPartsOrDownloads = data.parts || data.downloads;
   const hasFirmwareOrApp = data.firmware || data.app;
+
+  // Purchase state management
+  const { user, token } = useAuth();
+  const [isPurchased, setIsPurchased] = useState(false);
+  const [isCheckingPurchase, setIsCheckingPurchase] = useState(false);
+
+  // Determine if project is free (no firmware price or price is 0)
+  const isFree = !data.firmware?.price || data.firmware.price <= 0;
+
+  // Check purchase status
+  const checkPurchaseStatus = useCallback(async () => {
+    if (!token || isFree) return;
+
+    setIsCheckingPurchase(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_URL}/api/purchases/${data.slug}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setIsPurchased(result.purchased);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setIsCheckingPurchase(false);
+    }
+  }, [token, data.slug, isFree]);
+
+  useEffect(() => {
+    checkPurchaseStatus();
+  }, [checkPurchaseStatus]);
+
+  // Handle purchase button click - scroll to firmware section
+  const handlePurchaseClick = () => {
+    const firmwareSection = document.querySelector('[data-firmware-section]');
+    firmwareSection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   useEffect(() => {
     // Add error handling to all images after component mounts
@@ -174,7 +214,10 @@ export default function ProjectPage({ data }: ProjectPageProps) {
 
         {/* Firmware and App - side by side if both exist */}
         {hasFirmwareOrApp && (
-          <div className={`grid grid-cols-1 ${data.firmware && data.app ? "lg:grid-cols-2" : ""} gap-6`}>
+          <div
+            className={`grid grid-cols-1 ${data.firmware && data.app ? "lg:grid-cols-2" : ""} gap-6`}
+            data-firmware-section
+          >
             {data.firmware && (
               <FirmwarePurchase
                 name={data.firmware.name}
@@ -198,6 +241,9 @@ export default function ProjectPage({ data }: ProjectPageProps) {
                 apkSize={data.app.apkSize}
                 iosUrl={data.app.iosUrl}
                 features={data.app.features}
+                isFree={isFree}
+                hasPurchased={isPurchased}
+                onPurchaseClick={handlePurchaseClick}
               />
             )}
           </div>
