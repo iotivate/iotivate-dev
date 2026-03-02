@@ -136,23 +136,44 @@ export default function FirmwareMerger() {
   }, [files]);
 
   const calculateMergedSize = useCallback(() => {
+    // Clear any existing error when calculating size (don't show errors during normal interaction)
+    setError(null);
+
+    const validFiles = files.filter(f => f.data && f.offset);
+    if (validFiles.length === 0) {
+      setMergedSize(0);
+      return;
+    }
+
     try {
-      const validFiles = validateConfiguration();
-      if (validFiles.length === 0) {
-        setMergedSize(0);
-        return;
+      // Parse and validate offsets for size calculation only
+      const parsedFiles = validFiles.map(f => {
+        const address = parseInt(f.offset, 16);
+        if (isNaN(address) || address < 0) {
+          throw new Error(`Invalid offset: ${f.offset}`);
+        }
+        return { ...f, address, endAddress: address + f.data!.length };
+      });
+
+      // Check for overlaps
+      parsedFiles.sort((a, b) => a.address - b.address);
+      for (let i = 0; i < parsedFiles.length - 1; i++) {
+        const current = parsedFiles[i];
+        const next = parsedFiles[i + 1];
+        if (current.endAddress > next.address) {
+          throw new Error(`Overlap detected: ${current.name} (ends at 0x${current.endAddress.toString(16)}) overlaps with ${next.name} (starts at 0x${next.address.toString(16)})`);
+        }
       }
 
       // Calculate total size needed (highest end address)
-      const maxEndAddress = Math.max(...validFiles.map(f => f.endAddress));
+      const maxEndAddress = Math.max(...parsedFiles.map(f => f.endAddress));
       setMergedSize(maxEndAddress);
-      setError(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Configuration error";
       setError(msg);
       setMergedSize(0);
     }
-  }, [validateConfiguration]);
+  }, [files]);
 
   // Recalculate size when files or offsets change
   useEffect(() => {
