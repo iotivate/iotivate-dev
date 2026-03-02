@@ -125,12 +125,7 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
           timeoutId = null;
         }
 
-        // Check if cancelled by user/external source (not our internal timeout)
-        if (cancelled) {
-          addLog("Download cancelled by user");
-          return;
-        }
-
+        // Download completed successfully - proceed regardless of cancelled flag
         // Convert ArrayBuffer to Uint8Array
         const data = new Uint8Array(arrayBuffer);
 
@@ -175,7 +170,6 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
 
     downloadFirmwareWithRetry();
     return () => {
-      console.log("useEffect cleanup called - setting cancelled = true");
       cancelled = true;
       if (timeoutId) {
         clearTimeout(timeoutId);
