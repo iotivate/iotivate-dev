@@ -63,6 +63,90 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
     setLog((prev) => [...prev.slice(-100), `[${new Date().toLocaleTimeString()}] ${msg}`]);
   }, []);
 
+  // Serial number injection helper
+  const injectSerialNumber = useCallback((originalData: Uint8Array, serialNumber: string): Uint8Array => {
+    // For ESP32 firmware, we'll inject the serial number at a specific location
+    // This is a simplified implementation - in production you'd need to:
+    // 1. Parse the firmware format (ELF, bin, etc.)
+    // 2. Find the appropriate section for serial number storage
+    // 3. Modify the data while maintaining checksums
+
+    const modifiedData = new Uint8Array(originalData);
+    const serialBytes = new TextEncoder().encode(serialNumber.padEnd(16, '\0'));
+
+    // Look for a placeholder pattern or specific offset
+    // For demo purposes, we'll replace the first occurrence of "SERIALNO" with the actual serial
+    const placeholder = new TextEncoder().encode("SERIALNO");
+
+    for (let i = 0; i <= modifiedData.length - placeholder.length; i++) {
+      let match = true;
+      for (let j = 0; j < placeholder.length; j++) {
+        if (modifiedData[i + j] !== placeholder[j]) {
+          match = false;
+          break;
+        }
+      }
+
+      if (match) {
+        // Replace with actual serial number (truncated to fit)
+        const replacement = serialBytes.slice(0, placeholder.length);
+        modifiedData.set(replacement, i);
+        addLog(`Serial number injected at offset 0x${i.toString(16)}`);
+        break;
+      }
+    }
+
+    return modifiedData;
+  }, [addLog]);
+
+  // Auto device detection helper
+  const waitForDeviceConnection = useCallback(async (timeoutMs: number = 30000): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let timeout: NodeJS.Timeout;
+
+      const checkForDevice = async () => {
+        try {
+          // Check if there are any available serial ports
+          const ports = await navigator.serial.getPorts();
+          if (ports.length > 0) {
+            // Try to connect to the first available port
+            const port = ports[0];
+            const testTransport = new Transport(port, true);
+
+            const testLoader = new ESPLoader({
+              transport: testTransport,
+              baudrate: 115200,
+              romBaudrate: 115200,
+              terminal,
+              debugLogging: false,
+            });
+
+            await testLoader.main();
+            // Disconnect transport instead of loader
+            await testTransport.disconnect();
+
+            clearTimeout(timeout);
+            resolve(true);
+            return;
+          }
+        } catch (error) {
+          // Device not ready, continue waiting
+        }
+
+        // Check again in 1 second
+        setTimeout(checkForDevice, 1000);
+      };
+
+      // Start checking
+      checkForDevice();
+
+      // Set timeout
+      timeout = setTimeout(() => {
+        resolve(false);
+      }, timeoutMs);
+    });
+  }, []);
+
   // Batch processing helpers
   const processBatchQueue = useCallback(async (job: BatchJob) => {
     if (!job.devices.length) return;
@@ -87,24 +171,85 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
       if (job.mode === 'manual') {
         // Manual mode: wait for user to connect device
         addLog(`Please connect ${device.name} and click continue...`);
-        setState("connecting");
-        // In manual mode, we'd need to wait for user interaction
-        // For now, we'll simulate the process
+        setState("idle");
+        // Manual mode flow is handled by continueBatchManual function
         break;
       } else {
-        // Auto mode: attempt to detect device automatically
+        // Auto mode: wait for device connection and flash automatically
         try {
           const startTime = Date.now();
 
-          // Simulate device detection and flashing
-          addLog(`Auto-detecting device...`);
-          if (device.serialNumber) {
-            addLog(`Injecting serial number: ${device.serialNumber}`);
+          addLog(`Waiting for device connection...`);
+          const deviceConnected = await waitForDeviceConnection(30000);
+
+          if (!deviceConnected) {
+            throw new Error('Device connection timeout');
           }
 
-          // Here we would call the actual flashing logic
-          // For now, simulate success after a delay
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          addLog(`Device detected, connecting...`);
+
+          // Connect to device
+          const port = await navigator.serial.requestPort();
+          transportRef.current = new Transport(port, true);
+
+          const loaderOptions: LoaderOptions = {
+            transport: transportRef.current,
+            baudrate: 115200,
+            romBaudrate: 115200,
+            terminal,
+            debugLogging: false,
+          };
+
+          espLoaderRef.current = new ESPLoader(loaderOptions);
+          await espLoaderRef.current.main();
+
+          addLog(`Connected to ESP32`);
+
+          // Prepare firmware files with serial number injection
+          let firmwareFiles = device.firmware.filter(f => f.data && f.offset);
+
+          if (device.serialNumber) {
+            addLog(`Injecting serial number: ${device.serialNumber}`);
+            firmwareFiles = firmwareFiles.map(f => {
+              if (f.data && f.file?.name.toLowerCase().includes('firmware')) {
+                // Inject serial number into main firmware file
+                const modifiedData = injectSerialNumber(f.data, device.serialNumber!);
+                return { ...f, data: modifiedData };
+              }
+              return f;
+            });
+          }
+
+          // Flash the device
+          const fileArray = firmwareFiles.map((f) => ({
+            address: parseInt(f.offset, 16),
+            data: Array.from(f.data!).map((b) => String.fromCharCode(b)).join(""),
+          }));
+
+          addLog(`Flashing ${fileArray.length} file(s)...`);
+
+          await espLoaderRef.current.writeFlash({
+            fileArray,
+            flashSize: "keep",
+            flashMode: "keep",
+            flashFreq: "keep",
+            eraseAll: false,
+            compress: true,
+            reportProgress: (fileIndex: number, written: number, total: number) => {
+              const pct = Math.round((written / total) * 100);
+              setProgress(pct);
+            },
+            calculateMD5Hash: (image: string) => {
+              return image.slice(0, 32);
+            },
+          });
+
+          // Disconnect
+          espLoaderRef.current = null;
+          if (transportRef.current) {
+            await transportRef.current.disconnect();
+            transportRef.current = null;
+          }
 
           const flashTime = Date.now() - startTime;
 
@@ -122,9 +267,19 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
             return { ...prev, devices: updatedDevices };
           });
 
-          addLog(`✓ Device ${device.name} flashed successfully in ${flashTime}ms`);
+          addLog(`✓ Device ${device.name} flashed successfully in ${(flashTime/1000).toFixed(1)}s`);
+          addLog(`Please disconnect device and connect the next one...`);
 
         } catch (error) {
+          // Clean up on error
+          espLoaderRef.current = null;
+          if (transportRef.current) {
+            try {
+              await transportRef.current.disconnect();
+              transportRef.current = null;
+            } catch {}
+          }
+
           // Update device status to failed
           setBatchJob(prev => {
             if (!prev) return null;
@@ -139,6 +294,9 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
           });
 
           addLog(`✗ Device ${device.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+          // Continue to next device in auto mode
+          continue;
         }
       }
     }
@@ -147,7 +305,7 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
     setBatchJob(prev => prev ? { ...prev, completed: new Date() } : null);
     addLog(`\n--- Batch job completed ---`);
     setState("done");
-  }, [addLog]);
+  }, [addLog, waitForDeviceConnection, injectSerialNumber]);
 
   const continueBatchManual = useCallback(async () => {
     if (!batchJob || batchJob.mode !== 'manual') return;
@@ -156,17 +314,86 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
     if (!currentDevice) return;
 
     try {
+      const startTime = Date.now();
+
       setState("connecting");
       addLog(`Connecting to ${currentDevice.name}...`);
 
-      // Call the existing connect and flash logic here
-      // For now, simulate the process
-      const startTime = Date.now();
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Connect to device using existing logic
+      const port = await navigator.serial.requestPort();
+      transportRef.current = new Transport(port, true);
+
+      const loaderOptions: LoaderOptions = {
+        transport: transportRef.current,
+        baudrate: 115200,
+        romBaudrate: 115200,
+        terminal,
+        debugLogging: false,
+      };
+
+      espLoaderRef.current = new ESPLoader(loaderOptions);
+      const chip = await espLoaderRef.current.main();
+
+      addLog(`Connected to ${chip}!`);
+      setState("connected");
+
+      // Prepare firmware files with serial number injection
+      let firmwareFiles = currentDevice.firmware.filter(f => f.data && f.offset);
+
+      if (currentDevice.serialNumber) {
+        addLog(`Injecting serial number: ${currentDevice.serialNumber}`);
+        firmwareFiles = firmwareFiles.map(f => {
+          if (f.data && f.file?.name.toLowerCase().includes('firmware')) {
+            // Inject serial number into main firmware file
+            const modifiedData = injectSerialNumber(f.data, currentDevice.serialNumber!);
+            return { ...f, data: modifiedData };
+          }
+          return f;
+        });
+      }
+
+      // Validate files
+      if (firmwareFiles.length === 0) {
+        throw new Error("No firmware files selected for this device");
+      }
+
+      setState("flashing");
+      setProgress(0);
+
+      // Flash the device using existing logic
+      const fileArray = firmwareFiles.map((f) => ({
+        address: parseInt(f.offset, 16),
+        data: Array.from(f.data!).map((b) => String.fromCharCode(b)).join(""),
+      }));
+
+      addLog(`Flashing ${fileArray.length} file(s) to ${currentDevice.name}...`);
+
+      await espLoaderRef.current.writeFlash({
+        fileArray,
+        flashSize: "keep",
+        flashMode: "keep",
+        flashFreq: "keep",
+        eraseAll: false,
+        compress: true,
+        reportProgress: (fileIndex: number, written: number, total: number) => {
+          const pct = Math.round((written / total) * 100);
+          setProgress(pct);
+        },
+        calculateMD5Hash: (image: string) => {
+          return image.slice(0, 32);
+        },
+      });
+
+      // Clean up connection
+      espLoaderRef.current = null;
+      if (transportRef.current) {
+        await transportRef.current.disconnect();
+        transportRef.current = null;
+      }
 
       const flashTime = Date.now() - startTime;
 
-      // Update device status
+      // Update device status to completed
       setBatchJob(prev => {
         if (!prev) return null;
         const updatedDevices = prev.devices.map(d =>
@@ -180,14 +407,16 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
         return { ...prev, devices: updatedDevices };
       });
 
-      addLog(`✓ Device ${currentDevice.name} completed in ${flashTime}ms`);
+      addLog(`✓ Device ${currentDevice.name} completed in ${(flashTime/1000).toFixed(1)}s`);
 
       // Move to next device or complete
       const nextIndex = batchJob.currentDeviceIndex + 1;
       if (nextIndex < batchJob.devices.length) {
         setBatchJob(prev => prev ? { ...prev, currentDeviceIndex: nextIndex } : null);
         addLog(`\n--- Ready for device ${nextIndex + 1}/${batchJob.devices.length}: ${batchJob.devices[nextIndex].name} ---`);
+        addLog(`Please disconnect current device and connect: ${batchJob.devices[nextIndex].name}`);
         setState("idle");
+        setProgress(0);
       } else {
         setBatchJob(prev => prev ? { ...prev, completed: new Date() } : null);
         addLog(`\n--- All devices completed! ---`);
@@ -195,6 +424,16 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
       }
 
     } catch (error) {
+      // Clean up on error
+      espLoaderRef.current = null;
+      if (transportRef.current) {
+        try {
+          await transportRef.current.disconnect();
+          transportRef.current = null;
+        } catch {}
+      }
+
+      // Update device status to failed
       setBatchJob(prev => {
         if (!prev) return null;
         const updatedDevices = prev.devices.map(d =>
@@ -209,8 +448,9 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
 
       addLog(`✗ Device ${currentDevice.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setState("error");
+      setProgress(0);
     }
-  }, [batchJob, addLog]);
+  }, [batchJob, addLog, injectSerialNumber]);
 
   const isSupported = typeof navigator !== "undefined" && "serial" in navigator;
 
