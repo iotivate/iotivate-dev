@@ -11,6 +11,7 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const TOKEN_KEY = "iotivate_token";
+const REMEMBER_KEY = "iotivate_remember";
 
 interface User {
   id: number;
@@ -24,6 +25,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
+  isRemembered: boolean;
   login: (username: string, password: string, rememberMe?: boolean) => Promise<{ ok: boolean; error?: string }>;
   register: (email: string, username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
@@ -37,6 +39,7 @@ async function tryRefresh(): Promise<string | null> {
 
   refreshPromise = (async () => {
     try {
+      console.log('Attempting token refresh...');
       const res = await fetch(`${API_URL}/api/auth/refresh`, {
         method: "POST",
         credentials: "include",
@@ -45,10 +48,17 @@ async function tryRefresh(): Promise<string | null> {
         const data = await res.json();
         const newToken = data.access_token;
         localStorage.setItem(TOKEN_KEY, newToken);
+        console.log('Token refresh successful');
         return newToken;
+      } else {
+        console.log('Token refresh failed:', res.status, res.statusText);
+        // If refresh fails with 401, the refresh token is expired
+        if (res.status === 401) {
+          localStorage.removeItem(TOKEN_KEY);
+        }
       }
-    } catch {
-      // refresh failed
+    } catch (error) {
+      console.log('Token refresh error:', error);
     }
     return null;
   })();
@@ -100,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRemembered, setIsRemembered] = useState(false);
 
   const fetchUser = useCallback(async (accessToken: string) => {
     try {
@@ -117,28 +128,106 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false;
   }, []);
 
+  // Check if token is close to expiry (within 5 minutes)
+  const isTokenExpiringSoon = useCallback((token: string): boolean => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const exp = payload.exp * 1000; // Convert to milliseconds
+      const now = Date.now();
+      const fiveMinutes = 5 * 60 * 1000;
+      return exp - now < fiveMinutes;
+    } catch {
+      return true; // If we can't parse, assume it's expired
+    }
+  }, []);
+
+  // Proactive token refresh
+  useEffect(() => {
+    let refreshTimer: NodeJS.Timeout;
+
+    const scheduleRefresh = (token: string) => {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const exp = payload.exp * 1000;
+        const now = Date.now();
+        const threeMinutes = 3 * 60 * 1000; // Refresh 3 minutes before expiry
+        const timeUntilRefresh = Math.max(exp - now - threeMinutes, 30000); // At least 30 seconds
+
+        refreshTimer = setTimeout(async () => {
+          const newToken = await tryRefresh();
+          if (newToken) {
+            setToken(newToken);
+            scheduleRefresh(newToken); // Schedule next refresh
+          } else {
+            // Refresh failed, user will be logged out on next API call
+            localStorage.removeItem(TOKEN_KEY);
+            setToken(null);
+            setUser(null);
+          }
+        }, timeUntilRefresh);
+      } catch {
+        // Token is malformed, clear it
+        localStorage.removeItem(TOKEN_KEY);
+        setToken(null);
+        setUser(null);
+      }
+    };
+
+    if (token) {
+      scheduleRefresh(token);
+    }
+
+    return () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+    };
+  }, [token]);
+
   useEffect(() => {
     async function init() {
       const stored = localStorage.getItem(TOKEN_KEY);
+      const rememberedStr = localStorage.getItem(REMEMBER_KEY);
+      const remembered = rememberedStr === "true";
+      setIsRemembered(remembered);
+
       if (stored) {
-        setToken(stored);
-        const ok = await fetchUser(stored);
-        if (!ok) {
-          // Access token expired — try refresh
+        // Check if token is expired or expiring soon
+        if (isTokenExpiringSoon(stored)) {
+          // Try to refresh immediately
           const newToken = await tryRefresh();
           if (newToken) {
             setToken(newToken);
             await fetchUser(newToken);
           } else {
             localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(REMEMBER_KEY);
             setToken(null);
+            setIsRemembered(false);
+          }
+        } else {
+          // Token is still valid
+          setToken(stored);
+          const ok = await fetchUser(stored);
+          if (!ok) {
+            // Access token expired — try refresh
+            const newToken = await tryRefresh();
+            if (newToken) {
+              setToken(newToken);
+              await fetchUser(newToken);
+            } else {
+              localStorage.removeItem(TOKEN_KEY);
+              localStorage.removeItem(REMEMBER_KEY);
+              setToken(null);
+              setIsRemembered(false);
+            }
           }
         }
       }
       setIsLoading(false);
     }
     init();
-  }, [fetchUser]);
+  }, [fetchUser, isTokenExpiringSoon]);
 
   const login = async (username: string, password: string, rememberMe?: boolean) => {
     try {
@@ -158,7 +247,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       const accessToken = data.access_token;
       localStorage.setItem(TOKEN_KEY, accessToken);
+      localStorage.setItem(REMEMBER_KEY, rememberMe ? "true" : "false");
       setToken(accessToken);
+      setIsRemembered(rememberMe || false);
       await fetchUser(accessToken);
       return { ok: true };
     } catch {
@@ -194,12 +285,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Best-effort cookie clear
     }
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REMEMBER_KEY);
     setToken(null);
     setUser(null);
+    setIsRemembered(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isRemembered, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
