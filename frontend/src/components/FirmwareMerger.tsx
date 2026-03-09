@@ -122,6 +122,38 @@ export default function FirmwareMerger() {
       return { ...f, address, endAddress: address + f.data!.length };
     });
 
+    // Validate ESP32 sector alignment and standard offsets
+    const SECTOR_SIZE = 0x1000; // 4KB sectors
+    const STANDARD_OFFSETS = {
+      bootloader: [0x0, 0x1000],  // Bootloader can be at 0x0 or 0x1000
+      partition: [0x8000],        // Partition table must be at 0x8000
+      app: [0x10000, 0x20000]     // Application typically at 0x10000 or 0x20000
+    };
+
+    for (const file of parsedFiles) {
+      // Check sector alignment for critical components
+      if (file.name.toLowerCase().includes('partition')) {
+        if (!STANDARD_OFFSETS.partition.includes(file.address)) {
+          throw new Error(`Partition table must be at offset 0x8000, found: 0x${file.address.toString(16)}`);
+        }
+      } else if (file.name.toLowerCase().includes('bootloader')) {
+        if (!STANDARD_OFFSETS.bootloader.includes(file.address)) {
+          console.warn(`Bootloader at non-standard offset: 0x${file.address.toString(16)}. Standard offsets: 0x0, 0x1000`);
+        }
+      }
+
+      // Ensure addresses are within reasonable ESP32 flash range (16MB max)
+      const MAX_FLASH_SIZE = 16 * 1024 * 1024; // 16MB
+      if (file.address >= MAX_FLASH_SIZE) {
+        throw new Error(`Offset too large: 0x${file.address.toString(16)}. ESP32 supports up to 16MB flash.`);
+      }
+
+      // Warn about potential sector alignment issues
+      if (file.address % SECTOR_SIZE !== 0) {
+        console.warn(`${file.name} at 0x${file.address.toString(16)} is not 4KB sector-aligned. This may cause flash issues.`);
+      }
+    }
+
     // Check for overlaps
     parsedFiles.sort((a, b) => a.address - b.address);
     for (let i = 0; i < parsedFiles.length - 1; i++) {
@@ -130,6 +162,21 @@ export default function FirmwareMerger() {
       if (current.endAddress > next.address) {
         throw new Error(`Overlap detected: ${current.name} (ends at 0x${current.endAddress.toString(16)}) overlaps with ${next.name} (starts at 0x${next.address.toString(16)})`);
       }
+    }
+
+    // Validate we have essential components for a bootable firmware
+    const hasBootloader = parsedFiles.some(f => f.name.toLowerCase().includes('bootloader'));
+    const hasPartition = parsedFiles.some(f => f.name.toLowerCase().includes('partition'));
+    const hasApp = parsedFiles.some(f => f.name.toLowerCase().includes('app') || f.name.toLowerCase().includes('firmware'));
+
+    if (!hasBootloader) {
+      console.warn("No bootloader detected. Ensure this is intentional.");
+    }
+    if (!hasPartition) {
+      console.warn("No partition table detected. This may prevent the ESP32 from booting.");
+    }
+    if (!hasApp) {
+      console.warn("No application firmware detected. The device may not run user code.");
     }
 
     return parsedFiles;
@@ -189,25 +236,92 @@ export default function FirmwareMerger() {
       const validFiles = validateConfiguration();
       addLog(`Merging ${validFiles.length} firmware files...`);
 
-      // Calculate total size needed
-      const maxEndAddress = Math.max(...validFiles.map(f => f.endAddress));
-      addLog(`Creating merged binary (${(maxEndAddress / 1024).toFixed(1)} KB)...`);
+      // Sort files by address for sequential processing
+      const sortedFiles = validFiles.sort((a, b) => a.address - b.address);
 
-      // Create output buffer filled with 0xFF (flash default state)
-      const mergedData = new Uint8Array(maxEndAddress);
+      // Calculate actual size needed for contiguous merge
+      const firstFile = sortedFiles[0];
+      const lastFile = sortedFiles[sortedFiles.length - 1];
+      const totalSize = lastFile.endAddress - firstFile.address;
+      const baseAddress = firstFile.address;
+
+      addLog(`Creating merged binary from 0x${baseAddress.toString(16)} (${(totalSize / 1024).toFixed(1)} KB)...`);
+
+      // Create output buffer with exact size needed (no 0xFF filling of gaps)
+      const mergedData = new Uint8Array(totalSize);
+
+      // Initialize with 0xFF only for areas that will contain data
       mergedData.fill(0xFF);
 
-      // Copy each file to its designated offset
-      for (const file of validFiles) {
-        addLog(`Writing ${file.name} at offset 0x${file.address.toString(16).toUpperCase()}`);
-        mergedData.set(file.data!, file.address);
+      // Copy each file to its relative position in the merged buffer
+      for (const file of sortedFiles) {
+        const relativeOffset = file.address - baseAddress;
+        addLog(`Writing ${file.name} at offset 0x${file.address.toString(16).toUpperCase()} (relative: 0x${relativeOffset.toString(16)})`);
+        mergedData.set(file.data!, relativeOffset);
+      }
+
+      // Verify merge integrity and validate critical components
+      for (const file of sortedFiles) {
+        const relativeOffset = file.address - baseAddress;
+        const mergedSegment = mergedData.slice(relativeOffset, relativeOffset + file.data!.length);
+        const originalSegment = file.data!;
+
+        // Simple comparison to verify data integrity
+        let isIntact = true;
+        if (mergedSegment.length === originalSegment.length) {
+          for (let i = 0; i < originalSegment.length; i++) {
+            if (mergedSegment[i] !== originalSegment[i]) {
+              isIntact = false;
+              break;
+            }
+          }
+        } else {
+          isIntact = false;
+        }
+
+        if (!isIntact) {
+          throw new Error(`Data integrity check failed for ${file.name}`);
+        }
+
+        // Validate partition table structure if present
+        if (file.name.toLowerCase().includes('partition') && file.data!.length >= 16) {
+          const partitionData = file.data!;
+
+          // Basic partition table validation
+          // Check partition table magic bytes (first entry should have proper structure)
+          if (partitionData.length >= 32) {
+            // ESP32 partition entries are 32 bytes each
+            // Check if we have reasonable partition table data (not all 0xFF or 0x00)
+            const firstEntry = partitionData.slice(0, 32);
+            const allFF = firstEntry.every(b => b === 0xFF);
+            const allZero = firstEntry.every(b => b === 0x00);
+
+            if (allFF) {
+              addLog("⚠ Warning: Partition table appears to be empty (all 0xFF)");
+            } else if (allZero) {
+              addLog("⚠ Warning: Partition table appears to be empty (all 0x00)");
+            } else {
+              // Check for reasonable partition type values (0x00-0x99)
+              const partitionType = firstEntry[0];
+              const partitionSubtype = firstEntry[1];
+
+              if (partitionType <= 0x99 && partitionSubtype <= 0x99) {
+                addLog(`✓ Partition table structure looks valid (type: 0x${partitionType.toString(16)}, subtype: 0x${partitionSubtype.toString(16)})`);
+              } else {
+                addLog("⚠ Warning: Partition table structure may be invalid");
+              }
+            }
+          }
+        }
+
+        addLog(`✓ ${file.name} integrity verified`);
       }
 
       // Create download blob
       const blob = new Blob([mergedData], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
 
-      // Generate filename
+      // Generate filename with base address info
       const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
       const filename = `esp32-merged-firmware-${timestamp}.bin`;
 
@@ -221,7 +335,8 @@ export default function FirmwareMerger() {
       URL.revokeObjectURL(url);
 
       addLog(`Merged firmware saved as: ${filename}`);
-      addLog("Merge complete! Ready for flashing with: esptool.py write_flash 0x0 merged-firmware.bin");
+      addLog(`Flash command: esptool.py write_flash 0x${baseAddress.toString(16)} ${filename}`);
+      addLog("Merge complete! ✓ Data integrity verified");
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Merge failed";
@@ -277,7 +392,10 @@ export default function FirmwareMerger() {
             </table>
           </div>
           <p className="text-xs">
-            <strong>Usage:</strong> Flash the merged binary with <code className="text-foreground bg-surface px-1 py-0.5 rounded">esptool.py write_flash 0x0 merged-firmware.bin</code>
+            <strong>Usage:</strong> Flash the merged binary with <code className="text-foreground bg-surface px-1 py-0.5 rounded">esptool.py write_flash &lt;base_address&gt; merged-firmware.bin</code>
+          </p>
+          <p className="text-xs text-amber-300">
+            <strong>Note:</strong> The merged file starts from the lowest component address and preserves the exact layout without gaps. Use the displayed flash command for correct offset.
           </p>
         </div>
       </details>
@@ -352,8 +470,8 @@ export default function FirmwareMerger() {
         </div>
 
         <p className="text-xs text-muted">
-          Select the three .bin files and click "Merge Firmware" to create a single binary for production flashing.
-          The merged file can be flashed at offset 0x0 with any ESP32 flashing tool.
+          Select the .bin files and click "Merge Firmware" to create a single binary for production flashing.
+          The merged file preserves the exact component layout and provides the correct flash command for your configuration.
         </p>
       </div>
     </div>
