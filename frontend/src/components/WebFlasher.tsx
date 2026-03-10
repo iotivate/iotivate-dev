@@ -52,6 +52,12 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
   ]);
   const [eraseAll, setEraseAll] = useState(false);
 
+  // Flash configuration state
+  const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
+  const [flashSize, setFlashSize] = useState<string>("keep");
+  const [flashMode, setFlashMode] = useState<string>("keep");
+  const [flashFreq, setFlashFreq] = useState<string>("keep");
+
   // Batch mode state (Pro features)
   const [batchMode, setBatchMode] = useState<BatchMode>("single");
   const [batchJob, setBatchJob] = useState<BatchJob | null>(null);
@@ -231,9 +237,9 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
 
           await espLoaderRef.current.writeFlash({
             fileArray,
-            flashSize: "keep",
-            flashMode: "keep",
-            flashFreq: "keep",
+            flashSize: flashSize,
+            flashMode: flashMode,
+            flashFreq: flashFreq,
             eraseAll: eraseAll,
             compress: true,
             reportProgress: (fileIndex: number, written: number, total: number) => {
@@ -371,9 +377,9 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
 
       await espLoaderRef.current.writeFlash({
         fileArray,
-        flashSize: "keep",
-        flashMode: "keep",
-        flashFreq: "keep",
+        flashSize: flashSize,
+        flashMode: flashMode,
+        flashFreq: flashFreq,
         eraseAll: eraseAll,
         compress: true,
         reportProgress: (fileIndex: number, written: number, total: number) => {
@@ -607,9 +613,9 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
 
       await espLoaderRef.current.writeFlash({
         fileArray,
-        flashSize: "keep",
-        flashMode: "keep",
-        flashFreq: "keep",
+        flashSize: flashSize,
+        flashMode: flashMode,
+        flashFreq: flashFreq,
         eraseAll: eraseAll,
         compress: true,
         reportProgress: (fileIndex: number, written: number, total: number) => {
@@ -1250,6 +1256,117 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
             <label htmlFor="eraseAll" className="text-sm text-muted">
               Erase all flash before writing (recommended for clean installation)
             </label>
+          </div>
+
+          {/* Flash Configuration Options */}
+          <div className="border-t border-border pt-3 mt-3">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium">Flash Configuration</span>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
+                className="text-xs text-accent hover:underline"
+              >
+                {showAdvancedConfig ? 'Hide' : 'Show'} Advanced Options
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="radio"
+                id="autoDetect"
+                name="flashConfig"
+                checked={!showAdvancedConfig}
+                onChange={() => {
+                  setShowAdvancedConfig(false);
+                  setFlashSize("keep");
+                  setFlashMode("keep");
+                  setFlashFreq("keep");
+                }}
+                className="w-4 h-4 text-accent border border-border focus:ring-accent/50 focus:ring-2"
+              />
+              <label htmlFor="autoDetect" className="text-sm">
+                <span className="font-medium text-foreground">Auto-detect</span>
+                <span className="text-muted ml-1">(recommended - uses device settings)</span>
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="radio"
+                id="manualConfig"
+                name="flashConfig"
+                checked={showAdvancedConfig}
+                onChange={() => setShowAdvancedConfig(true)}
+                className="w-4 h-4 text-accent border border-border focus:ring-accent/50 focus:ring-2"
+              />
+              <label htmlFor="manualConfig" className="text-sm">
+                <span className="font-medium text-foreground">Manual configuration</span>
+                <span className="text-muted ml-1">(for custom boards or troubleshooting)</span>
+              </label>
+            </div>
+
+            {showAdvancedConfig && (
+              <div className="pl-6 space-y-3 border-l-2 border-accent/20">
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">Flash Size</label>
+                    <select
+                      value={flashSize}
+                      onChange={(e) => setFlashSize(e.target.value)}
+                      className="w-full px-2 py-1 text-xs bg-background border border-border rounded focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    >
+                      <option value="keep">Auto-detect</option>
+                      <option value="1MB">1MB</option>
+                      <option value="2MB">2MB</option>
+                      <option value="4MB">4MB</option>
+                      <option value="8MB">8MB</option>
+                      <option value="16MB">16MB</option>
+                      <option value="32MB">32MB</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">Flash Mode</label>
+                    <select
+                      value={flashMode}
+                      onChange={(e) => setFlashMode(e.target.value)}
+                      className="w-full px-2 py-1 text-xs bg-background border border-border rounded focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    >
+                      <option value="keep">Auto-detect</option>
+                      <option value="qio">QIO (Fastest)</option>
+                      <option value="qout">QOUT</option>
+                      <option value="dio">DIO (Compatible)</option>
+                      <option value="dout">DOUT</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">Flash Frequency</label>
+                    <select
+                      value={flashFreq}
+                      onChange={(e) => setFlashFreq(e.target.value)}
+                      className="w-full px-2 py-1 text-xs bg-background border border-border rounded focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    >
+                      <option value="keep">Auto-detect</option>
+                      <option value="80m">80MHz (Fast)</option>
+                      <option value="40m">40MHz (Standard)</option>
+                      <option value="26m">26MHz (Safe)</option>
+                      <option value="20m">20MHz (Conservative)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="text-xs text-muted">
+                  <p className="mb-1"><strong>Note:</strong> Auto-detect works for most boards. Use manual settings only for:</p>
+                  <ul className="list-disc list-inside space-y-0.5 ml-2">
+                    <li>Custom PCBs with specific requirements</li>
+                    <li>Troubleshooting flash or boot issues</li>
+                    <li>Boards with corrupted configuration</li>
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-2">
