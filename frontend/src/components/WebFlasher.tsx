@@ -224,16 +224,16 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
           // Flash the device
           const fileArray = firmwareFiles.map((f) => ({
             address: parseInt(f.offset, 16),
-            data: new TextDecoder('latin1').decode(f.data!),
+            data: Array.from(f.data!).map((byte) => String.fromCharCode(byte)).join(""),
           }));
 
           addLog(`Flashing ${fileArray.length} file(s)...`);
 
           await espLoaderRef.current.writeFlash({
             fileArray,
-            flashSize: "4MB", // Fallback to common ESP32 flash size
-            flashMode: "dio", // Standard dual I/O mode for compatibility
-            flashFreq: "40m", // Conservative 40MHz frequency
+            flashSize: "keep",
+            flashMode: "keep",
+            flashFreq: "keep",
             eraseAll: eraseAll,
             compress: true,
             reportProgress: (fileIndex: number, written: number, total: number) => {
@@ -364,16 +364,16 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
       // Flash the device using existing logic
       const fileArray = firmwareFiles.map((f) => ({
         address: parseInt(f.offset, 16),
-        data: new TextDecoder('latin1').decode(f.data!),
+        data: Array.from(f.data!).map((byte) => String.fromCharCode(byte)).join(""),
       }));
 
       addLog(`Flashing ${fileArray.length} file(s) to ${currentDevice.name}...`);
 
       await espLoaderRef.current.writeFlash({
         fileArray,
-        flashSize: "4MB", // Fallback to common ESP32 flash size
-        flashMode: "dio", // Standard dual I/O mode for compatibility
-        flashFreq: "40m", // Conservative 40MHz frequency
+        flashSize: "keep",
+        flashMode: "keep",
+        flashFreq: "keep",
         eraseAll: eraseAll,
         compress: true,
         reportProgress: (fileIndex: number, written: number, total: number) => {
@@ -600,16 +600,16 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
     try {
       const fileArray = validFiles.map((f) => ({
         address: parseInt(f.offset, 16),
-        data: new TextDecoder('latin1').decode(f.data!),
+        data: Array.from(f.data!).map((byte) => String.fromCharCode(byte)).join(""),
       }));
 
       addLog(`Flashing ${fileArray.length} file(s)...`);
 
       await espLoaderRef.current.writeFlash({
         fileArray,
-        flashSize: "4MB", // Fallback to common ESP32 flash size
-        flashMode: "dio", // Standard dual I/O mode for compatibility
-        flashFreq: "40m", // Conservative 40MHz frequency
+        flashSize: "keep",
+        flashMode: "keep",
+        flashFreq: "keep",
         eraseAll: eraseAll,
         compress: true,
         reportProgress: (fileIndex: number, written: number, total: number) => {
