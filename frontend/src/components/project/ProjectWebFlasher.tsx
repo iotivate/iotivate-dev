@@ -289,8 +289,8 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
       addLog(`Flashing firmware: ${firmware.filename}`);
       addLog("Erasing and writing flash memory...");
 
-      // Use Uint8Array directly - esptool-js accepts this despite TypeScript types
-      const firmwareData = firmware.data as any;
+      // Convert Uint8Array to binary string using latin1 encoding to preserve all bytes
+      const firmwareData = new TextDecoder('latin1').decode(firmware.data);
 
       addLog(`Flashing firmware: ${(firmware.data.length / 1024).toFixed(1)} KB`);
 

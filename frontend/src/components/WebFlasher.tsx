@@ -224,7 +224,7 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
           // Flash the device
           const fileArray = firmwareFiles.map((f) => ({
             address: parseInt(f.offset, 16),
-            data: f.data! as any,
+            data: new TextDecoder('latin1').decode(f.data!),
           }));
 
           addLog(`Flashing ${fileArray.length} file(s)...`);
@@ -364,7 +364,7 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
       // Flash the device using existing logic
       const fileArray = firmwareFiles.map((f) => ({
         address: parseInt(f.offset, 16),
-        data: f.data! as any,
+        data: new TextDecoder('latin1').decode(f.data!),
       }));
 
       addLog(`Flashing ${fileArray.length} file(s) to ${currentDevice.name}...`);
@@ -600,7 +600,7 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
     try {
       const fileArray = validFiles.map((f) => ({
         address: parseInt(f.offset, 16),
-        data: f.data! as any,
+        data: new TextDecoder('latin1').decode(f.data!),
       }));
 
       addLog(`Flashing ${fileArray.length} file(s)...`);
