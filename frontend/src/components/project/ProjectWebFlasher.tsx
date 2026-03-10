@@ -251,30 +251,6 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
     addLog("Disconnected");
   }, [addLog]);
 
-  const eraseFlash = useCallback(async () => {
-    if (!espLoaderRef.current) {
-      setError("Device not connected");
-      return;
-    }
-
-    setState("flashing");
-    setProgress(0);
-    setError(null);
-    addLog("Erasing flash memory... this may take a while.");
-
-    try {
-      await espLoaderRef.current.eraseFlash();
-      setState("connected");
-      addLog("✓ Flash erased successfully.");
-      addLog("Device is ready for clean firmware installation.");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Erase operation failed";
-      setState("error");
-      setError(message);
-      addLog(`Erase error: ${message}`);
-    }
-  }, [addLog]);
-
   const flash = useCallback(async () => {
     if (!espLoaderRef.current || !firmware) {
       setError("Device not connected or firmware not ready");
@@ -289,19 +265,21 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
       addLog(`Flashing firmware: ${firmware.filename}`);
       addLog("Erasing and writing flash memory...");
 
-      // Convert Uint8Array to binary string using latin1 encoding to preserve all bytes
-      const firmwareData = new TextDecoder('latin1').decode(firmware.data);
+      // Convert Uint8Array to string for esptool-js
+      const firmwareString = Array.from(firmware.data)
+        .map((byte) => String.fromCharCode(byte))
+        .join("");
 
       addLog(`Flashing firmware: ${(firmware.data.length / 1024).toFixed(1)} KB`);
 
       await espLoaderRef.current.writeFlash({
         fileArray: [{
           address: 0x0, // Flash merged firmware at start of memory
-          data: firmwareData,
+          data: firmwareString,
         }],
-        flashSize: "4MB", // Fallback to common ESP32 flash size
-        flashMode: "dio", // Standard dual I/O mode for compatibility
-        flashFreq: "40m", // Conservative 40MHz frequency
+        flashSize: "keep",
+        flashMode: "keep",
+        flashFreq: "keep",
         eraseAll: false,
         compress: true,
         reportProgress: (fileIndex: number, written: number, total: number) => {
@@ -496,12 +474,6 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
               className="px-6 py-2.5 bg-accent text-white font-medium rounded-lg hover:bg-accent-hover transition-colors"
             >
               Flash Firmware
-            </button>
-            <button
-              onClick={eraseFlash}
-              className="px-6 py-2.5 border border-red-500/30 text-red-500 font-medium rounded-lg hover:bg-red-500/5 transition-colors"
-            >
-              Erase Flash
             </button>
             <button
               onClick={disconnect}
