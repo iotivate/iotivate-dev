@@ -50,6 +50,7 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
   const [files, setFiles] = useState<FileEntry[]>([
     { offset: "0x0", file: null, data: null },
   ]);
+  const [eraseAll, setEraseAll] = useState(false);
 
   // Batch mode state (Pro features)
   const [batchMode, setBatchMode] = useState<BatchMode>("single");
@@ -223,17 +224,17 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
           // Flash the device
           const fileArray = firmwareFiles.map((f) => ({
             address: parseInt(f.offset, 16),
-            data: Array.from(f.data!).map((b) => String.fromCharCode(b)).join(""),
+            data: f.data! as any,
           }));
 
           addLog(`Flashing ${fileArray.length} file(s)...`);
 
           await espLoaderRef.current.writeFlash({
             fileArray,
-            flashSize: "keep",
-            flashMode: "keep",
-            flashFreq: "keep",
-            eraseAll: false,
+            flashSize: "4MB", // Fallback to common ESP32 flash size
+            flashMode: "dio", // Standard dual I/O mode for compatibility
+            flashFreq: "40m", // Conservative 40MHz frequency
+            eraseAll: eraseAll,
             compress: true,
             reportProgress: (fileIndex: number, written: number, total: number) => {
               const pct = Math.round((written / total) * 100);
@@ -363,17 +364,17 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
       // Flash the device using existing logic
       const fileArray = firmwareFiles.map((f) => ({
         address: parseInt(f.offset, 16),
-        data: Array.from(f.data!).map((b) => String.fromCharCode(b)).join(""),
+        data: f.data! as any,
       }));
 
       addLog(`Flashing ${fileArray.length} file(s) to ${currentDevice.name}...`);
 
       await espLoaderRef.current.writeFlash({
         fileArray,
-        flashSize: "keep",
-        flashMode: "keep",
-        flashFreq: "keep",
-        eraseAll: false,
+        flashSize: "4MB", // Fallback to common ESP32 flash size
+        flashMode: "dio", // Standard dual I/O mode for compatibility
+        flashFreq: "40m", // Conservative 40MHz frequency
+        eraseAll: eraseAll,
         compress: true,
         reportProgress: (fileIndex: number, written: number, total: number) => {
           const pct = Math.round((written / total) * 100);
@@ -599,17 +600,17 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
     try {
       const fileArray = validFiles.map((f) => ({
         address: parseInt(f.offset, 16),
-        data: Array.from(f.data!).map((b) => String.fromCharCode(b)).join(""),
+        data: f.data! as any,
       }));
 
       addLog(`Flashing ${fileArray.length} file(s)...`);
 
       await espLoaderRef.current.writeFlash({
         fileArray,
-        flashSize: "keep",
-        flashMode: "keep",
-        flashFreq: "keep",
-        eraseAll: false,
+        flashSize: "4MB", // Fallback to common ESP32 flash size
+        flashMode: "dio", // Standard dual I/O mode for compatibility
+        flashFreq: "40m", // Conservative 40MHz frequency
+        eraseAll: eraseAll,
         compress: true,
         reportProgress: (fileIndex: number, written: number, total: number) => {
           const pct = Math.round((written / total) * 100);
@@ -1237,6 +1238,19 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
           <p className="text-xs text-muted">
             Enter the flash offset address (e.g., 0x1000 for bootloader, 0x10000 for app) and select the .bin file.
           </p>
+
+          <div className="flex items-center gap-2 py-2">
+            <input
+              type="checkbox"
+              id="eraseAll"
+              checked={eraseAll}
+              onChange={(e) => setEraseAll(e.target.checked)}
+              className="w-4 h-4 text-accent bg-background border border-border rounded focus:ring-accent/50 focus:ring-2"
+            />
+            <label htmlFor="eraseAll" className="text-sm text-muted">
+              Erase all flash before writing (recommended for clean installation)
+            </label>
+          </div>
 
           <div className="flex gap-3 pt-2">
             <button
