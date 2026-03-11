@@ -265,8 +265,10 @@ export default function ProjectWebFlasher({ firmwareUrl }: ProjectWebFlasherProp
       addLog(`Flashing firmware: ${firmware.filename}`);
       addLog("Erasing and writing flash memory...");
 
-      // Convert Uint8Array to binary string using Latin1 for data integrity
-      const firmwareString = new TextDecoder('latin1').decode(firmware.data);
+      // Convert Uint8Array to string for esptool-js
+      const firmwareString = Array.from(firmware.data)
+        .map((byte) => String.fromCharCode(byte))
+        .join("");
 
       addLog(`Flashing firmware: ${(firmware.data.length / 1024).toFixed(1)} KB`);
 
