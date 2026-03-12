@@ -236,11 +236,19 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
 
           addLog(`Flashing ${fileArray.length} file(s)...`);
 
+          // Multi-file flashing requires explicit parameters (not "keep")
+          const isMultiFile = fileArray.length > 1;
+
+          if (isMultiFile) {
+            addLog(`Multi-file detected - using explicit flash parameters`);
+            addLog(`Flash config: ${flashSize === "keep" ? "4MB" : flashSize}, ${flashMode === "keep" ? "dio" : flashMode}, ${flashFreq === "keep" ? "40m" : flashFreq}`);
+          }
+
           await espLoaderRef.current.writeFlash({
             fileArray,
-            flashSize: flashSize,
-            flashMode: flashMode,
-            flashFreq: flashFreq,
+            flashSize: isMultiFile && flashSize === "keep" ? "4MB" : flashSize,
+            flashMode: isMultiFile && flashMode === "keep" ? "dio" : flashMode,
+            flashFreq: isMultiFile && flashFreq === "keep" ? "40m" : flashFreq,
             eraseAll: eraseAll,
             compress: true,
             reportProgress: (fileIndex: number, written: number, total: number) => {
@@ -388,11 +396,19 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
 
       addLog(`Flashing ${fileArray.length} file(s) to ${currentDevice.name}...`);
 
+      // Multi-file flashing requires explicit parameters (not "keep")
+      const isMultiFile = fileArray.length > 1;
+
+      if (isMultiFile) {
+        addLog(`Multi-file detected - using explicit flash parameters`);
+        addLog(`Flash config: ${flashSize === "keep" ? "4MB" : flashSize}, ${flashMode === "keep" ? "dio" : flashMode}, ${flashFreq === "keep" ? "40m" : flashFreq}`);
+      }
+
       await espLoaderRef.current.writeFlash({
         fileArray,
-        flashSize: flashSize,
-        flashMode: flashMode,
-        flashFreq: flashFreq,
+        flashSize: isMultiFile && flashSize === "keep" ? "4MB" : flashSize,
+        flashMode: isMultiFile && flashMode === "keep" ? "dio" : flashMode,
+        flashFreq: isMultiFile && flashFreq === "keep" ? "40m" : flashFreq,
         eraseAll: eraseAll,
         compress: true,
         reportProgress: (fileIndex: number, written: number, total: number) => {
@@ -636,11 +652,19 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
 
       addLog(`Flashing ${fileArray.length} file(s)...`);
 
+      // Multi-file flashing requires explicit parameters (not "keep")
+      const isMultiFile = fileArray.length > 1;
+
+      if (isMultiFile) {
+        addLog(`Multi-file detected - using explicit flash parameters`);
+        addLog(`Flash config: ${flashSize === "keep" ? "4MB" : flashSize}, ${flashMode === "keep" ? "dio" : flashMode}, ${flashFreq === "keep" ? "40m" : flashFreq}`);
+      }
+
       await espLoaderRef.current.writeFlash({
         fileArray,
-        flashSize: flashSize,
-        flashMode: flashMode,
-        flashFreq: flashFreq,
+        flashSize: isMultiFile && flashSize === "keep" ? "4MB" : flashSize,
+        flashMode: isMultiFile && flashMode === "keep" ? "dio" : flashMode,
+        flashFreq: isMultiFile && flashFreq === "keep" ? "40m" : flashFreq,
         eraseAll: eraseAll,
         compress: true,
         reportProgress: (fileIndex: number, written: number, total: number) => {
@@ -734,9 +758,9 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
               </thead>
               <tbody>
                 <tr className="border-b border-border/50">
-                  <td className="py-1.5 pr-4 text-accent">0x0</td>
+                  <td className="py-1.5 pr-4 text-accent">0x1000</td>
                   <td className="py-1.5 pr-4">bootloader.bin</td>
-                  <td className="py-1.5">First-stage bootloader</td>
+                  <td className="py-1.5">Second-stage bootloader</td>
                 </tr>
                 <tr className="border-b border-border/50">
                   <td className="py-1.5 pr-4 text-accent">0x8000</td>
