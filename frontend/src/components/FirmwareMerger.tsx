@@ -14,11 +14,11 @@ interface BinaryFile {
 const DEFAULT_FILES: BinaryFile[] = [
   {
     name: "Bootloader",
-    offset: "0x0",
+    offset: "0x1000",
     file: null,
     data: null,
-    defaultOffset: "0x0",
-    description: "First-stage bootloader (typically 32KB)",
+    defaultOffset: "0x1000",
+    description: "Second-stage bootloader (typically 32KB)",
   },
   {
     name: "Partition Table",
@@ -239,31 +239,30 @@ export default function FirmwareMerger() {
       // Sort files by address for sequential processing
       const sortedFiles = validFiles.sort((a, b) => a.address - b.address);
 
-      // Calculate actual size needed for contiguous merge
-      const firstFile = sortedFiles[0];
+      // Calculate total size from 0x0 to end of last component
       const lastFile = sortedFiles[sortedFiles.length - 1];
-      const totalSize = lastFile.endAddress - firstFile.address;
-      const baseAddress = firstFile.address;
+      const totalSize = lastFile.endAddress; // Always start from 0x0
+      const baseAddress = 0x0; // Merged files always start from 0x0
 
-      addLog(`Creating merged binary from 0x${baseAddress.toString(16)} (${(totalSize / 1024).toFixed(1)} KB)...`);
+      addLog(`Creating merged binary from 0x0 (${(totalSize / 1024).toFixed(1)} KB)...`);
 
-      // Create output buffer with exact size needed (no 0xFF filling of gaps)
+      // Create output buffer from 0x0 to accommodate full ESP32 memory layout
       const mergedData = new Uint8Array(totalSize);
 
-      // Initialize with 0xFF only for areas that will contain data
+      // Initialize entire buffer with 0xFF (ESP32 standard for unused flash)
       mergedData.fill(0xFF);
 
-      // Copy each file to its relative position in the merged buffer
+      // Copy each file to its absolute address position in the merged buffer
       for (const file of sortedFiles) {
-        const relativeOffset = file.address - baseAddress;
-        addLog(`Writing ${file.name} at offset 0x${file.address.toString(16).toUpperCase()} (relative: 0x${relativeOffset.toString(16)})`);
-        mergedData.set(file.data!, relativeOffset);
+        const absoluteOffset = file.address; // Use absolute address directly
+        addLog(`Writing ${file.name} at absolute offset 0x${file.address.toString(16).toUpperCase()}`);
+        mergedData.set(file.data!, absoluteOffset);
       }
 
       // Verify merge integrity and validate critical components
       for (const file of sortedFiles) {
-        const relativeOffset = file.address - baseAddress;
-        const mergedSegment = mergedData.slice(relativeOffset, relativeOffset + file.data!.length);
+        const absoluteOffset = file.address; // Use absolute address
+        const mergedSegment = mergedData.slice(absoluteOffset, absoluteOffset + file.data!.length);
         const originalSegment = file.data!;
 
         // Simple comparison to verify data integrity
@@ -361,7 +360,7 @@ export default function FirmwareMerger() {
           <p>
             This tool merges separate ESP32 firmware binaries into a single file for production flashing.
             Instead of flashing three separate <code className="text-foreground bg-surface px-1 py-0.5 rounded text-xs">.bin</code> files
-            at different offsets, you can flash one merged file at offset 0x0.
+            at different offsets, you can flash one merged file starting at 0x0.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs font-mono">
@@ -392,10 +391,10 @@ export default function FirmwareMerger() {
             </table>
           </div>
           <p className="text-xs">
-            <strong>Usage:</strong> Flash the merged binary with <code className="text-foreground bg-surface px-1 py-0.5 rounded">esptool.py write_flash &lt;base_address&gt; merged-firmware.bin</code>
+            <strong>Usage:</strong> Flash the merged binary with <code className="text-foreground bg-surface px-1 py-0.5 rounded">esptool.py write_flash 0x0 merged-firmware.bin</code>
           </p>
           <p className="text-xs text-amber-300">
-            <strong>Note:</strong> The merged file starts from the lowest component address and preserves the exact layout without gaps. Use the displayed flash command for correct offset.
+            <strong>Note:</strong> The merged file starts from 0x0 and preserves the exact component layout with proper ESP32 memory spacing. Always flash merged files at 0x0.
           </p>
         </div>
       </details>
