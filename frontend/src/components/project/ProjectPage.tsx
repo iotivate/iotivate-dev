@@ -161,9 +161,9 @@ export default function ProjectPage({ data }: ProjectPageProps) {
 
         {/* Overview */}
         {data.overview && (
-          <section className="prose prose-invert max-w-none">
-            <h2>Overview</h2>
-            <div dangerouslySetInnerHTML={{ __html: data.overview }} />
+          <section>
+            <h2 className="text-xl font-bold mb-4 text-foreground">Overview</h2>
+            <div className="prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: data.overview }} />
           </section>
         )}
 
@@ -190,15 +190,16 @@ export default function ProjectPage({ data }: ProjectPageProps) {
 
         {/* Build Guide */}
         {data.buildGuide && data.buildGuide.length > 0 && (
-          <section className="prose prose-invert max-w-none">
-            <h2>Build Guide</h2>
+          <section>
+            <h2 className="text-xl font-bold mb-4 text-foreground">Build Guide</h2>
+            <div className="prose prose-invert max-w-none">
             {data.buildGuide.map((step, index) => {
               // Debug logging for build guide content
               console.log(`Build Guide Step ${index + 1} content:`, step.content);
 
               return (
                 <div key={index}>
-                  <h3>{step.title}</h3>
+                  <h3 className="text-lg font-semibold mb-3 text-foreground">{step.title}</h3>
                   <div dangerouslySetInnerHTML={{ __html: step.content }} />
                   {step.warning && (
                     <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 my-4 not-prose">
@@ -209,6 +210,7 @@ export default function ProjectPage({ data }: ProjectPageProps) {
                 </div>
               );
             })}
+            </div>
           </section>
         )}
 
