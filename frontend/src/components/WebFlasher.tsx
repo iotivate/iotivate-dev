@@ -54,7 +54,7 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
   const [eraseAll, setEraseAll] = useState(false);
 
   // Firmware type selection state
-  const [firmwareType, setFirmwareType] = useState<"merged" | "separate">("merged");
+  const [firmwareType, setFirmwareType] = useState<"merged" | "separate-standard" | "separate-custom">("merged");
 
   // Flash configuration state
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
@@ -611,19 +611,22 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
     addLog("Disconnected.");
   }
 
-  function handleFirmwareTypeChange(type: "merged" | "separate") {
+  function handleFirmwareTypeChange(type: "merged" | "separate-standard" | "separate-custom") {
     setFirmwareType(type);
 
     if (type === "merged") {
       // Reset to single file at 0x0 for merged firmware
       setFiles([{ offset: "0x0", file: null, data: null }]);
-    } else {
+    } else if (type === "separate-standard") {
       // Set up three pre-configured entries for separate files
       setFiles([
         { offset: "0x1000", file: null, data: null }, // Bootloader
         { offset: "0x8000", file: null, data: null }, // Partition Table
         { offset: "0x10000", file: null, data: null }, // Application
       ]);
+    } else if (type === "separate-custom") {
+      // Start with one editable entry for custom configuration
+      setFiles([{ offset: "0x1000", file: null, data: null }]);
     }
   }
 
@@ -1310,13 +1313,28 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
                 <input
                   type="radio"
                   name="firmwareType"
-                  value="separate"
-                  checked={firmwareType === "separate"}
-                  onChange={(e) => handleFirmwareTypeChange(e.target.value as "separate")}
+                  value="separate-standard"
+                  checked={firmwareType === "separate-standard"}
+                  onChange={(e) => handleFirmwareTypeChange(e.target.value as "separate-standard")}
                   className="w-4 h-4 text-accent bg-background border-border focus:ring-accent/50"
                 />
                 <span className="text-sm">
-                  <strong>Multiple separate files</strong> - Bootloader, partition table, and application files
+                  <strong>Multiple separate files (standard)</strong> - Bootloader, partition table, and application files
+                </span>
+              </label>
+            </div>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="firmwareType"
+                  value="separate-custom"
+                  checked={firmwareType === "separate-custom"}
+                  onChange={(e) => handleFirmwareTypeChange(e.target.value as "separate-custom")}
+                  className="w-4 h-4 text-accent bg-background border-border focus:ring-accent/50"
+                />
+                <span className="text-sm">
+                  <strong>Multiple separate files (custom addresses)</strong> - Manual configuration for advanced users
                 </span>
               </label>
             </div>
@@ -1329,9 +1347,19 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
         <div className="p-6 border border-border rounded-lg space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">
-              {firmwareType === "merged" ? "Upload Merged Firmware" : "Upload Separate Files"}
+              {firmwareType === "merged" && "Upload Merged Firmware"}
+              {firmwareType === "separate-standard" && "Upload Separate Files (Standard)"}
+              {firmwareType === "separate-custom" && "Upload Separate Files (Custom)"}
             </h3>
-            {firmwareType === "separate" && files.length < 3 && (
+            {(firmwareType === "separate-standard" && files.length < 3) && (
+              <button
+                onClick={addFileEntry}
+                className="text-sm text-accent hover:underline"
+              >
+                + Add file
+              </button>
+            )}
+            {firmwareType === "separate-custom" && (
               <button
                 onClick={addFileEntry}
                 className="text-sm text-accent hover:underline"
@@ -1342,7 +1370,7 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
           </div>
 
           <div className="space-y-3">
-            {firmwareType === "merged" ? (
+            {firmwareType === "merged" && (
               /* Merged firmware interface - single file at 0x0 */
               <div className="space-y-3">
                 <div className="bg-surface border border-accent/20 rounded-lg p-3">
@@ -1372,7 +1400,9 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
                   <div className="w-20 text-sm text-muted">Merged Firmware</div>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {firmwareType === "separate-standard" && (
               /* Separate files interface - three pre-configured rows */
               <div className="space-y-3">
                 <div className="bg-surface border border-accent/20 rounded-lg p-3">
@@ -1424,6 +1454,60 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {firmwareType === "separate-custom" && (
+              /* Custom files interface - editable addresses */
+              <div className="space-y-3">
+                <div className="bg-surface border border-accent/20 rounded-lg p-3">
+                  <p className="text-sm text-foreground mb-2">
+                    <strong>Advanced Mode:</strong> Configure custom flash addresses for your specific ESP32 setup.
+                    Common uses: OTA partitions, custom bootloaders, factory data, or non-standard ESP32 variants.
+                  </p>
+                  <p className="text-xs text-muted">
+                    Examples: OTA app at 0x110000, factory data at 0x9000, or custom partition layouts.
+                  </p>
+                </div>
+                {files.map((entry, index) => (
+                  <div key={index} className="flex gap-3 items-center">
+                    <input
+                      type="text"
+                      value={entry.offset}
+                      onChange={(e) => handleOffsetChange(index, e.target.value)}
+                      placeholder="0x1000"
+                      className="w-24 px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                    {entry.fromServer ? (
+                      <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-accent/10 border border-accent/20 rounded-lg text-sm">
+                        <svg className="w-4 h-4 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="text-accent">Firmware loaded from server</span>
+                      </div>
+                    ) : (
+                      <input
+                        type="file"
+                        accept=".bin"
+                        onChange={(e) => handleFileSelect(index, e.target.files?.[0] || null)}
+                        className="flex-1 text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-border file:text-sm file:font-medium file:bg-surface file:text-foreground hover:file:bg-border file:cursor-pointer file:transition-colors"
+                      />
+                    )}
+                    <div className="w-32 text-xs text-muted">
+                      Custom Component
+                    </div>
+                    {files.length > 1 && (
+                      <button
+                        onClick={() => removeFileEntry(index)}
+                        className="p-2 text-muted hover:text-red-500 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
