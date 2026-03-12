@@ -260,10 +260,11 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
                 // Convert hex string to binary data for MD5 calculation
                 const bytes = new Uint8Array(image.length / 2);
                 for (let i = 0; i < image.length; i += 2) {
-                  bytes[i / 2] = parseInt(image.substring(i, i + 2), 16);
+                  bytes[i / 2] = parseInt(image.substr(i, 2), 16);
                 }
                 // Calculate proper MD5 hash of the firmware binary
                 const hash = md5(bytes);
+                addLog(`Firmware MD5: ${hash}`);
                 return hash;
               } catch (error) {
                 // Return dummy hash to allow flashing to continue
@@ -420,10 +421,11 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
             // Convert hex string to binary data for MD5 calculation
             const bytes = new Uint8Array(image.length / 2);
             for (let i = 0; i < image.length; i += 2) {
-              bytes[i / 2] = parseInt(image.substring(i, i + 2), 16);
+              bytes[i / 2] = parseInt(image.substr(i, 2), 16);
             }
             // Calculate proper MD5 hash of the firmware binary
             const hash = md5(bytes);
+            addLog(`Firmware MD5: ${hash}`);
             return hash;
           } catch (error) {
             // Return dummy hash to allow flashing to continue
@@ -676,11 +678,12 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
             // Convert hex string to binary data for MD5 calculation
             const bytes = new Uint8Array(image.length / 2);
             for (let i = 0; i < image.length; i += 2) {
-              bytes[i / 2] = parseInt(image.substring(i, i + 2), 16);
+              bytes[i / 2] = parseInt(image.substr(i, 2), 16);
             }
 
             // Calculate proper MD5 hash of the firmware binary
             const hash = md5(bytes);
+            addLog(`Firmware MD5: ${hash}`);
             return hash;
 
           } catch (error) {
