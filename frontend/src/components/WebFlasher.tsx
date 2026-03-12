@@ -242,9 +242,10 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
           if (isMultiFile) {
             addLog(`Multi-file detected - using explicit flash parameters`);
             addLog(`Flash config: ${flashSize === "keep" ? "4MB" : flashSize}, ${flashMode === "keep" ? "dio" : flashMode}, ${flashFreq === "keep" ? "40m" : flashFreq}`);
+            addLog("Multi-file flashing: MD5 verification disabled (known esptool-js issue)");
           }
 
-          await espLoaderRef.current.writeFlash({
+          const flashOptions: any = {
             fileArray,
             flashSize: isMultiFile && flashSize === "keep" ? "4MB" : flashSize,
             flashMode: isMultiFile && flashMode === "keep" ? "dio" : flashMode,
@@ -255,7 +256,11 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
               const pct = Math.round((written / total) * 100);
               setProgress(pct);
             },
-            calculateMD5Hash: (image: string) => {
+          };
+
+          // Only add MD5 calculation for single-file scenarios
+          if (!isMultiFile) {
+            flashOptions.calculateMD5Hash = (image: string) => {
               try {
                 // Convert hex string to binary data for MD5 calculation
                 const bytes = new Uint8Array(image.length / 2);
@@ -270,8 +275,10 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
                 // Return dummy hash to allow flashing to continue
                 return "00000000000000000000000000000000";
               }
-            },
-          });
+            };
+          }
+
+          await espLoaderRef.current.writeFlash(flashOptions);
 
           // Disconnect
           espLoaderRef.current = null;
@@ -403,9 +410,10 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
       if (isMultiFile) {
         addLog(`Multi-file detected - using explicit flash parameters`);
         addLog(`Flash config: ${flashSize === "keep" ? "4MB" : flashSize}, ${flashMode === "keep" ? "dio" : flashMode}, ${flashFreq === "keep" ? "40m" : flashFreq}`);
+        addLog("Multi-file flashing: MD5 verification disabled (known esptool-js issue)");
       }
 
-      await espLoaderRef.current.writeFlash({
+      const flashOptions: any = {
         fileArray,
         flashSize: isMultiFile && flashSize === "keep" ? "4MB" : flashSize,
         flashMode: isMultiFile && flashMode === "keep" ? "dio" : flashMode,
@@ -416,7 +424,11 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
           const pct = Math.round((written / total) * 100);
           setProgress(pct);
         },
-        calculateMD5Hash: (image: string) => {
+      };
+
+      // Only add MD5 calculation for single-file scenarios
+      if (!isMultiFile) {
+        flashOptions.calculateMD5Hash = (image: string) => {
           try {
             // Convert hex string to binary data for MD5 calculation
             const bytes = new Uint8Array(image.length / 2);
@@ -431,8 +443,10 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
             // Return dummy hash to allow flashing to continue
             return "00000000000000000000000000000000";
           }
-        },
-      });
+        };
+      }
+
+      await espLoaderRef.current.writeFlash(flashOptions);
 
       // Clean up connection
       espLoaderRef.current = null;
@@ -660,9 +674,10 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
       if (isMultiFile) {
         addLog(`Multi-file detected - using explicit flash parameters`);
         addLog(`Flash config: ${flashSize === "keep" ? "4MB" : flashSize}, ${flashMode === "keep" ? "dio" : flashMode}, ${flashFreq === "keep" ? "40m" : flashFreq}`);
+        addLog("Multi-file flashing: MD5 verification disabled (known esptool-js issue)");
       }
 
-      await espLoaderRef.current.writeFlash({
+      const flashOptions: any = {
         fileArray,
         flashSize: isMultiFile && flashSize === "keep" ? "4MB" : flashSize,
         flashMode: isMultiFile && flashMode === "keep" ? "dio" : flashMode,
@@ -673,7 +688,11 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
           const pct = Math.round((written / total) * 100);
           setProgress(pct);
         },
-        calculateMD5Hash: (image: string) => {
+      };
+
+      // Only add MD5 calculation for single-file scenarios
+      if (!isMultiFile) {
+        flashOptions.calculateMD5Hash = (image: string) => {
           try {
             // Convert hex string to binary data for MD5 calculation
             const bytes = new Uint8Array(image.length / 2);
@@ -690,8 +709,10 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
             // Return dummy hash to allow flashing to continue
             return "00000000000000000000000000000000";
           }
-        },
-      });
+        };
+      }
+
+      await espLoaderRef.current.writeFlash(flashOptions);
 
       setState("done");
       addLog("Flash complete! You can disconnect or reset your device.");
