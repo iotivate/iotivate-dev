@@ -1345,13 +1345,13 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
             {firmwareType === "merged" ? (
               /* Merged firmware interface - single file at 0x0 */
               <div className="space-y-3">
-                <div className="bg-blue-50/50 border border-blue-200/50 rounded-lg p-3">
-                  <p className="text-sm text-blue-800 mb-2">
+                <div className="bg-surface border border-accent/20 rounded-lg p-3">
+                  <p className="text-sm text-foreground mb-2">
                     <strong>Instructions:</strong> Upload your merged .bin file. It will be flashed starting at 0x0 and contains all components (bootloader, partition table, and application) with proper spacing.
                   </p>
                 </div>
                 <div className="flex gap-3 items-center">
-                  <div className="w-24 px-3 py-2 bg-gray-100 border border-border rounded-lg text-sm font-mono text-center text-gray-600">
+                  <div className="w-24 px-3 py-2 bg-surface border border-accent/20 rounded-lg text-sm font-mono text-center text-accent">
                     0x0
                   </div>
                   {files[0]?.fromServer ? (
@@ -1375,8 +1375,8 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
             ) : (
               /* Separate files interface - three pre-configured rows */
               <div className="space-y-3">
-                <div className="bg-amber-50/50 border border-amber-200/50 rounded-lg p-3">
-                  <p className="text-sm text-amber-800 mb-2">
+                <div className="bg-surface border border-accent/20 rounded-lg p-3">
+                  <p className="text-sm text-foreground mb-2">
                     <strong>Instructions:</strong> Upload the three separate .bin files to their corresponding addresses. Each file will be flashed to its specific location in ESP32 memory.
                   </p>
                 </div>
@@ -1389,7 +1389,7 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
                   ];
                   return (
                     <div key={index} className="flex gap-3 items-center">
-                      <div className="w-24 px-3 py-2 bg-gray-100 border border-border rounded-lg text-sm font-mono text-center text-gray-600">
+                      <div className="w-24 px-3 py-2 bg-surface border border-accent/20 rounded-lg text-sm font-mono text-center text-accent">
                         {entry.offset}
                       </div>
                       {entry.fromServer ? (
