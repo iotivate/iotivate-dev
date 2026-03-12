@@ -53,6 +53,9 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
   ]);
   const [eraseAll, setEraseAll] = useState(false);
 
+  // Firmware type selection state
+  const [firmwareType, setFirmwareType] = useState<"merged" | "separate">("merged");
+
   // Flash configuration state
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
   const [flashSize, setFlashSize] = useState<string>("keep");
@@ -608,6 +611,22 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
     addLog("Disconnected.");
   }
 
+  function handleFirmwareTypeChange(type: "merged" | "separate") {
+    setFirmwareType(type);
+
+    if (type === "merged") {
+      // Reset to single file at 0x0 for merged firmware
+      setFiles([{ offset: "0x0", file: null, data: null }]);
+    } else {
+      // Set up three pre-configured entries for separate files
+      setFiles([
+        { offset: "0x1000", file: null, data: null }, // Bootloader
+        { offset: "0x8000", file: null, data: null }, // Partition Table
+        { offset: "0x10000", file: null, data: null }, // Application
+      ]);
+    }
+  }
+
   async function handleFileSelect(index: number, file: File | null) {
     if (!file) {
       setFiles((prev) => {
@@ -747,81 +766,72 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
       {/* Quick start guide */}
       <details className="group border border-border rounded-lg">
         <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none text-sm font-medium hover:bg-surface/50 transition-colors">
-          <span>How to flash multiple .bin files (bootloader + partition + firmware)</span>
+          <span>ESP32 Memory Layout & Advanced Options</span>
           <svg className="w-4 h-4 text-muted transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </summary>
-        <div className="px-4 pb-4 text-sm text-muted space-y-3 border-t border-border pt-3">
-          <p>
-            ESP32 firmware can be flashed in two ways: as separate files or as a single merged file.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="font-medium text-foreground mb-2">Option 1: Merged Firmware (Recommended)</p>
-              <ul className="space-y-1 text-xs">
-                <li>• Use our <a href="/tools/esp32-firmware-merger" className="text-accent hover:underline">Firmware Merger</a> tool first</li>
-                <li>• Upload the single merged <code className="text-foreground bg-surface px-1 py-0.5 rounded">.bin</code> file</li>
-                <li>• Set offset to <code className="text-foreground bg-surface px-1 py-0.5 rounded">0x0</code></li>
-                <li>• Flash - all components are written to correct positions</li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-medium text-foreground mb-2">Option 2: Separate Files (Traditional)</p>
-              <p className="text-xs mb-2">ESP32 firmware typically consists of three separate files:</p>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs font-mono">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="py-1.5 pr-4 font-semibold text-foreground">Offset</th>
-                  <th className="py-1.5 pr-4 font-semibold text-foreground">File</th>
-                  <th className="py-1.5 font-semibold text-foreground">Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-border/50">
-                  <td className="py-1.5 pr-4 text-accent">0x1000</td>
-                  <td className="py-1.5 pr-4">bootloader.bin</td>
-                  <td className="py-1.5">Second-stage bootloader</td>
-                </tr>
-                <tr className="border-b border-border/50">
-                  <td className="py-1.5 pr-4 text-accent">0x8000</td>
-                  <td className="py-1.5 pr-4">partitions.bin</td>
-                  <td className="py-1.5">Partition table layout</td>
-                </tr>
-                <tr>
-                  <td className="py-1.5 pr-4 text-accent">0x10000</td>
-                  <td className="py-1.5 pr-4">firmware.bin</td>
-                  <td className="py-1.5">Application firmware</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="font-medium text-foreground mb-2">For Merged Firmware:</p>
-              <ol className="list-decimal list-inside space-y-1 text-xs">
-                <li>Click <strong className="text-foreground">Connect Device</strong> and select your ESP32</li>
-                <li>Upload your merged .bin file at offset <code className="text-foreground bg-surface px-1 py-0.5 rounded">0x0</code></li>
-                <li>Click <strong className="text-foreground">Flash Firmware</strong></li>
-              </ol>
-            </div>
-            <div>
-              <p className="font-medium text-foreground mb-2">For Separate Files:</p>
-              <ol className="list-decimal list-inside space-y-1 text-xs">
-                <li>Click <strong className="text-foreground">Connect Device</strong> and select your ESP32</li>
-                <li>Click <strong className="text-foreground">+ Add file</strong> to create rows for each .bin file (3 total)</li>
-                <li>Set the offset and select the matching .bin for each row</li>
-                <li>Click <strong className="text-foreground">Flash Firmware</strong></li>
-              </ol>
+        <div className="px-4 pb-4 text-sm text-muted space-y-4 border-t border-border pt-3">
+          <div>
+            <p className="font-medium text-foreground mb-2">ESP32 Flash Memory Layout</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-border text-left">
+                    <th className="py-1.5 pr-4 font-semibold text-foreground">Address</th>
+                    <th className="py-1.5 pr-4 font-semibold text-foreground">Component</th>
+                    <th className="py-1.5 font-semibold text-foreground">Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-border/50">
+                    <td className="py-1.5 pr-4 text-accent">0x0-0x1000</td>
+                    <td className="py-1.5 pr-4">Boot Sector</td>
+                    <td className="py-1.5">Reserved area (filled with 0xFF)</td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-1.5 pr-4 text-accent">0x1000</td>
+                    <td className="py-1.5 pr-4">Bootloader</td>
+                    <td className="py-1.5">Second-stage bootloader</td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-1.5 pr-4 text-accent">0x8000</td>
+                    <td className="py-1.5 pr-4">Partition Table</td>
+                    <td className="py-1.5">Memory layout definition</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-4 text-accent">0x10000</td>
+                    <td className="py-1.5 pr-4">Application</td>
+                    <td className="py-1.5">Main firmware application</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
-          <p className="text-xs">
-            These are the default offsets for ESP-IDF and Arduino. If your project uses a custom partition table,
-            check your build output or <code className="text-foreground bg-surface px-1 py-0.5 rounded">partitions.csv</code> for the correct addresses.
-          </p>
+
+          <div>
+            <p className="font-medium text-foreground mb-2">Firmware Types Explained</p>
+            <div className="space-y-2 text-xs">
+              <div>
+                <strong>Merged Firmware:</strong> A single .bin file containing all components with proper spacing, always flashed at 0x0.
+                Created by tools like our <a href="/tools/esp32-firmware-merger" className="text-accent hover:underline">Firmware Merger</a> or ESP-IDF's merge command.
+              </div>
+              <div>
+                <strong>Separate Files:</strong> Individual component files (.bin) that must be flashed to their specific addresses.
+                Common when building with ESP-IDF or Arduino IDE separately.
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p className="font-medium text-foreground mb-2">Troubleshooting</p>
+            <ul className="space-y-1 text-xs list-disc list-inside">
+              <li>If ESP32 won't boot: Check you're using the correct firmware type and addresses</li>
+              <li>For custom partition tables: Check your project's partition.csv for correct addresses</li>
+              <li>Flash errors: Try erasing flash first, or check connection</li>
+              <li>Large files: Multi-file flashing automatically disables MD5 verification for compatibility</li>
+            </ul>
+          </div>
         </div>
       </details>
 
@@ -1275,61 +1285,149 @@ export default function WebFlasher({ firmwareUrl, isPro = false }: WebFlasherPro
         </span>
       </div>
 
+      {/* Firmware Type Selection - only when connected */}
+      {(state === "connected" || state === "done") && (
+        <div className="p-6 border border-border rounded-lg space-y-4">
+          <div className="space-y-3">
+            <h3 className="font-semibold">What type of firmware do you have?</h3>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="firmwareType"
+                  value="merged"
+                  checked={firmwareType === "merged"}
+                  onChange={(e) => handleFirmwareTypeChange(e.target.value as "merged")}
+                  className="w-4 h-4 text-accent bg-background border-border focus:ring-accent/50"
+                />
+                <span className="text-sm">
+                  <strong>Single merged firmware file</strong> - One .bin file containing everything
+                </span>
+              </label>
+            </div>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="firmwareType"
+                  value="separate"
+                  checked={firmwareType === "separate"}
+                  onChange={(e) => handleFirmwareTypeChange(e.target.value as "separate")}
+                  className="w-4 h-4 text-accent bg-background border-border focus:ring-accent/50"
+                />
+                <span className="text-sm">
+                  <strong>Multiple separate files</strong> - Bootloader, partition table, and application files
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* File selection - only when connected */}
       {(state === "connected" || state === "done") && (
         <div className="p-6 border border-border rounded-lg space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Firmware Files</h3>
-            <button
-              onClick={addFileEntry}
-              className="text-sm text-accent hover:underline"
-            >
-              + Add file
-            </button>
+            <h3 className="font-semibold">
+              {firmwareType === "merged" ? "Upload Merged Firmware" : "Upload Separate Files"}
+            </h3>
+            {firmwareType === "separate" && files.length < 3 && (
+              <button
+                onClick={addFileEntry}
+                className="text-sm text-accent hover:underline"
+              >
+                + Add file
+              </button>
+            )}
           </div>
 
           <div className="space-y-3">
-            {files.map((entry, index) => (
-              <div key={index} className="flex gap-3 items-center">
-                <input
-                  type="text"
-                  value={entry.offset}
-                  onChange={(e) => handleOffsetChange(index, e.target.value)}
-                  placeholder="0x1000"
-                  className="w-24 px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent/50"
-                />
-                {entry.fromServer ? (
-                  <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-accent/10 border border-accent/20 rounded-lg text-sm">
-                    <svg className="w-4 h-4 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span className="text-accent">Firmware loaded from server</span>
+            {firmwareType === "merged" ? (
+              /* Merged firmware interface - single file at 0x0 */
+              <div className="space-y-3">
+                <div className="bg-blue-50/50 border border-blue-200/50 rounded-lg p-3">
+                  <p className="text-sm text-blue-800 mb-2">
+                    <strong>Instructions:</strong> Upload your merged .bin file. It will be flashed starting at 0x0 and contains all components (bootloader, partition table, and application) with proper spacing.
+                  </p>
+                </div>
+                <div className="flex gap-3 items-center">
+                  <div className="w-24 px-3 py-2 bg-gray-100 border border-border rounded-lg text-sm font-mono text-center text-gray-600">
+                    0x0
                   </div>
-                ) : (
-                  <input
-                    type="file"
-                    accept=".bin"
-                    onChange={(e) => handleFileSelect(index, e.target.files?.[0] || null)}
-                    className="flex-1 text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-border file:text-sm file:font-medium file:bg-surface file:text-foreground hover:file:bg-border file:cursor-pointer file:transition-colors"
-                  />
-                )}
-                {files.length > 1 && (
-                  <button
-                    onClick={() => removeFileEntry(index)}
-                    className="p-2 text-muted hover:text-red-500 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
+                  {files[0]?.fromServer ? (
+                    <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-accent/10 border border-accent/20 rounded-lg text-sm">
+                      <svg className="w-4 h-4 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-accent">Firmware loaded from server</span>
+                    </div>
+                  ) : (
+                    <input
+                      type="file"
+                      accept=".bin"
+                      onChange={(e) => handleFileSelect(0, e.target.files?.[0] || null)}
+                      className="flex-1 text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-border file:text-sm file:font-medium file:bg-surface file:text-foreground hover:file:bg-border file:cursor-pointer file:transition-colors"
+                    />
+                  )}
+                  <div className="w-20 text-sm text-muted">Merged Firmware</div>
+                </div>
               </div>
-            ))}
+            ) : (
+              /* Separate files interface - three pre-configured rows */
+              <div className="space-y-3">
+                <div className="bg-amber-50/50 border border-amber-200/50 rounded-lg p-3">
+                  <p className="text-sm text-amber-800 mb-2">
+                    <strong>Instructions:</strong> Upload the three separate .bin files to their corresponding addresses. Each file will be flashed to its specific location in ESP32 memory.
+                  </p>
+                </div>
+                {files.map((entry, index) => {
+                  const fileLabels = ["Bootloader", "Partition Table", "Application"];
+                  const fileDescriptions = [
+                    "Second-stage bootloader",
+                    "Memory layout definition",
+                    "Main application firmware"
+                  ];
+                  return (
+                    <div key={index} className="flex gap-3 items-center">
+                      <div className="w-24 px-3 py-2 bg-gray-100 border border-border rounded-lg text-sm font-mono text-center text-gray-600">
+                        {entry.offset}
+                      </div>
+                      {entry.fromServer ? (
+                        <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-accent/10 border border-accent/20 rounded-lg text-sm">
+                          <svg className="w-4 h-4 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span className="text-accent">Firmware loaded from server</span>
+                        </div>
+                      ) : (
+                        <input
+                          type="file"
+                          accept=".bin"
+                          onChange={(e) => handleFileSelect(index, e.target.files?.[0] || null)}
+                          className="flex-1 text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-border file:text-sm file:font-medium file:bg-surface file:text-foreground hover:file:bg-border file:cursor-pointer file:transition-colors"
+                        />
+                      )}
+                      <div className="w-32 text-sm">
+                        <div className="font-medium text-foreground">{fileLabels[index]}</div>
+                        <div className="text-xs text-muted">{fileDescriptions[index]}</div>
+                      </div>
+                      {files.length > 3 && (
+                        <button
+                          onClick={() => removeFileEntry(index)}
+                          className="p-2 text-muted hover:text-red-500 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          <p className="text-xs text-muted">
-            Enter the flash offset address (e.g., 0x1000 for bootloader, 0x10000 for app) and select the .bin file.
-          </p>
 
           <div className="flex items-center gap-2 py-2">
             <input
