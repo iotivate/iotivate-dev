@@ -11,7 +11,7 @@ from app.database import get_session
 from app.models.user import User
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
+ACCESS_TOKEN_EXPIRE_MINUTES = 60  # Increased from 15 to 60 minutes
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 REMEMBER_ME_EXPIRE_DAYS = 30
 RESET_TOKEN_EXPIRE_MINUTES = 15
