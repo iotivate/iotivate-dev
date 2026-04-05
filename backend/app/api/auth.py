@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -22,6 +23,7 @@ from app.auth import (
     create_access_token,
     create_refresh_token,
     create_reset_token,
+    get_admin_user,
     get_current_user,
     hash_password,
     verify_password,
@@ -192,3 +194,61 @@ def me(user: User = Depends(get_current_user)):
         is_active=user.is_active,
         is_pro=user.is_pro,
     )
+
+
+@router.get("/smtp-status")
+def smtp_status(user: User = Depends(get_admin_user)):
+    """Admin endpoint to check SMTP configuration status."""
+    return {
+        "smtp_configured": settings.smtp_configured,
+        "smtp_host": settings.smtp_host or "(not set)",
+        "smtp_port": settings.smtp_port,
+        "smtp_user": settings.smtp_user or "(not set)",
+        "smtp_password_set": bool(settings.smtp_password),
+        "smtp_from_email": settings.smtp_from_email or "(not set)",
+        "smtp_to_email": settings.smtp_to_email or "(not set)",
+        "smtp_use_tls": settings.smtp_use_tls,
+        "frontend_url": settings.frontend_url,
+        "validation_errors": settings.smtp_validation_errors,
+    }
+
+
+@router.post("/test-email")
+def test_email(
+    data: dict,
+    user: User = Depends(get_admin_user)
+):
+    """Admin endpoint to test email delivery."""
+    test_email_addr = data.get("email") or user.email
+
+    if not settings.smtp_configured:
+        return {
+            "success": False,
+            "error": "SMTP not configured",
+            "details": {
+                "smtp_host": bool(settings.smtp_host),
+                "smtp_user": bool(settings.smtp_user),
+                "smtp_password": bool(settings.smtp_password),
+                "smtp_to_email": bool(settings.smtp_to_email)
+            }
+        }
+
+    try:
+        from app.services.email import send_email
+        send_email(
+            subject="[iotivate] SMTP Test Email",
+            body=f"This is a test email sent at {datetime.now(timezone.utc)}.\n\nIf you see this, SMTP is working correctly!",
+            to_email=test_email_addr
+        )
+        logger.info("Test email sent successfully to %s", test_email_addr)
+        return {
+            "success": True,
+            "message": f"Test email sent to {test_email_addr}"
+        }
+    except Exception as e:
+        logger.exception("Test email failed")
+        return {
+            "success": False,
+            "error": str(e),
+            "type": type(e).__name__
+        }

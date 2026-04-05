@@ -65,6 +65,28 @@ class Settings(BaseSettings):
         return bool(self.smtp_host and self.smtp_user and self.smtp_password and self.smtp_to_email)
 
     @property
+    def smtp_validation_errors(self) -> list[str]:
+        """Return list of SMTP configuration issues for debugging."""
+        errors = []
+        if not self.smtp_host:
+            errors.append("SMTP_HOST not set")
+        if not self.smtp_user:
+            errors.append("SMTP_USER not set")
+        if not self.smtp_password:
+            errors.append("SMTP_PASSWORD not set")
+        if not self.smtp_to_email:
+            errors.append("SMTP_TO_EMAIL not set")
+        if self.smtp_port not in [25, 465, 587]:
+            errors.append(f"SMTP_PORT ({self.smtp_port}) should be 25, 465, or 587")
+        if self.smtp_user and "@" not in self.smtp_user:
+            errors.append("SMTP_USER should be a full email address")
+        if self.smtp_from_email and "@" not in self.smtp_from_email:
+            errors.append("SMTP_FROM_EMAIL should be a full email address")
+        if self.smtp_to_email and "@" not in self.smtp_to_email:
+            errors.append("SMTP_TO_EMAIL should be a full email address")
+        return errors
+
+    @property
     def admin_bootstrap_configured(self) -> bool:
         return bool(self.admin_email and self.admin_username and self.admin_password)
 
