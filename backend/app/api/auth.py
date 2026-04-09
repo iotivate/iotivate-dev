@@ -70,12 +70,21 @@ def register(request: Request, data: RegisterRequest, session: Session = Depends
     return user
 
 
+def _cookie_secure() -> bool:
+    """Use Secure cookies only when the frontend is served over HTTPS.
+    Browsers reject Secure cookies on plain HTTP (except localhost in some
+    browsers), so this must be False in local dev for the refresh cookie to
+    actually be stored and sent back.
+    """
+    return settings.frontend_url.startswith("https://")
+
+
 def _set_refresh_cookie(response: Response, token: str, remember: bool = False) -> None:
     kwargs: dict = dict(
         key="refresh_token",
         value=token,
         httponly=True,
-        secure=True,
+        secure=_cookie_secure(),
         samesite="lax",
         path="/api/auth",
     )
@@ -142,7 +151,7 @@ def logout(response: Response):
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=True,
+        secure=_cookie_secure(),
         samesite="lax",
         path="/api/auth",
     )

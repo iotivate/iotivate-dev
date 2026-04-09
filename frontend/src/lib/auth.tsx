@@ -24,7 +24,6 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  isRemembered: boolean;
   login: (username: string, password: string, rememberMe?: boolean) => Promise<{ ok: boolean; error?: string }>;
   register: (email: string, username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
@@ -32,13 +31,20 @@ interface AuthContextType {
 
 let refreshPromise: Promise<string | null> | null = null;
 
+/**
+ * Attempt to exchange the httpOnly refresh cookie for a new access token.
+ * Returns the new access token on success, or null on failure.
+ *
+ * Does NOT mutate localStorage — callers decide what to do on failure, since
+ * the meaning of "no refresh available" depends on context (init vs. retry
+ * after a 401 vs. proactive scheduled refresh).
+ */
 async function tryRefresh(): Promise<string | null> {
   // Deduplicate concurrent refresh attempts
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
     try {
-      console.log('Attempting token refresh...');
       const res = await fetch(`${API_URL}/api/auth/refresh`, {
         method: "POST",
         credentials: "include",
@@ -47,17 +53,10 @@ async function tryRefresh(): Promise<string | null> {
         const data = await res.json();
         const newToken = data.access_token;
         localStorage.setItem(TOKEN_KEY, newToken);
-        console.log('Token refresh successful');
         return newToken;
-      } else {
-        console.log('Token refresh failed:', res.status, res.statusText);
-        // If refresh fails with 401, the refresh token is expired
-        if (res.status === 401) {
-          localStorage.removeItem(TOKEN_KEY);
-        }
       }
-    } catch (error) {
-      console.log('Token refresh error:', error);
+    } catch {
+      // Network error — treat as no refresh available
     }
     return null;
   })();
@@ -95,9 +94,9 @@ export async function authFetch(
       return fetch(url, { ...options, headers: retryHeaders });
     }
 
-    // Refresh failed — clear state and redirect
+    // Refresh failed — clear state and redirect to the actual login page
     localStorage.removeItem(TOKEN_KEY);
-    window.location.href = "/admin/login";
+    window.location.href = "/login";
   }
 
   return res;
@@ -109,7 +108,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRemembered, setIsRemembered] = useState(false);
 
   const fetchUser = useCallback(async (accessToken: string) => {
     try {
@@ -130,118 +128,93 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check if token is close to expiry (within 10 minutes)
   const isTokenExpiringSoon = useCallback((token: string): boolean => {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(atob(token.split(".")[1]));
       const exp = payload.exp * 1000; // Convert to milliseconds
       const now = Date.now();
-      const tenMinutes = 10 * 60 * 1000; // Increased buffer time
+      const tenMinutes = 10 * 60 * 1000;
       return exp - now < tenMinutes;
     } catch {
       return true; // If we can't parse, assume it's expired
     }
   }, []);
 
-  // Proactive token refresh
+  // Proactive token refresh — runs whenever the access token changes
   useEffect(() => {
-    let refreshTimer: NodeJS.Timeout;
+    if (!token) return;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
-    const scheduleRefresh = (token: string) => {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const exp = payload.exp * 1000;
-        const now = Date.now();
-        const tenMinutes = 10 * 60 * 1000; // Refresh 10 minutes before expiry
-        const timeUntilRefresh = Math.max(exp - now - tenMinutes, 60000); // At least 60 seconds
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const exp = payload.exp * 1000;
+      const now = Date.now();
+      const tenMinutes = 10 * 60 * 1000;
+      // Refresh 10 minutes before expiry, but never sooner than 60 seconds from now
+      const timeUntilRefresh = Math.max(exp - now - tenMinutes, 60_000);
 
-        refreshTimer = setTimeout(async () => {
-          const newToken = await tryRefresh();
-          if (newToken) {
-            setToken(newToken);
-            scheduleRefresh(newToken); // Schedule next refresh
-          } else {
-            // Refresh failed, user will be logged out on next API call
-            localStorage.removeItem(TOKEN_KEY);
-            setToken(null);
-            setUser(null);
-          }
-        }, timeUntilRefresh);
-      } catch {
-        // Token is malformed, clear it
+      refreshTimer = setTimeout(async () => {
+        const newToken = await tryRefresh();
+        if (newToken) {
+          setToken(newToken);
+        } else {
+          // Refresh genuinely failed — fully log out
+          localStorage.removeItem(TOKEN_KEY);
+          setToken(null);
+          setUser(null);
+        }
+      }, timeUntilRefresh);
+    } catch {
+      // Malformed token — clear state
+      localStorage.removeItem(TOKEN_KEY);
+      setToken(null);
+      setUser(null);
+    }
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+    };
+  }, [token]);
+
+  // Initial auth bootstrap on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    async function init() {
+      const stored = localStorage.getItem(TOKEN_KEY);
+
+      // Case 1: We have a stored access token that is still comfortably valid.
+      if (stored && !isTokenExpiringSoon(stored)) {
+        const ok = await fetchUser(stored);
+        if (cancelled) return;
+        if (ok) {
+          setToken(stored);
+          setIsLoading(false);
+          return;
+        }
+        // Server rejected it — fall through to refresh attempt below.
+      }
+
+      // Case 2: No usable access token. Try to mint a new one from the
+      // refresh cookie (this is the "remember me" path).
+      const newToken = await tryRefresh();
+      if (cancelled) return;
+
+      if (newToken) {
+        await fetchUser(newToken);
+        if (cancelled) return;
+        setToken(newToken);
+      } else {
+        // No refresh available — make sure local state is clean.
         localStorage.removeItem(TOKEN_KEY);
         setToken(null);
         setUser(null);
       }
-    };
-
-    if (token) {
-      scheduleRefresh(token);
-    }
-
-    return () => {
-      if (refreshTimer) {
-        clearTimeout(refreshTimer);
-      }
-    };
-  }, [token]);
-
-  useEffect(() => {
-    async function init() {
-      const stored = localStorage.getItem(TOKEN_KEY);
-
-      if (stored) {
-        // Check if token is expired or expiring soon
-        if (isTokenExpiringSoon(stored)) {
-          // Try to refresh immediately
-          const newToken = await tryRefresh();
-          if (newToken) {
-            setToken(newToken);
-            await fetchUser(newToken);
-            // We have a valid refresh token, so we were remembered
-            setIsRemembered(true);
-          } else {
-            localStorage.removeItem(TOKEN_KEY);
-            setToken(null);
-            setIsRemembered(false);
-          }
-        } else {
-          // Token is still valid
-          setToken(stored);
-          const ok = await fetchUser(stored);
-          if (!ok) {
-            // Access token expired — try refresh
-            const newToken = await tryRefresh();
-            if (newToken) {
-              setToken(newToken);
-              await fetchUser(newToken);
-              setIsRemembered(true);
-            } else {
-              localStorage.removeItem(TOKEN_KEY);
-              setToken(null);
-              setIsRemembered(false);
-            }
-          } else {
-            // Token is valid, check if we have a refresh cookie by trying refresh
-            const refreshWorks = await tryRefresh();
-            if (refreshWorks) {
-              setToken(refreshWorks);
-              setIsRemembered(true);
-            } else {
-              // No refresh token, user will need to re-login when token expires
-              setIsRemembered(false);
-            }
-          }
-        }
-      } else {
-        // No stored token, check if we have a valid refresh cookie
-        const newToken = await tryRefresh();
-        if (newToken) {
-          setToken(newToken);
-          await fetchUser(newToken);
-          setIsRemembered(true);
-        }
-      }
       setIsLoading(false);
     }
+
     init();
+    return () => {
+      cancelled = true;
+    };
   }, [fetchUser, isTokenExpiringSoon]);
 
   const login = async (username: string, password: string, rememberMe?: boolean) => {
@@ -263,7 +236,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const accessToken = data.access_token;
       localStorage.setItem(TOKEN_KEY, accessToken);
       setToken(accessToken);
-      setIsRemembered(rememberMe || false);
       await fetchUser(accessToken);
       return { ok: true };
     } catch {
@@ -301,11 +273,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setUser(null);
-    setIsRemembered(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, isRemembered, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
