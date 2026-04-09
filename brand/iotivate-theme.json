@@ -60,6 +60,10 @@
     "radius-lg": "0.75rem"
   },
 
+  "logos": {
+    "primary": "logo.png"
+  },
+
   "social": {
     "youtube": "https://www.youtube.com/@iotivate",
     "tiktok": "https://www.tiktok.com/@iotivate",
