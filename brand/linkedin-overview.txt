@@ -1,0 +1,11 @@
+iotivate is the browser-based workshop for IoT makers.
+
+Too many IoT projects die in setup hell — driver installs, toolchain wrangling, IDE plugins — before they ever reach the interesting part. So we moved the whole workshop into a browser tab.
+
+Tools. Firmware flashers, serial monitors, pin planners, and more — free for the essentials, with iotivate Pro unlocking power-user workflows like batch flashing, plotting, macros, and export.
+
+Projects. Complete working builds with schematic, parts list, and firmware. Buy a project and flash it to your board directly from the page — no downloads, no guesswork.
+
+We focus on ESP32 today; STM32, RP2040, and other microcontrollers are on the way. The projects with real traction graduate into physical modules we manufacture and sell.
+
+Simplifying IoT, one module at a time.
