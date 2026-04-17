@@ -19,12 +19,12 @@ export default function Home() {
         <HeroAnimations>
           <div className="relative z-10">
             <h1 className="hero-title text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl">
-              Simplifying IoT, One Module at a Time.
+              The browser-based workshop for IoT makers.
             </h1>
             <p className="hero-description mt-6 text-lg sm:text-xl text-muted max-w-2xl leading-relaxed">
-              We build practical tools, firmware, and hardware that make ESP32 and
-              IoT projects easier to create, share, and deploy — without the
-              complexity.
+              Free tools to flash firmware, monitor serial, and plan pinouts —
+              all in your browser, no installs required. Plus buy-and-flash
+              project kits you can run on your board straight from the page.
             </p>
             <div className="hero-buttons mt-10 flex flex-wrap gap-4">
               <Link
@@ -37,9 +37,12 @@ export default function Home() {
                 href="/projects"
                 className="inline-flex items-center px-6 py-3 border border-border font-medium rounded-lg hover:bg-surface transition-colors"
               >
-                Explore Projects
+                Browse Projects
               </Link>
             </div>
+            <p className="hero-tagline mt-8 text-sm italic text-muted">
+              Simplifying IoT, one module at a time.
+            </p>
           </div>
         </HeroAnimations>
       </section>
