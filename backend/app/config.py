@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     # Frontend URL (for password reset links)
     frontend_url: str = "http://localhost:3000"
 
+    # Refresh-cookie domain. Empty = host-only (current single-domain / local
+    # dev behavior). Set to ".iotivate.dev" (leading dot) in production so the
+    # refresh cookie is shared across subdomains and one login works on both
+    # iotivate.dev and radar.iotivate.dev. See docs/RADAR_PRODUCT_SPEC.md §4.
+    cookie_domain: str = ""
+
     # Lemon Squeezy settings
     lemonsqueezy_api_key: str = ""
     lemonsqueezy_store_id: str = ""

@@ -98,6 +98,41 @@ class TestLogout:
         assert response.json() == {"message": "Logged out"}
 
 
+class TestRefreshCookieDomain:
+    """Cross-subdomain SSO: one login on iotivate.dev must work on
+    radar.iotivate.dev. That hinges entirely on the refresh cookie's Domain
+    attribute. See docs/RADAR_PRODUCT_SPEC.md section 4."""
+
+    def _login_set_cookie(self, client):
+        response = client.post("/api/auth/login", data={
+            "username": "testuser",
+            "password": "Test1234!",
+        })
+        assert response.status_code == 200
+        return response.headers["set-cookie"]
+
+    def test_no_domain_attribute_by_default(self, client, test_user):
+        # Empty cookie_domain must stay host-only, so local/single-domain
+        # dev is unaffected by the SSO change.
+        assert "domain=" not in self._login_set_cookie(client).lower()
+
+    def test_domain_set_when_configured(self, client, test_user):
+        with patch("app.api.auth.settings.cookie_domain", ".iotivate.dev"):
+            header = self._login_set_cookie(client)
+        assert "domain=.iotivate.dev" in header.lower()
+
+    def test_logout_clears_cookie_with_matching_domain(self, client, test_user):
+        # A cookie is only cleared when key, path and domain all match how it
+        # was set. A mismatch here silently strands the cookie on the parent
+        # domain and logout stops working across subdomains.
+        with patch("app.api.auth.settings.cookie_domain", ".iotivate.dev"):
+            response = client.post("/api/auth/logout")
+        assert response.status_code == 200
+        header = response.headers["set-cookie"].lower()
+        assert "domain=.iotivate.dev" in header
+        assert "path=/api/auth" in header
+
+
 class TestMe:
     def test_me_requires_auth(self, client):
         response = client.get("/api/auth/me")

@@ -79,15 +79,30 @@ def _cookie_secure() -> bool:
     return settings.frontend_url.startswith("https://")
 
 
-def _set_refresh_cookie(response: Response, token: str, remember: bool = False) -> None:
+def _refresh_cookie_kwargs() -> dict:
+    """Cookie attributes shared by set and delete.
+
+    A cookie can only be cleared if key, path, domain and samesite match what
+    was set, so both operations must read from one place. `samesite="lax"` is
+    intentional: iotivate.dev and radar.iotivate.dev share the registrable
+    domain iotivate.dev, so cross-subdomain requests are same-site and Lax
+    cookies are still sent — no need for the weaker SameSite=None.
+    """
     kwargs: dict = dict(
         key="refresh_token",
-        value=token,
         httponly=True,
         secure=_cookie_secure(),
         samesite="lax",
         path="/api/auth",
     )
+    if settings.cookie_domain:
+        kwargs["domain"] = settings.cookie_domain
+    return kwargs
+
+
+def _set_refresh_cookie(response: Response, token: str, remember: bool = False) -> None:
+    kwargs = _refresh_cookie_kwargs()
+    kwargs["value"] = token
     if remember:
         kwargs["max_age"] = REMEMBER_ME_EXPIRE_DAYS * 86400
     response.set_cookie(**kwargs)
@@ -148,13 +163,7 @@ def refresh(
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
 def logout(response: Response):
-    response.delete_cookie(
-        key="refresh_token",
-        httponly=True,
-        secure=_cookie_secure(),
-        samesite="lax",
-        path="/api/auth",
-    )
+    response.delete_cookie(**_refresh_cookie_kwargs())
     return {"message": "Logged out"}
 
 
