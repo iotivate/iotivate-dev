@@ -1,5 +1,14 @@
 import type { NextConfig } from "next";
 
+// Allow the browser to talk to whichever API origin this deployment is
+// configured for (plus its ws:// variant for future live features). Without
+// this, connect-src only lists the prod backend, so running against a local
+// backend — including the api.iotivate.localhost host used for cross-subdomain
+// SSO dev (docs/LOCAL_SUBDOMAIN_DEV.md) — is blocked by CSP and surfaces as a
+// "Network error" on login. Additive: the hardcoded prod hosts below stay.
+const apiOrigin = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const apiConnectSrc = [apiOrigin, apiOrigin.replace(/^http/, "ws")].join(" ");
+
 const securityHeaders = [
   {
     key: "Strict-Transport-Security",
@@ -32,7 +41,7 @@ const securityHeaders = [
       "object-src https://files.iotivate.dev",
       "media-src 'self' https://files.iotivate.dev",
       "frame-src https://www.youtube.com https://app.lemonsqueezy.com https://*.lemonsqueezy.com",
-      "connect-src 'self' https://files.iotivate.dev https://app.lemonsqueezy.com https://assets.lemonsqueezy.com https://iotivate-backend.onrender.com https://cloudflareinsights.com",
+      `connect-src 'self' ${apiConnectSrc} https://files.iotivate.dev https://app.lemonsqueezy.com https://assets.lemonsqueezy.com https://iotivate-backend.onrender.com https://cloudflareinsights.com`,
       "frame-ancestors 'none'",
     ].join("; "),
   },
