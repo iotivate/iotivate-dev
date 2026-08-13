@@ -53,12 +53,20 @@ export default function Home() {
               <code className="font-mono">.iotivate.dev</code> refresh cookie,
               with no separate login on this subdomain.
             </p>
-            <button
-              onClick={logout}
-              className="self-start rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-[color:var(--color-background)]"
-            >
-              Log out
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="/devices"
+                className="rounded-lg bg-[color:var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[color:var(--color-accent-hover)]"
+              >
+                Manage devices
+              </a>
+              <button
+                onClick={logout}
+                className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-[color:var(--color-background)]"
+              >
+                Log out
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
