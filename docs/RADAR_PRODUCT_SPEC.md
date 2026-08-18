@@ -1,23 +1,33 @@
-# radar.iotivate.dev — Product & Architecture Specification
+# iotivate.dev/radar — Product & Architecture Specification
 
-**Status:** Draft v2 (revised)
+**Status:** Draft v3 (path-based)
 **Owner:** IoTivate
-**Supersedes:** `radar_iotivate_dev_Product_Specification_v2.docx`
+**Supersedes:** `radar_iotivate_dev_Product_Specification_v2.docx`, Draft v2 (subdomain)
 
 ---
 
 ## 1. Purpose
 
-`radar.iotivate.dev` is the **first cloud-connected product** in the IoTivate
+IoTivate Radar is the **first cloud-connected product** in the IoTivate
 ecosystem: mmWave radar sensors streaming live presence/motion data to a
 browser dashboard, with a zones-and-rules engine for alerts and automation.
 
-`iotivate.dev` stays exactly as it is — projects, tools, blog, docs, store.
-Radar is **not** folded into the main site; it ships as its **own subdomain
-and its own frontend**, but every IoTivate account works across both products.
+It ships as a **section of the existing site at `iotivate.dev/radar`** —
+routes inside the current Next.js app, not a separate subdomain. Because it is
+the same origin as the rest of the site, it shares the session, navigation, and
+account natively: no cross-origin auth plumbing. The rest of `iotivate.dev`
+(projects, tools, blog, docs, store) is unchanged; radar is simply new routes
+alongside them.
 
-> **One IoTivate account. Many products.** That shared account is the platform
-> moat — not any single product.
+> **One IoTivate account. Many products.** The shared account is the platform
+> moat — and with radar as a path on the main site, that sharing is free.
+
+> **Design note (v3):** an earlier draft shipped radar as a separate subdomain
+> (`radar.iotivate.dev`) with a shared `.iotivate.dev` refresh cookie for
+> cross-subdomain SSO. That was reversed in favor of a same-origin path, which
+> removes the cookie-domain/CORS complexity entirely. If a future white-label /
+> multi-domain play (see `PATH_TO_SCALE.md`) needs auth across *different*
+> origins, revisit the subdomain approach then.
 
 ---
 
@@ -29,10 +39,10 @@ These are the decisions that shape everything below. They intentionally favor
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Backend | **One shared FastAPI backend** (extend the existing app) | Shared accounts require a single source of truth for users. One DB, one `User` table = trivially correct auth. |
-| API exposure | **Dedicated `api.iotivate.dev`** | Both frontends (main + radar) call one clean API host. Cleanest CORS + cookie story for a multi-product platform. |
-| Auth / SSO | **Shared refresh cookie on `.iotivate.dev`** | Reuses the existing access/refresh token design. One login works on every subdomain. No central auth service needed (yet). |
+| API exposure | **Existing API host** (`NEXT_PUBLIC_API_URL`) | The one frontend calls the one backend, exactly as it does today. No new API subdomain required for radar. |
+| Auth / SSO | **Native — same origin** | Radar routes live in the main app, so they share its session and auth context directly. Nothing to configure. |
 | Billing | **Reuse `is_pro` + Lemon Squeezy** | One IoTivate Pro unlocks radar Pro features. Matches the "one account" promise. |
-| Radar frontend | **New Next.js app, separate Vercel project** at `radar.iotivate.dev` | Independent deploys and business logic; shares nothing but the API + design language. |
+| Radar frontend | **Routes in the existing Next.js app** under `/radar`, same Vercel project | Reuses the site's auth, nav, and design system; no separate deploy or duplicated auth code. |
 | Data models | **Concrete radar models now, extract generic core later** | `Device`/`User`/`Subscription` are shared; `RadarTelemetry`/`Zone`/`Rule` are radar-shaped. Don't force genericity before product #2 exists. |
 | Ingest/WS layer | **Modular now, splittable later** (Redis-ready) | Long-lived ESP32 connections + high-frequency telemetry scale differently from CRUD. Keep it isolated so it can move to its own process without touching auth. |
 
@@ -41,63 +51,49 @@ These are the decisions that shape everything below. They intentionally favor
 ## 3. System topology
 
 ```
-iotivate.dev                 radar.iotivate.dev
-(existing Next.js, Vercel)    (NEW Next.js, separate Vercel project)
-        \                            /
-         \   Authorization: Bearer  /
-          \  + shared .iotivate.dev refresh cookie
-           v                        v
-                api.iotivate.dev
-              (ONE FastAPI backend)
-                       |
+              iotivate.dev  (existing Next.js, Vercel)
+        /projects  /tools  /blog  /store        /radar   ← new routes
+                              |
+                   Authorization: Bearer (same site session)
+                              v
+                     existing FastAPI backend
+                              |
         ┌──────────────┴───────────────┐
    shared platform                 radar module
    • users / auth                  • /api/radar/* REST
    • billing (is_pro)              • /ws/radar   WebSocket ingest + fan-out
    • device registry               • zones / rules / actions engine
    • notifications                 • telemetry storage
-                       |
+                              |
                   one Postgres  (+ Redis for WS pub/sub, added when needed)
 
-Device path:  mmWave radar → ESP32 → WSS → api.iotivate.dev → browser dashboard
+Device path:  mmWave radar → ESP32 → WSS → backend → browser dashboard
 ```
 
-The ESP32 authenticates with a **per-device token** and holds **one persistent
-WebSocket** connection to `api.iotivate.dev`.
+The browser dashboard is served from `iotivate.dev/radar`. The ESP32
+authenticates with a **per-device token** and holds **one persistent WebSocket**
+connection to the backend.
 
 ---
 
-## 4. Shared account & SSO (the key mechanism)
+## 4. Shared account (native, same-origin)
 
-The existing auth already issues two tokens:
+Because radar is a set of routes inside the existing site, it runs on the same
+origin as the rest of `iotivate.dev` and reuses the app's auth context
+directly. The existing two-token design is unchanged:
 
 - **Access token** — short-lived JWT, returned in the response body, held in
-  memory per-app, sent as `Authorization: Bearer`.
-- **Refresh token** — httponly cookie (`samesite=lax`, `path=/api/auth`).
+  memory, sent as `Authorization: Bearer`.
+- **Refresh token** — httponly cookie (`samesite=lax`, `path=/api/auth`), set
+  host-only by the API exactly as it is today.
 
-**The only change required for cross-subdomain SSO:** set the refresh cookie's
-domain to the parent.
+A user signed in anywhere on the site is signed in on `/radar` — there is no
+second login and **no cross-origin cookie, CORS, or domain configuration** to
+manage. Radar pages call `POST /api/auth/refresh` through the same
+`authFetch`/`AuthProvider` the rest of the app uses.
 
-```python
-# backend/app/api/auth.py  →  _set_refresh_cookie()
-kwargs["domain"] = ".iotivate.dev"   # leading dot → shared across all subdomains
-```
-
-Resulting flow:
-
-1. User logs in on either `iotivate.dev` or `radar.iotivate.dev`.
-2. Refresh cookie is written to `.iotivate.dev`.
-3. The other subdomain loads → calls `POST /api/auth/refresh` → the shared
-   cookie is sent automatically → it receives its own access token.
-4. **One login, both products.**
-
-**Supporting changes:**
-- CORS: allow both `https://iotivate.dev` and `https://radar.iotivate.dev`
-  origins, `allow_credentials=True`.
-- Cookie must be `Secure` in production (already gated on HTTPS).
-- Local dev: use a shared parent host (e.g. `iotivate.localhost` /
-  `radar.iotivate.localhost`) so the `.iotivate.localhost` cookie behaves the
-  same as production.
+> This is the payoff of the v3 path-based decision: the entire cross-subdomain
+> SSO mechanism the v2 draft required simply doesn't exist here.
 
 ---
 
@@ -185,8 +181,8 @@ Ordered so the **shared platform is proven first**, then radar-specific value.
 
 | Phase | Deliverable |
 |-------|-------------|
-| 0 | **Cross-subdomain SSO** — `.iotivate.dev` refresh cookie, `api.iotivate.dev`, CORS. Prove one login works on a stub `radar.iotivate.dev`. |
-| 1 | Radar Next.js app scaffold + shared auth/session hooks reused from main site. |
+| 0 | **Radar section scaffold** — `/radar` routes in the existing app, reusing its auth context (same-origin, so SSO is native — no cookie/CORS work). |
+| 1 | Radar landing + navigation entry; auth-gated `/radar` area wired to the shared session. |
 | 2 | Device registration & pairing (QR / pairing code, device tokens). |
 | 3 | ESP32 ⇄ backend secure WebSocket (auth, connection manager). |
 | 4 | Live radar dashboard (XY tracking, single device). |
@@ -194,7 +190,7 @@ Ordered so the **shared platform is proven first**, then radar-specific value.
 | 6 | Zones & rules engine + notifications. |
 | 7 | Remote alarm action (ESP32 trigger over WS). |
 | 8 | Analytics & history (Pro-gated depth). |
-| 9 | Public landing page + SEO for `radar.iotivate.dev`. |
+| 9 | Public landing page + SEO for `iotivate.dev/radar`. |
 
 **Scaling checkpoint:** introduce **Redis pub/sub** for WS fan-out (and
 consider splitting the ingest layer into its own process) when concurrent
