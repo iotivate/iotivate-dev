@@ -79,24 +79,34 @@ def verify_refresh_token(token: str, session: Session) -> tuple[User, bool]:
     return user, remember
 
 
+def verify_access_token(token: str, session: Session) -> User:
+    """Decode an access-token JWT and return the user, or raise 401.
+
+    Factored out of get_current_user so non-HTTP entry points (e.g. the radar
+    WebSocket, where the token arrives as a query param rather than a Bearer
+    header) can authenticate a user the same way."""
+    credentials_exc = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+        username: str | None = payload.get("sub")
+        if username is None:
+            raise credentials_exc
+    except JWTError:
+        raise credentials_exc
+
+    user = session.exec(select(User).where(User.username == username)).first()
+    if user is None:
+        raise credentials_exc
+    return user
+
+
 def get_current_user(
     token: str | None = Depends(oauth2_scheme),
     session: Session = Depends(get_session),
 ) -> User:
     if token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
-        username: str | None = payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-    user = session.exec(select(User).where(User.username == username)).first()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return user
+    return verify_access_token(token, session)
 
 
 def create_reset_token(user: User) -> str:
