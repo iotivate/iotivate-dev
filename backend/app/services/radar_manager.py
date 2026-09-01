@@ -37,10 +37,14 @@ class RadarConnectionManager:
                 pass
         self._devices[device_id] = ws
 
-    def unregister_device(self, device_id: int, ws: WebSocket) -> None:
-        # Guard against a superseded socket unregistering the live one.
+    def unregister_device(self, device_id: int, ws: WebSocket) -> bool:
+        """Remove the device's socket. Returns True only if `ws` was the live
+        connection — a superseded socket cleaning up returns False, so callers
+        don't broadcast a spurious offline for a device that reconnected."""
         if self._devices.get(device_id) is ws:
             del self._devices[device_id]
+            return True
+        return False
 
     def register_subscriber(self, device_id: int, ws: WebSocket) -> None:
         self._subscribers[device_id].add(ws)

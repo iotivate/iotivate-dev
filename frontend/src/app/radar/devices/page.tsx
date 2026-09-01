@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import QRCode from "qrcode";
 import { useAuth } from "@/lib/auth";
 import {
@@ -198,6 +199,14 @@ export default function RadarDevicesPage() {
                 </div>
               </div>
               <div className="flex gap-2">
+                {d.pairing_state === "paired" && (
+                  <Link
+                    href={`/radar/devices/${d.id}`}
+                    className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-background"
+                  >
+                    Dashboard
+                  </Link>
+                )}
                 {(d.role === "owner" || d.role === "admin") && (
                   <button
                     onClick={() => handleRegenerate(d.id)}

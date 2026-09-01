@@ -39,6 +39,17 @@ export function listDevices(): Promise<PaginatedResponse<Device>> {
   return authFetch(`${API_URL}/api/devices/`).then((r) => asJson<PaginatedResponse<Device>>(r));
 }
 
+export function getDevice(deviceId: number): Promise<Device> {
+  return authFetch(`${API_URL}/api/devices/${deviceId}`).then((r) => asJson<Device>(r));
+}
+
+/** WebSocket URL for a device's live telemetry stream. Browsers can't set
+ *  headers on a WebSocket, so the access token rides as a query param. */
+export function radarSubscribeUrl(deviceId: number, accessToken: string): string {
+  const wsBase = API_URL.replace(/^http/, "ws");
+  return `${wsBase}/ws/radar/subscribe/${deviceId}?token=${encodeURIComponent(accessToken)}`;
+}
+
 export function createDevice(name: string): Promise<DeviceCreated> {
   return authFetch(`${API_URL}/api/devices/`, {
     method: "POST",

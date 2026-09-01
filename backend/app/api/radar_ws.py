@@ -59,6 +59,8 @@ async def device_ws(websocket: WebSocket, session: Session = Depends(get_session
 
     await websocket.accept()
     await manager.register_device(device_id, websocket)
+    # Tell dashboards the device just came online.
+    await manager.broadcast(device_id, {"type": "status", "device_id": device_id, "online": True})
     logger.info("radar device %s connected", device_id)
     try:
         while True:
@@ -72,7 +74,9 @@ async def device_ws(websocket: WebSocket, session: Session = Depends(get_session
     except WebSocketDisconnect:
         pass
     finally:
-        manager.unregister_device(device_id, websocket)
+        # Only announce offline if this was the live socket (not a superseded one).
+        if manager.unregister_device(device_id, websocket):
+            await manager.broadcast(device_id, {"type": "status", "device_id": device_id, "online": False})
         logger.info("radar device %s disconnected", device_id)
 
 

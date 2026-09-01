@@ -62,11 +62,24 @@ class TestSubscriber:
             assert hello["online"] is False  # device not connected yet
 
             with client.websocket_connect(f"/ws/radar/device?token={dev_token}") as dev:
+                assert sub.receive_json()["online"] is True  # device-online status
                 dev.send_json({"type": "telemetry", "seq": 7, "targets": [{"x": 1.5, "y": 2.5}]})
                 frame = sub.receive_json()
                 assert frame["device_id"] == device_id
                 assert frame["seq"] == 7
                 assert frame["targets"][0]["x"] == 1.5
+
+    def test_subscriber_notified_of_device_online_and_offline(self, client, auth_headers, test_user):
+        device_id, dev_token = _paired_device(client, auth_headers)
+        user_token = create_access_token({"sub": test_user.username})
+        with client.websocket_connect(f"/ws/radar/subscribe/{device_id}?token={user_token}") as sub:
+            assert sub.receive_json()["online"] is False  # initial hello, device offline
+            with client.websocket_connect(f"/ws/radar/device?token={dev_token}") as dev:
+                online = sub.receive_json()
+                assert online["type"] == "status" and online["online"] is True
+                dev.close()
+                offline = sub.receive_json()
+                assert offline["type"] == "status" and offline["online"] is False
 
     def test_non_member_rejected(self, client, auth_headers, session):
         device_id, _ = _paired_device(client, auth_headers)
