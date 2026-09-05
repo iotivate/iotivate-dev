@@ -20,6 +20,7 @@ from app.models.device import (
     ROLE_VIEWER,
 )
 from app.models.user import User
+from app.services.radar_manager import manager
 from app.schemas.device import (
     DeviceCreatedResponse,
     DeviceCreateRequest,
@@ -43,6 +44,12 @@ PAIRING_CODE_TTL_MINUTES = 15
 
 # Role hierarchy for permission checks (higher = more privileged).
 _ROLE_RANK = {ROLE_VIEWER: 0, ROLE_ADMIN: 1, ROLE_OWNER: 2}
+
+# A device is considered online if its socket is live in this process, or it has
+# checked in within this window (survives a restart / spans workers without
+# Redis). Set larger than the WS heartbeat interval so a healthy streaming
+# device never flickers offline between heartbeats.
+ONLINE_THRESHOLD_SECONDS = 45
 
 
 def _utcnow() -> datetime:
@@ -109,9 +116,27 @@ def _device_for_user(session: Session, device_id: int, user: User, min_role: str
     return device, membership
 
 
+def _is_online(device: Device, live: bool) -> bool:
+    """Live socket in this process, else a recent heartbeat as a durable fallback."""
+    if live:
+        return True
+    last = device.last_seen_at
+    if last is None:
+        return False
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    return (_utcnow() - last).total_seconds() <= ONLINE_THRESHOLD_SECONDS
+
+
 def _to_response(device: Device, role: str | None = None) -> DeviceResponse:
     resp = DeviceResponse.model_validate(device)
     resp.role = role
+    stats = manager.device_stats(device.id)
+    resp.online = _is_online(device, stats["online"])
+    resp.last_frame_at = stats["last_frame_at"]
+    resp.frame_rate = stats["frame_rate"]
+    resp.target_count = stats["target_count"]
+    resp.subscriber_count = stats["subscriber_count"]
     return resp
 
 

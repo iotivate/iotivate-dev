@@ -12,6 +12,7 @@ secure transport, auth, and connection manager.
 """
 
 import logging
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
@@ -27,6 +28,11 @@ from app.services.radar_manager import manager
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["radar-ws"])
+
+# How often a streaming device's last_seen_at is flushed to the DB. Throttled so
+# high-rate telemetry (10-20 Hz) doesn't turn into a per-frame write storm; the
+# REST online-threshold is set comfortably larger than this (see devices.py).
+HEARTBEAT_INTERVAL_SECONDS = 30.0
 
 
 def _extract_token(websocket: WebSocket) -> str | None:
@@ -62,6 +68,7 @@ async def device_ws(websocket: WebSocket, session: Session = Depends(get_session
     # Tell dashboards the device just came online.
     await manager.broadcast(device_id, {"type": "status", "device_id": device_id, "online": True})
     logger.info("radar device %s connected", device_id)
+    last_heartbeat = time.monotonic()
     try:
         while True:
             raw = await websocket.receive_json()
@@ -70,7 +77,16 @@ async def device_ws(websocket: WebSocket, session: Session = Depends(get_session
             except ValidationError:
                 await websocket.send_json({"type": "error", "detail": "invalid frame"})
                 continue
+            manager.record_frame(device_id, len(frame.targets))
             await manager.broadcast(device_id, {"device_id": device_id, **frame.model_dump()})
+            # Throttled heartbeat so last_seen_at stays fresh across a long
+            # session without a DB write per frame.
+            now = time.monotonic()
+            if now - last_heartbeat >= HEARTBEAT_INTERVAL_SECONDS:
+                device.last_seen_at = datetime.now(timezone.utc)
+                session.add(device)
+                session.commit()
+                last_heartbeat = now
     except WebSocketDisconnect:
         pass
     finally:

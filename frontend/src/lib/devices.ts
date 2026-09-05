@@ -13,6 +13,12 @@ export interface Device {
   created_at: string;
   paired_at: string | null;
   role: "owner" | "admin" | "viewer" | null;
+  // Live health, computed server-side per request (null/0 unless streaming).
+  online: boolean;
+  last_frame_at: string | null;
+  frame_rate: number | null;
+  target_count: number | null;
+  subscriber_count: number;
 }
 
 export interface PairingInfo {

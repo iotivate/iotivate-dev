@@ -38,6 +38,15 @@ class DeviceResponse(BaseModel):
     paired_at: datetime | None = None
     role: str | None = None  # the requesting user's role, filled per-request
 
+    # Live health, filled per-request from the connection manager (not stored).
+    # `online` combines the in-memory registry with a recent-heartbeat fallback;
+    # the rest are None/0 unless the device is currently streaming.
+    online: bool = False
+    last_frame_at: datetime | None = None
+    frame_rate: float | None = None
+    target_count: int | None = None
+    subscriber_count: int = 0
+
     model_config = {"from_attributes": True}
 
 
