@@ -166,6 +166,17 @@ def get_admin_user(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_pro(user: User = Depends(get_current_user)) -> User:
+    """Gate a Pro-only feature. `is_pro` reflects the Lemon Squeezy subscription
+    (active/on_trial, or cancelled within its grace period)."""
+    if not user.is_pro:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A Pro subscription is required for this feature",
+        )
+    return user
+
+
 def _hash_device_secret(secret: str) -> str:
     return hashlib.sha256(secret.encode()).hexdigest()
 

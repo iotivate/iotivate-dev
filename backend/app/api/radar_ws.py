@@ -24,6 +24,7 @@ from app.database import get_session
 from app.models.device import DeviceUser
 from app.schemas.radar import RadarFrame
 from app.services.radar_manager import manager
+from app.services.rule_engine import rule_engine
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,10 @@ async def device_ws(websocket: WebSocket, session: Session = Depends(get_session
     await manager.register_device(device_id, websocket)
     # Tell dashboards the device just came online.
     await manager.broadcast(device_id, {"type": "status", "device_id": device_id, "online": True})
+    # Preload this device's zones/rules so the frame loop never hits the DB to
+    # discover them; start with fresh enter/exit/dwell state for the session.
+    rule_engine.reset(device_id)
+    rule_engine.warm(device_id, session)
     logger.info("radar device %s connected", device_id)
     last_heartbeat = time.monotonic()
     try:
@@ -79,6 +84,12 @@ async def device_ws(websocket: WebSocket, session: Session = Depends(get_session
                 continue
             manager.record_frame(device_id, len(frame.targets))
             await manager.broadcast(device_id, {"device_id": device_id, **frame.model_dump()})
+            # Evaluate zones/rules against this frame. Isolated so a rule bug can
+            # never break the telemetry stream.
+            try:
+                await rule_engine.evaluate(device_id, frame, session)
+            except Exception:  # noqa: BLE001 - never let rule eval kill fan-out
+                logger.exception("rule evaluation failed for device %s", device_id)
             # Throttled heartbeat so last_seen_at stays fresh across a long
             # session without a DB write per frame.
             now = time.monotonic()
@@ -93,6 +104,7 @@ async def device_ws(websocket: WebSocket, session: Session = Depends(get_session
         # Only announce offline if this was the live socket (not a superseded one).
         if manager.unregister_device(device_id, websocket):
             await manager.broadcast(device_id, {"type": "status", "device_id": device_id, "online": False})
+            rule_engine.reset(device_id)
         logger.info("radar device %s disconnected", device_id)
 
 
