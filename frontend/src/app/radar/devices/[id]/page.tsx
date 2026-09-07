@@ -9,6 +9,7 @@ import { createZone, deleteZone, listZones, TRIGGER_LABELS, type TriggerType, ty
 import RulesPanel from "@/components/radar/RulesPanel";
 import EventsTimeline from "@/components/radar/EventsTimeline";
 import AnalyticsPanel from "@/components/radar/AnalyticsPanel";
+import { Siren } from "@/lib/siren";
 
 /*
  * Radar dashboard for a single device (Phase 4 + Phase 6b).
@@ -219,6 +220,8 @@ export default function RadarDashboardPage() {
   const [alarmActive, setAlarmActive] = useState(false);
   const [alarmSource, setAlarmSource] = useState<string | null>(null);
   const [alarmBusy, setAlarmBusy] = useState(false);
+  const [sirenMuted, setSirenMuted] = useState(false);
+  const sirenRef = useRef<Siren | null>(null);
 
   const canControl = device?.role === "owner" || device?.role === "admin";
 
@@ -281,6 +284,27 @@ export default function RadarDashboardPage() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  // Siren: create once, unlock on first user gesture (autoplay policy), and
+  // stop on unmount.
+  useEffect(() => {
+    const siren = new Siren();
+    sirenRef.current = siren;
+    const unlock = () => siren.unlock();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      siren.stop();
+    };
+  }, []);
+
+  // Wail while the alarm is active and not muted.
+  useEffect(() => {
+    const siren = sirenRef.current;
+    if (!siren) return;
+    if (alarmActive && !sirenMuted) siren.start();
+    else siren.stop();
+  }, [alarmActive, sirenMuted]);
 
   const pushToast = useCallback((title: string, sub: string) => {
     const id = ++toastIdRef.current;
@@ -520,15 +544,25 @@ export default function RadarDashboardPage() {
           className="flex animate-pulse items-center justify-between gap-4 rounded-lg border border-red-500 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-300"
         >
           <span>🚨 Alarm active{alarmSource ? ` (${alarmSource})` : ""}</span>
-          {canControl && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => handleAlarm("off")}
-              disabled={alarmBusy}
-              className="rounded-lg border border-red-500 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-500/10 disabled:opacity-50 dark:text-red-300"
+              onClick={() => setSirenMuted((m) => !m)}
+              className="rounded-lg border border-red-500 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-500/10 dark:text-red-300"
+              aria-label={sirenMuted ? "Unmute siren" : "Mute siren"}
+              title={sirenMuted ? "Unmute siren" : "Mute siren"}
             >
-              Silence
+              {sirenMuted ? "🔇" : "🔊"}
             </button>
-          )}
+            {canControl && (
+              <button
+                onClick={() => handleAlarm("off")}
+                disabled={alarmBusy}
+                className="rounded-lg border border-red-500 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-500/10 disabled:opacity-50 dark:text-red-300"
+              >
+                Silence
+              </button>
+            )}
+          </div>
         </div>
       )}
 
