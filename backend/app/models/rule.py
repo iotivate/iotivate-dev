@@ -38,6 +38,9 @@ class Rule(SQLModel, table=True):
     action_dashboard: bool = Field(default=True)
     action_email: bool = Field(default=False)
     notify_email: str | None = Field(default=None, max_length=255)
+    # Send an alarm command down the device's WebSocket when the rule fires.
+    action_alarm: bool = Field(default=False)
+    alarm_duration_ms: int | None = Field(default=None)
 
     enabled: bool = Field(default=True)
     created_at: datetime = Field(default_factory=_utcnow)

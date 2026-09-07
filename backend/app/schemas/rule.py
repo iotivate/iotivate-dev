@@ -38,6 +38,8 @@ class RuleCreate(BaseModel):
     action_dashboard: bool = True
     action_email: bool = False
     notify_email: EmailStr | None = None
+    action_alarm: bool = False
+    alarm_duration_ms: int | None = Field(default=None, ge=0, le=3_600_000)
     enabled: bool = True
 
     @model_validator(mode="after")
@@ -64,6 +66,8 @@ class RuleUpdate(BaseModel):
     action_dashboard: bool | None = None
     action_email: bool | None = None
     notify_email: EmailStr | None = None
+    action_alarm: bool | None = None
+    alarm_duration_ms: int | None = Field(default=None, ge=0, le=3_600_000)
     enabled: bool | None = None
 
 
@@ -79,6 +83,8 @@ class RuleResponse(BaseModel):
     action_dashboard: bool
     action_email: bool
     notify_email: str | None = None
+    action_alarm: bool
+    alarm_duration_ms: int | None = None
     enabled: bool
     created_at: datetime
     updated_at: datetime

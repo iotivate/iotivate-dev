@@ -172,6 +172,8 @@ def create_rule(
         action_dashboard=data.action_dashboard,
         action_email=data.action_email,
         notify_email=data.notify_email,
+        action_alarm=data.action_alarm,
+        alarm_duration_ms=data.alarm_duration_ms,
         enabled=data.enabled,
     )
     session.add(rule)

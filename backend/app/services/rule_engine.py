@@ -28,6 +28,7 @@ from app.models.rule import (
     TRIGGER_OCCUPANCY,
 )
 from app.models.zone import Zone
+from app.schemas.alarm import build_alarm_command
 from app.services.email import send_email
 from app.services.radar_manager import manager
 
@@ -182,6 +183,22 @@ class RuleEngine:
 
         if rule.action_email and rule.notify_email:
             self._dispatch_email(rule, detail)
+
+        if rule.action_alarm:
+            delivered = await manager.send_to_device(
+                device_id, build_alarm_command("on", rule.alarm_duration_ms)
+            )
+            await manager.broadcast(
+                device_id,
+                {
+                    "type": "alarm",
+                    "device_id": device_id,
+                    "state": "on",
+                    "source": "rule",
+                    "rule_id": rule.id,
+                    "delivered": delivered,
+                },
+            )
 
     def _dispatch_email(self, rule: Rule, detail: dict) -> None:
         """Send the alert email without blocking the frame loop. send_email uses

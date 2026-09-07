@@ -123,6 +123,19 @@ class RadarConnectionManager:
             "subscriber_count": self.subscriber_count(device_id),
         }
 
+    async def send_to_device(self, device_id: int, message: dict) -> bool:
+        """Send a command to a device's producer socket. Returns False if the
+        device is offline or the socket errors (best-effort, fire-and-forget)."""
+        ws = self._devices.get(device_id)
+        if ws is None:
+            return False
+        try:
+            await ws.send_json(message)
+            return True
+        except Exception:  # noqa: BLE001 - a dead socket means undelivered
+            logger.warning("failed to send command to device %s", device_id)
+            return False
+
     async def broadcast(self, device_id: int, message: dict) -> None:
         """Send a message to all of a device's subscribers, dropping any that
         error (already-closed sockets)."""

@@ -21,6 +21,7 @@ from app.models.device import (
 )
 from app.models.user import User
 from app.services.radar_manager import manager
+from app.schemas.alarm import AlarmTriggerRequest, build_alarm_command
 from app.schemas.device import (
     DeviceCreatedResponse,
     DeviceCreateRequest,
@@ -228,6 +229,31 @@ def delete_device(
         session.delete(du)
     session.delete(device)
     session.commit()
+
+
+@router.post("/{device_id}/alarm")
+@limiter.limit("30/minute")
+async def trigger_alarm(
+    request: Request,
+    data: AlarmTriggerRequest,
+    device_id: int = Path(ge=1),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Manually turn a device's alarm on/off. Owner/admin only (a control
+    action), any subscription tier. Rule-triggered alarms go through the engine."""
+    _device_for_user(session, device_id, user, ROLE_ADMIN)
+    if not manager.is_device_online(device_id):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Device is offline")
+    delivered = await manager.send_to_device(
+        device_id, build_alarm_command(data.state, data.duration_ms)
+    )
+    # Reflect intent to every dashboard so the alarm banner stays in sync.
+    await manager.broadcast(
+        device_id,
+        {"type": "alarm", "device_id": device_id, "state": data.state, "source": "manual", "delivered": delivered},
+    )
+    return {"delivered": delivered, "state": data.state}
 
 
 @router.post("/pair", response_model=DevicePairResponse)
