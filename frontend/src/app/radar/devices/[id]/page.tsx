@@ -8,6 +8,7 @@ import { getDevice, radarSubscribeUrl, triggerAlarm, type Device } from "@/lib/d
 import { createZone, deleteZone, listZones, TRIGGER_LABELS, type TriggerType, type Zone } from "@/lib/zones";
 import RulesPanel from "@/components/radar/RulesPanel";
 import EventsTimeline from "@/components/radar/EventsTimeline";
+import AnalyticsPanel from "@/components/radar/AnalyticsPanel";
 
 /*
  * Radar dashboard for a single device (Phase 4 + Phase 6b).
@@ -668,6 +669,7 @@ export default function RadarDashboardPage() {
 
       <RulesPanel deviceId={deviceId} zones={zones} reloadSignal={reloadSignal} />
       <EventsTimeline deviceId={deviceId} zones={zones} reloadSignal={reloadSignal} />
+      <AnalyticsPanel deviceId={deviceId} reloadSignal={reloadSignal} />
     </div>
   );
 }
