@@ -38,6 +38,8 @@ export interface Rule {
   action_dashboard: boolean;
   action_email: boolean;
   notify_email: string | null;
+  action_alarm: boolean;
+  alarm_duration_ms: number | null;
   enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -53,6 +55,8 @@ export interface RuleCreate {
   action_dashboard?: boolean;
   action_email?: boolean;
   notify_email?: string | null;
+  action_alarm?: boolean;
+  alarm_duration_ms?: number | null;
   enabled?: boolean;
 }
 

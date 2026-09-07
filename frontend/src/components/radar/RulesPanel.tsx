@@ -40,6 +40,8 @@ interface FormState {
   action_dashboard: boolean;
   action_email: boolean;
   notify_email: string;
+  action_alarm: boolean;
+  alarm_duration_s: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -52,6 +54,8 @@ const EMPTY_FORM: FormState = {
   action_dashboard: true,
   action_email: false,
   notify_email: "",
+  action_alarm: false,
+  alarm_duration_s: "10",
 };
 
 export default function RulesPanel({
@@ -123,6 +127,10 @@ export default function RulesPanel({
       action_dashboard: form.action_dashboard,
       action_email: form.action_email,
       notify_email: form.action_email ? form.notify_email.trim() : null,
+      action_alarm: form.action_alarm,
+      alarm_duration_ms: form.action_alarm && form.alarm_duration_s
+        ? Number(form.alarm_duration_s) * 1000
+        : null,
     };
     if (form.trigger_type === "dwell") body.dwell_seconds = Number(form.dwell_seconds) || 0;
     if (form.trigger_type === "occupancy") body.occupancy_threshold = Number(form.occupancy_threshold) || 0;
@@ -191,7 +199,7 @@ export default function RulesPanel({
                 </div>
                 <div className="mt-0.5 text-xs text-muted">
                   {zoneName.get(r.zone_id) ?? "zone"} · {triggerSummary(r)} · alerts:{" "}
-                  {[r.action_dashboard && "dashboard", r.action_email && "email"].filter(Boolean).join(", ") || "none"}
+                  {[r.action_dashboard && "dashboard", r.action_email && "email", r.action_alarm && "alarm"].filter(Boolean).join(", ") || "none"}
                 </div>
               </div>
               {isPro && (
@@ -321,6 +329,27 @@ export default function RulesPanel({
                 required
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
               />
+            )}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.action_alarm}
+                onChange={(e) => set("action_alarm", e.target.checked)}
+              />
+              Sound the device alarm
+            </label>
+            {form.action_alarm && (
+              <label className="flex items-center gap-2 text-sm text-muted">
+                Auto-off after
+                <input
+                  type="number"
+                  min={0}
+                  value={form.alarm_duration_s}
+                  onChange={(e) => set("alarm_duration_s", e.target.value)}
+                  className="w-20 rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                />
+                seconds (0 = until turned off)
+              </label>
             )}
           </div>
 

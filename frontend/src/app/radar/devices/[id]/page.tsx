@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth, usePro } from "@/lib/auth";
-import { getDevice, radarSubscribeUrl, type Device } from "@/lib/devices";
+import { getDevice, radarSubscribeUrl, triggerAlarm, type Device } from "@/lib/devices";
 import { createZone, deleteZone, listZones, TRIGGER_LABELS, type TriggerType, type Zone } from "@/lib/zones";
 import RulesPanel from "@/components/radar/RulesPanel";
 import EventsTimeline from "@/components/radar/EventsTimeline";
@@ -215,6 +215,11 @@ export default function RadarDashboardPage() {
   const [zoneError, setZoneError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [reloadSignal, setReloadSignal] = useState(0);
+  const [alarmActive, setAlarmActive] = useState(false);
+  const [alarmSource, setAlarmSource] = useState<string | null>(null);
+  const [alarmBusy, setAlarmBusy] = useState(false);
+
+  const canControl = device?.role === "owner" || device?.role === "admin";
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const targetsRef = useRef<Target[]>([]);
@@ -331,6 +336,9 @@ export default function RadarDashboardPage() {
           );
           // Refresh the events timeline.
           setReloadSignal((n) => n + 1);
+        } else if (msg.type === "alarm") {
+          setAlarmActive(msg.state === "on");
+          setAlarmSource(typeof msg.source === "string" ? msg.source : null);
         }
       };
 
@@ -431,6 +439,22 @@ export default function RadarDashboardPage() {
     }
   }
 
+  async function handleAlarm(state: "on" | "off") {
+    if (alarmBusy) return;
+    setAlarmBusy(true);
+    setZoneError(null);
+    try {
+      await triggerAlarm(deviceId, state);
+      // The server broadcasts the new state back; optimistic update for snappiness.
+      setAlarmActive(state === "on");
+      setAlarmSource("manual");
+    } catch (err) {
+      setZoneError(err instanceof Error ? err.message : "Failed to send alarm command");
+    } finally {
+      setAlarmBusy(false);
+    }
+  }
+
   const statusLabel = useMemo(() => {
     if (conn === "open") return online ? "Live" : "Waiting for device";
     if (conn === "connecting") return "Connecting…";
@@ -489,6 +513,24 @@ export default function RadarDashboardPage() {
         </div>
       )}
 
+      {alarmActive && (
+        <div
+          role="alert"
+          className="flex animate-pulse items-center justify-between gap-4 rounded-lg border border-red-500 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-300"
+        >
+          <span>🚨 Alarm active{alarmSource ? ` (${alarmSource})` : ""}</span>
+          {canControl && (
+            <button
+              onClick={() => handleAlarm("off")}
+              disabled={alarmBusy}
+              className="rounded-lg border border-red-500 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-500/10 disabled:opacity-50 dark:text-red-300"
+            >
+              Silence
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Targets" value={String(count)} />
         <Stat label="Frame" value={seq !== null ? `#${seq}` : "—"} />
@@ -500,21 +542,37 @@ export default function RadarDashboardPage() {
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Live map</h2>
-          {isPro ? (
-            <button
-              onClick={() => {
-                setDrawMode((d) => !d);
-                setPending(null);
-              }}
-              className={`rounded-lg border px-3 py-1.5 text-sm ${
-                drawMode ? "border-accent bg-accent/10 text-accent" : "border-border hover:bg-surface"
-              }`}
-            >
-              {drawMode ? "Drawing… (drag on map)" : "Draw zone"}
-            </button>
-          ) : (
-            <span className="text-xs text-muted">Zones & rules are a Pro feature</span>
-          )}
+          <div className="flex items-center gap-2">
+            {canControl && (
+              <button
+                onClick={() => handleAlarm(alarmActive ? "off" : "on")}
+                disabled={alarmBusy || !online}
+                title={online ? "" : "Device is offline"}
+                className={`rounded-lg border px-3 py-1.5 text-sm disabled:opacity-50 ${
+                  alarmActive
+                    ? "border-red-500 text-red-600 hover:bg-red-500/10 dark:text-red-300"
+                    : "border-border hover:bg-surface"
+                }`}
+              >
+                {alarmActive ? "Silence alarm" : "Trigger alarm"}
+              </button>
+            )}
+            {isPro ? (
+              <button
+                onClick={() => {
+                  setDrawMode((d) => !d);
+                  setPending(null);
+                }}
+                className={`rounded-lg border px-3 py-1.5 text-sm ${
+                  drawMode ? "border-accent bg-accent/10 text-accent" : "border-border hover:bg-surface"
+                }`}
+              >
+                {drawMode ? "Drawing… (drag on map)" : "Draw zone"}
+              </button>
+            ) : (
+              <span className="text-xs text-muted">Zones & rules are a Pro feature</span>
+            )}
+          </div>
         </div>
 
         {zoneError && <p className="text-sm text-red-600">{zoneError}</p>}

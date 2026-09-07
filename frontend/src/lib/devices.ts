@@ -56,6 +56,18 @@ export function radarSubscribeUrl(deviceId: number, accessToken: string): string
   return `${wsBase}/ws/radar/subscribe/${deviceId}?token=${encodeURIComponent(accessToken)}`;
 }
 
+export function triggerAlarm(
+  deviceId: number,
+  state: "on" | "off",
+  durationMs?: number,
+): Promise<{ delivered: boolean; state: string }> {
+  return authFetch(`${API_URL}/api/devices/${deviceId}/alarm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(durationMs != null ? { state, duration_ms: durationMs } : { state }),
+  }).then((r) => asJson<{ delivered: boolean; state: string }>(r));
+}
+
 export function createDevice(name: string): Promise<DeviceCreated> {
   return authFetch(`${API_URL}/api/devices/`, {
     method: "POST",
