@@ -7,6 +7,7 @@ from app.models.webhook_event import WebhookEvent
 from app.models.device import Device, DeviceUser
 from app.models.zone import Zone
 from app.models.rule import Rule, RuleEvent
+from app.models.analytics import ZoneOccupancySample
 
 __all__ = [
     "Tool",

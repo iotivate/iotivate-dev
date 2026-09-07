@@ -27,12 +27,17 @@ from app.models.rule import (
     TRIGGER_EXIT,
     TRIGGER_OCCUPANCY,
 )
+from app.models.analytics import ZoneOccupancySample
 from app.models.zone import Zone
 from app.schemas.alarm import build_alarm_command
 from app.services.email import send_email
 from app.services.radar_manager import manager
 
 logger = logging.getLogger(__name__)
+
+# How often each zone's occupancy is persisted for analytics. Low rate keeps
+# write volume trivial while still charting presence over time.
+SAMPLE_INTERVAL_SECONDS = 60.0
 
 
 def point_in_polygon(x: float, y: float, points: list[dict]) -> bool:
@@ -68,6 +73,8 @@ class _DeviceRules:
     zones: dict[int, list]  # zone_id -> points
     rules: list[Rule]
     runtime: dict[int, _RuleRuntime] = field(default_factory=dict)
+    # zone_id -> monotonic time of the last persisted occupancy sample.
+    sample_ticks: dict[int, float] = field(default_factory=dict)
 
 
 class RuleEngine:
@@ -113,14 +120,19 @@ class RuleEngine:
         dr = self._cache.get(device_id)
         if dr is None or dr.version != self._version.get(device_id, 0):
             dr = self._load(device_id, session)
-        if not dr.rules:
+        if not dr.zones:
             return
 
         now = time.monotonic()
-        # Occupancy per zone for this frame.
+        # Occupancy per zone for this frame — used for both rules and sampling.
         counts: dict[int, int] = {}
         for zid, pts in dr.zones.items():
             counts[zid] = sum(1 for t in frame.targets if point_in_polygon(t.x, t.y, pts))
+
+        # Persist a low-rate occupancy sample for analytics (skipped in unit
+        # tests that pass no session).
+        if session is not None:
+            self._sample_occupancy(dr, device_id, counts, now, session)
 
         for rule in dr.rules:
             rt = dr.runtime[rule.id]
@@ -152,6 +164,18 @@ class RuleEngine:
 
             rt.occupied = occupied
             rt.last_count = count
+
+    def _sample_occupancy(
+        self, dr: _DeviceRules, device_id: int, counts: dict[int, int], now: float, session: Session
+    ) -> None:
+        wrote = False
+        for zid, cnt in counts.items():
+            if now - dr.sample_ticks.get(zid, -1e9) >= SAMPLE_INTERVAL_SECONDS:
+                dr.sample_ticks[zid] = now
+                session.add(ZoneOccupancySample(device_id=device_id, zone_id=zid, occupancy=cnt))
+                wrote = True
+        if wrote:
+            session.commit()
 
     async def _fire(self, rule: Rule, device_id: int, detail: dict, session: Session) -> None:
         event = RuleEvent(
