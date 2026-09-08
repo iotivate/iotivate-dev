@@ -237,7 +237,14 @@ class RuleEngine:
         )
         to_email = rule.notify_email
         loop = asyncio.get_running_loop()
-        loop.run_in_executor(None, send_email, subject, body, to_email)
+        future = loop.run_in_executor(None, send_email, subject, body, to_email)
+
+        def _log_failure(fut) -> None:
+            exc = fut.exception()
+            if exc is not None:
+                logger.warning("alert email to %s failed: %s", to_email, exc)
+
+        future.add_done_callback(_log_failure)
 
 
 # Process-wide singleton, mirroring radar_manager.

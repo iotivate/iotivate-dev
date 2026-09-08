@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 # Close codes (RFC 6455). 1012 = service restart / connection superseded.
 WS_SUPERSEDED = 1012
 
+# Per-subscriber send timeout on the fan-out path; a backpressured/slow socket
+# is dropped rather than stalling the device's frame loop indefinitely.
+SEND_TIMEOUT_SECONDS = 5.0
+
 # Frame-rate is computed from recent frame arrivals within this window. A short
 # window keeps the reading responsive to a device slowing down or stopping.
 _RATE_WINDOW_SECONDS = 5.0
@@ -176,16 +180,23 @@ class RadarConnectionManager:
         asyncio.create_task(_auto_off())
 
     async def broadcast(self, device_id: int, message: dict) -> None:
-        """Send a message to all of a device's subscribers, dropping any that
-        error (already-closed sockets)."""
-        dead: list[WebSocket] = []
-        for ws in list(self._subscribers.get(device_id, ())):
+        """Send a message to all of a device's subscribers concurrently, dropping
+        any that error or exceed the send timeout. Concurrency + timeout keep one
+        slow/backpressured dashboard from stalling the whole fan-out path."""
+        subs = list(self._subscribers.get(device_id, ()))
+        if not subs:
+            return
+
+        async def _send(ws: WebSocket) -> WebSocket | None:
             try:
-                await ws.send_json(message)
-            except Exception:  # noqa: BLE001 - a dead subscriber shouldn't break fan-out
-                dead.append(ws)
-        for ws in dead:
-            self.unregister_subscriber(device_id, ws)
+                await asyncio.wait_for(ws.send_json(message), timeout=SEND_TIMEOUT_SECONDS)
+                return None
+            except Exception:  # noqa: BLE001 - a dead/slow subscriber shouldn't break fan-out
+                return ws
+
+        for ws in await asyncio.gather(*(_send(ws) for ws in subs)):
+            if ws is not None:
+                self.unregister_subscriber(device_id, ws)
 
 
 # Process-wide singleton. Swap the internals for a Redis-backed implementation

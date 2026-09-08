@@ -11,6 +11,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Path, Query
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.auth import get_current_user
@@ -49,6 +50,15 @@ def analytics_summary(
 ) -> dict:
     _device_for_user(session, device_id, user, ROLE_VIEWER)
     cutoff = _naive_cutoff(window_hours)
+    # True total via COUNT so the headline number is accurate even when the
+    # aggregated breakdowns below are computed from a capped fetch.
+    total_events = session.exec(
+        select(func.count()).select_from(
+            select(RuleEvent.id)
+            .where(RuleEvent.device_id == device_id, RuleEvent.fired_at >= cutoff)
+            .subquery()
+        )
+    ).one()
     events = session.exec(
         select(RuleEvent)
         .where(RuleEvent.device_id == device_id, RuleEvent.fired_at >= cutoff)
@@ -68,7 +78,9 @@ def analytics_summary(
     names = _zone_names(session, device_id)
     return {
         "window_hours": window_hours,
-        "total_events": len(events),
+        "total_events": total_events,
+        # True if the breakdowns below are computed from a capped subset.
+        "breakdown_truncated": total_events > len(events),
         "by_trigger": by_trigger,
         "by_zone": [
             {"zone_id": zid, "name": names.get(zid, f"Zone {zid}"), "count": c}
