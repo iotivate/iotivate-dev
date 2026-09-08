@@ -242,7 +242,7 @@ export default function RadarDashboardPage() {
   const loadZones = useCallback(() => {
     if (!validId) return;
     listZones(deviceId)
-      .then(setZones)
+      .then((r) => setZones(r.items))
       .catch(() => {
         /* zones are non-critical; keep the live view usable */
       });

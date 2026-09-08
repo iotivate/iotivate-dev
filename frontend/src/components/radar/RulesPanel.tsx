@@ -83,7 +83,7 @@ export default function RulesPanel({
   const load = useCallback(() => {
     listRules(deviceId)
       .then((rs) => {
-        setRules(rs);
+        setRules(rs.items);
         setError(null);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load rules"));

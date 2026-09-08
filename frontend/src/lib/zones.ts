@@ -87,8 +87,10 @@ async function asJson<T>(res: Response): Promise<T> {
 }
 
 // --- Zones ---------------------------------------------------------------- //
-export function listZones(deviceId: number): Promise<Zone[]> {
-  return authFetch(`${API_URL}/api/devices/${deviceId}/zones`).then((r) => asJson<Zone[]>(r));
+export function listZones(deviceId: number): Promise<PaginatedResponse<Zone>> {
+  return authFetch(`${API_URL}/api/devices/${deviceId}/zones`).then((r) =>
+    asJson<PaginatedResponse<Zone>>(r),
+  );
 }
 
 export function createZone(deviceId: number, name: string, points: ZonePoint[]): Promise<Zone> {
@@ -107,8 +109,10 @@ export async function deleteZone(zoneId: number): Promise<void> {
 }
 
 // --- Rules ---------------------------------------------------------------- //
-export function listRules(deviceId: number): Promise<Rule[]> {
-  return authFetch(`${API_URL}/api/devices/${deviceId}/rules`).then((r) => asJson<Rule[]>(r));
+export function listRules(deviceId: number): Promise<PaginatedResponse<Rule>> {
+  return authFetch(`${API_URL}/api/devices/${deviceId}/rules`).then((r) =>
+    asJson<PaginatedResponse<Rule>>(r),
+  );
 }
 
 export function createRule(deviceId: number, body: RuleCreate): Promise<Rule> {

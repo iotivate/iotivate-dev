@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import QRCode from "qrcode";
 import { useAuth } from "@/lib/auth";
+import { timeAgo } from "@/lib/time";
 import {
   createDevice,
   deleteDevice,
@@ -16,19 +17,6 @@ import {
 
 // How often the fleet view refreshes device health while the tab is visible.
 const POLL_INTERVAL_MS = 10_000;
-
-function timeAgo(iso: string | null): string {
-  if (!iso) return "never";
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "never";
-  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (secs < 60) return `${secs}s ago`;
-  const mins = Math.round(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
-}
 
 /** Status dot color + a human summary line for a device's health. */
 function deviceHealth(d: Device): { dot: string; label: string; line: string } {

@@ -2,9 +2,11 @@ import pytest
 from sqlmodel import select
 
 from app.auth import create_access_token, hash_password
-from app.models.device import DeviceUser, ROLE_VIEWER
-from app.models.rule import RuleEvent
+from app.models.analytics import ZoneOccupancySample
+from app.models.device import Device, DeviceUser, ROLE_VIEWER
+from app.models.rule import Rule, RuleEvent
 from app.models.user import User
+from app.models.zone import Zone
 from app.services.rule_engine import rule_engine
 
 # A rectangle covering the whole default dashboard field, stored as 4 points.
@@ -62,7 +64,9 @@ class TestZoneCrud:
         assert len(zone["points"]) == 4
         listing = client.get(f"/api/devices/{dev['id']}/zones", headers=auth_headers)
         assert listing.status_code == 200
-        assert len(listing.json()) == 1
+        body = listing.json()
+        assert {"items", "total", "skip", "limit"} <= body.keys()
+        assert body["total"] == 1 and len(body["items"]) == 1
 
     def test_list_is_open_to_free_member(self, client, auth_headers, session, test_user):
         _make_pro(session, test_user)
@@ -73,7 +77,7 @@ class TestZoneCrud:
         session.add(test_user)
         session.commit()
         listing = client.get(f"/api/devices/{dev['id']}/zones", headers=auth_headers)
-        assert listing.status_code == 200 and len(listing.json()) == 1
+        assert listing.status_code == 200 and len(listing.json()["items"]) == 1
 
     def test_too_few_points_rejected(self, client, auth_headers, session, test_user):
         _make_pro(session, test_user)
@@ -132,7 +136,40 @@ class TestZoneCrud:
         assert rule.status_code == 201, rule.text
         d = client.delete(f"/api/zones/{zone['id']}", headers=auth_headers)
         assert d.status_code == 204
-        assert client.get(f"/api/devices/{did}/rules", headers=auth_headers).json() == []
+        assert client.get(f"/api/devices/{did}/rules", headers=auth_headers).json()["items"] == []
+
+    def test_delete_zone_removes_occupancy_samples(self, client, auth_headers, session, test_user):
+        _make_pro(session, test_user)
+        dev = _create_device(client, auth_headers)["device"]
+        zone = _create_zone(client, auth_headers, dev["id"])
+        session.add(ZoneOccupancySample(device_id=dev["id"], zone_id=zone["id"], occupancy=2))
+        session.commit()
+        assert client.delete(f"/api/zones/{zone['id']}", headers=auth_headers).status_code == 204
+        remaining = session.exec(
+            select(ZoneOccupancySample).where(ZoneOccupancySample.zone_id == zone["id"])
+        ).all()
+        assert remaining == []
+
+    def test_delete_device_cascades_all_radar_rows(self, client, auth_headers, session, test_user):
+        _make_pro(session, test_user)
+        dev = _create_device(client, auth_headers)["device"]
+        did = dev["id"]
+        zone = _create_zone(client, auth_headers, did)
+        client.post(
+            f"/api/devices/{did}/rules",
+            json={"zone_id": zone["id"], "name": "R", "trigger_type": "enter"},
+            headers=auth_headers,
+        )
+        session.add(ZoneOccupancySample(device_id=did, zone_id=zone["id"], occupancy=1))
+        session.add(RuleEvent(rule_id=1, device_id=did, zone_id=zone["id"], trigger_type="enter"))
+        session.commit()
+
+        assert client.delete(f"/api/devices/{did}", headers=auth_headers).status_code == 204
+        # No orphaned radar rows remain for the deleted device.
+        for model in (Zone, Rule, RuleEvent, ZoneOccupancySample):
+            rows = session.exec(select(model).where(model.device_id == did)).all()
+            assert rows == [], f"{model.__name__} rows survived device delete"
+        assert session.get(Device, did) is None
 
 
 class TestRuleValidation:

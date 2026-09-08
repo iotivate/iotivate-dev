@@ -13,11 +13,18 @@ RECT = [{"x": -5, "y": 0}, {"x": 5, "y": 0}, {"x": 5, "y": 8}, {"x": -5, "y": 8}
 
 @pytest.fixture(autouse=True)
 def _clean_engine():
-    rule_engine._cache.clear()
-    rule_engine._version.clear()
+    def _reset():
+        rule_engine._cache.clear()
+        rule_engine._version.clear()
+        manager._devices.clear()
+        manager._subscribers.clear()
+        manager._stats.clear()
+        manager._alarms.clear()
+        manager._alarm_epoch.clear()
+
+    _reset()
     yield
-    rule_engine._cache.clear()
-    rule_engine._version.clear()
+    _reset()
 
 
 class _FakeWS:
@@ -104,6 +111,60 @@ class TestManualAlarm:
                 f"/api/devices/{device_id}/alarm", json={"state": "loud"}, headers=auth_headers
             )
             assert r.status_code == 422
+
+
+class TestAlarmState:
+    def test_active_alarm_replayed_to_late_subscriber(self, client, auth_headers, test_user):
+        device_id, dev_token = _paired_device(client, auth_headers)
+        user_token = create_access_token({"sub": test_user.username})
+        with client.websocket_connect(f"/ws/radar/device?token={dev_token}"):
+            # Turn the alarm on (no duration -> stays on).
+            r = client.post(
+                f"/api/devices/{device_id}/alarm", json={"state": "on"}, headers=auth_headers
+            )
+            assert r.status_code == 200
+            # A dashboard connecting AFTER the alarm fired should be told it's on.
+            with client.websocket_connect(
+                f"/ws/radar/subscribe/{device_id}?token={user_token}"
+            ) as sub:
+                assert sub.receive_json()["type"] == "status"  # hello
+                alarm = sub.receive_json()
+                assert alarm["type"] == "alarm" and alarm["state"] == "on"
+
+    def test_manual_off_broadcasts_off(self, client, auth_headers, test_user):
+        device_id, dev_token = _paired_device(client, auth_headers)
+        user_token = create_access_token({"sub": test_user.username})
+        with client.websocket_connect(f"/ws/radar/device?token={dev_token}"):
+            client.post(f"/api/devices/{device_id}/alarm", json={"state": "on"}, headers=auth_headers)
+            with client.websocket_connect(
+                f"/ws/radar/subscribe/{device_id}?token={user_token}"
+            ) as sub:
+                sub.receive_json()  # status
+                sub.receive_json()  # replayed alarm on
+                client.post(
+                    f"/api/devices/{device_id}/alarm", json={"state": "off"}, headers=auth_headers
+                )
+                off = sub.receive_json()
+                assert off["type"] == "alarm" and off["state"] == "off"
+
+    def test_auto_off_after_duration(self, client, auth_headers, test_user):
+        device_id, dev_token = _paired_device(client, auth_headers)
+        user_token = create_access_token({"sub": test_user.username})
+        with client.websocket_connect(f"/ws/radar/device?token={dev_token}"):
+            with client.websocket_connect(
+                f"/ws/radar/subscribe/{device_id}?token={user_token}"
+            ) as sub:
+                assert sub.receive_json()["type"] == "status"
+                client.post(
+                    f"/api/devices/{device_id}/alarm",
+                    json={"state": "on", "duration_ms": 100},
+                    headers=auth_headers,
+                )
+                on = sub.receive_json()
+                assert on["type"] == "alarm" and on["state"] == "on"
+                # The server-side timer should broadcast an off shortly after.
+                off = sub.receive_json()
+                assert off["type"] == "alarm" and off["state"] == "off" and off["source"] == "auto"
 
 
 class TestRuleAlarm:

@@ -10,6 +10,7 @@ a single process (spec §2 "Redis-ready") — without changing call sites. The a
 runs on a single asyncio event loop, so no locking is required.
 """
 
+import asyncio
 import logging
 import time
 from collections import defaultdict, deque
@@ -50,6 +51,10 @@ class RadarConnectionManager:
         self._devices: dict[int, WebSocket] = {}
         self._subscribers: dict[int, set[WebSocket]] = defaultdict(set)
         self._stats: dict[int, _DeviceStats] = {}
+        # Server-side alarm state so it can be replayed to dashboards that join
+        # after it fired, and auto-cleared when its duration elapses.
+        self._alarms: dict[int, str] = {}  # device_id -> source ("rule"/"manual")
+        self._alarm_epoch: dict[int, int] = {}  # guards stale auto-off timers
 
     async def register_device(self, device_id: int, ws: WebSocket) -> None:
         """Register the device's producer socket. A device holds one connection;
@@ -135,6 +140,40 @@ class RadarConnectionManager:
         except Exception:  # noqa: BLE001 - a dead socket means undelivered
             logger.warning("failed to send command to device %s", device_id)
             return False
+
+    def alarm_source(self, device_id: int) -> str | None:
+        """The source of a currently-active alarm, or None if not alarming."""
+        return self._alarms.get(device_id)
+
+    def set_alarm_on(self, device_id: int, source: str) -> int:
+        """Mark a device's alarm active; returns an epoch that identifies this
+        alarm episode (so a later auto-off can't clear a newer one)."""
+        epoch = self._alarm_epoch.get(device_id, 0) + 1
+        self._alarm_epoch[device_id] = epoch
+        self._alarms[device_id] = source
+        return epoch
+
+    def set_alarm_off(self, device_id: int) -> None:
+        self._alarm_epoch[device_id] = self._alarm_epoch.get(device_id, 0) + 1
+        self._alarms.pop(device_id, None)
+
+    def arm_auto_off(self, device_id: int, epoch: int, duration_ms: int | None) -> None:
+        """Broadcast an alarm-off after duration_ms so dashboards clear in sync
+        with the device's own auto-off. No-op without a positive duration."""
+        if not duration_ms or duration_ms <= 0:
+            return
+
+        async def _auto_off() -> None:
+            await asyncio.sleep(duration_ms / 1000)
+            # Only clear if this is still the same alarm episode.
+            if self._alarm_epoch.get(device_id) == epoch and device_id in self._alarms:
+                self._alarms.pop(device_id, None)
+                await self.broadcast(
+                    device_id,
+                    {"type": "alarm", "device_id": device_id, "state": "off", "source": "auto"},
+                )
+
+        asyncio.create_task(_auto_off())
 
     async def broadcast(self, device_id: int, message: dict) -> None:
         """Send a message to all of a device's subscribers, dropping any that

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlalchemy import func
+from sqlalchemy import delete as sql_delete, func
 from sqlmodel import Session, select
 
 from app.auth import generate_device_token, get_current_device, get_current_user
@@ -20,7 +20,11 @@ from app.models.device import (
     ROLE_VIEWER,
 )
 from app.models.user import User
+from app.models.zone import Zone
+from app.models.rule import Rule, RuleEvent
+from app.models.analytics import ZoneOccupancySample
 from app.services.radar_manager import manager
+from app.services.rule_engine import rule_engine
 from app.schemas.alarm import AlarmTriggerRequest, build_alarm_command
 from app.schemas.device import (
     DeviceCreatedResponse,
@@ -225,10 +229,17 @@ def delete_device(
 ):
     """Delete a device and revoke its token. Owner only."""
     device, _ = _device_for_user(session, device_id, user, ROLE_OWNER)
-    for du in session.exec(select(DeviceUser).where(DeviceUser.device_id == device_id)).all():
-        session.delete(du)
+    # Remove dependents child-first so foreign keys hold on Postgres (SQLite in
+    # tests doesn't enforce FKs, so this must be explicit, not relied-upon cascade).
+    session.exec(sql_delete(RuleEvent).where(RuleEvent.device_id == device_id))
+    session.exec(sql_delete(ZoneOccupancySample).where(ZoneOccupancySample.device_id == device_id))
+    session.exec(sql_delete(Rule).where(Rule.device_id == device_id))
+    session.exec(sql_delete(Zone).where(Zone.device_id == device_id))
+    session.exec(sql_delete(DeviceUser).where(DeviceUser.device_id == device_id))
     session.delete(device)
     session.commit()
+    # Drop any cached rules/runtime for a device that no longer exists.
+    rule_engine.reset(device_id)
 
 
 @router.post("/{device_id}/alarm")
@@ -248,11 +259,18 @@ async def trigger_alarm(
     delivered = await manager.send_to_device(
         device_id, build_alarm_command(data.state, data.duration_ms)
     )
+    epoch = None
+    if data.state == "on":
+        epoch = manager.set_alarm_on(device_id, "manual")
+    else:
+        manager.set_alarm_off(device_id)
     # Reflect intent to every dashboard so the alarm banner stays in sync.
     await manager.broadcast(
         device_id,
         {"type": "alarm", "device_id": device_id, "state": data.state, "source": "manual", "delivered": delivered},
     )
+    if epoch is not None:
+        manager.arm_auto_off(device_id, epoch, data.duration_ms)
     return {"delivered": delivered, "state": data.state}
 
 

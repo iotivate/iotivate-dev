@@ -9,12 +9,13 @@ import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
-from sqlalchemy import func
+from sqlalchemy import delete as sql_delete, func
 from sqlmodel import Session, select
 
 from app.auth import get_current_user, require_pro
 from app.database import get_session
 from app.api.devices import _device_for_user  # shared membership+role gate
+from app.models.analytics import ZoneOccupancySample
 from app.models.device import ROLE_ADMIN, ROLE_VIEWER
 from app.models.rule import Rule, RuleEvent
 from app.models.user import User
@@ -57,14 +58,29 @@ def _get_rule_for_user(session: Session, rule_id: int, user: User, min_role: str
 # --------------------------------------------------------------------------- #
 # Zones
 # --------------------------------------------------------------------------- #
-@router.get("/devices/{device_id}/zones", response_model=list[ZoneResponse])
+@router.get("/devices/{device_id}/zones")
 def list_zones(
     device_id: int = Path(ge=1),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
-):
+) -> dict:
     _device_for_user(session, device_id, user, ROLE_VIEWER)
-    return session.exec(select(Zone).where(Zone.device_id == device_id).order_by(Zone.id)).all()
+    total = session.exec(
+        select(func.count()).select_from(
+            select(Zone.id).where(Zone.device_id == device_id).subquery()
+        )
+    ).one()
+    rows = session.exec(
+        select(Zone).where(Zone.device_id == device_id).order_by(Zone.id).offset(skip).limit(limit)
+    ).all()
+    return {
+        "items": [ZoneResponse.model_validate(z) for z in rows],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.post(
@@ -119,12 +135,13 @@ def delete_zone(
 ):
     zone = _get_zone_for_user(session, zone_id, user, ROLE_ADMIN)
     device_id = zone.device_id
-    # Cascade: a zone's rules and their events go with it.
-    rules = session.exec(select(Rule).where(Rule.zone_id == zone_id)).all()
-    for rule in rules:
+    # Cascade child-first so FKs hold on Postgres: rule events, occupancy
+    # samples, rules, then the zone itself.
+    for rule in session.exec(select(Rule).where(Rule.zone_id == zone_id)).all():
         for ev in session.exec(select(RuleEvent).where(RuleEvent.rule_id == rule.id)).all():
             session.delete(ev)
         session.delete(rule)
+    session.exec(sql_delete(ZoneOccupancySample).where(ZoneOccupancySample.zone_id == zone_id))
     session.delete(zone)
     session.commit()
     rule_engine.invalidate(device_id)
@@ -133,14 +150,29 @@ def delete_zone(
 # --------------------------------------------------------------------------- #
 # Rules
 # --------------------------------------------------------------------------- #
-@router.get("/devices/{device_id}/rules", response_model=list[RuleResponse])
+@router.get("/devices/{device_id}/rules")
 def list_rules(
     device_id: int = Path(ge=1),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
-):
+) -> dict:
     _device_for_user(session, device_id, user, ROLE_VIEWER)
-    return session.exec(select(Rule).where(Rule.device_id == device_id).order_by(Rule.id)).all()
+    total = session.exec(
+        select(func.count()).select_from(
+            select(Rule.id).where(Rule.device_id == device_id).subquery()
+        )
+    ).one()
+    rows = session.exec(
+        select(Rule).where(Rule.device_id == device_id).order_by(Rule.id).offset(skip).limit(limit)
+    ).all()
+    return {
+        "items": [RuleResponse.model_validate(r) for r in rows],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
 
 
 @router.post(

@@ -212,6 +212,7 @@ class RuleEngine:
             delivered = await manager.send_to_device(
                 device_id, build_alarm_command("on", rule.alarm_duration_ms)
             )
+            epoch = manager.set_alarm_on(device_id, "rule")
             await manager.broadcast(
                 device_id,
                 {
@@ -223,6 +224,8 @@ class RuleEngine:
                     "delivered": delivered,
                 },
             )
+            # Clear the dashboard alarm when the device's own auto-off elapses.
+            manager.arm_auto_off(device_id, epoch, rule.alarm_duration_ms)
 
     def _dispatch_email(self, rule: Rule, detail: dict) -> None:
         """Send the alert email without blocking the frame loop. send_email uses

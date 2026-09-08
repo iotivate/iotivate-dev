@@ -141,6 +141,12 @@ async def subscribe_ws(
     await websocket.send_json(
         {"type": "status", "device_id": device_id, "online": manager.is_device_online(device_id)}
     )
+    # Replay an active alarm so a dashboard joining mid-alarm shows it.
+    alarm_source = manager.alarm_source(device_id)
+    if alarm_source is not None:
+        await websocket.send_json(
+            {"type": "alarm", "device_id": device_id, "state": "on", "source": alarm_source}
+        )
     try:
         # Consumers don't send commands yet; drain to detect disconnect.
         while True:
