@@ -181,6 +181,17 @@ export default function RadarHome() {
       <Section className="flex flex-col items-start gap-5">
         <h2 className="text-2xl font-semibold">Ready to see who&apos;s there?</h2>
         <RadarCta />
+        <p className="text-sm text-muted">
+          Building the hardware yourself?{" "}
+          <Link href="/radar/build" className="text-accent hover:underline">
+            Follow the build guide
+          </Link>{" "}
+          or{" "}
+          <Link href="/radar/flash" className="text-accent hover:underline">
+            flash firmware from your browser
+          </Link>
+          .
+        </p>
       </Section>
     </div>
   );

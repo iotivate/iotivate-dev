@@ -56,6 +56,13 @@ function PairingPanel({ pairing, onDone }: { pairing: PairingInfo; onDone: () =>
         Enter this code on the device, or scan the QR during provisioning. It expires at{" "}
         {new Date(pairing.expires_at).toLocaleTimeString()}.
       </p>
+      <p className="mt-1 text-sm text-muted">
+        Haven&apos;t flashed it yet?{" "}
+        <Link href="/radar/flash" className="text-accent hover:underline">
+          Flash the firmware from your browser
+        </Link>
+        .
+      </p>
       <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
         <QrImage payload={pairing.qr_payload} />
         <div>
@@ -181,6 +188,11 @@ export default function RadarDevicesPage() {
       <header>
         <h1 className="text-3xl font-semibold">Devices</h1>
         <p className="mt-1 text-muted">Register a radar device and pair it to your IoTivate account.</p>
+        <p className="mt-2 text-sm text-muted">
+          <Link href="/radar/flash" className="text-accent hover:underline">Flash firmware</Link>
+          {" · "}
+          <Link href="/radar/build" className="text-accent hover:underline">Build guide</Link>
+        </p>
       </header>
 
       {error && (
