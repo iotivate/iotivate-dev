@@ -33,6 +33,8 @@ PROJECT_TEMPLATE.md
 TOOLS_ROADMAP.md
 VERIFICATION_CHECKLIST.md
 INVERTER_MONITOR.md
+# Confidential business/investor strategy — keep out of the public repo
+docs/PATH_TO_SCALE.md
 
 # Docker
 docker-compose.override.yml

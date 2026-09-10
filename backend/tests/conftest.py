@@ -35,6 +35,17 @@ def session_fixture(engine):
         yield session
 
 
+def _all_limiters():
+    """Every slowapi Limiter instance currently alive. Each router module makes
+    its own, so discover them by type rather than hard-coding imports (stays
+    correct as routers are added or removed)."""
+    import gc
+
+    from slowapi import Limiter
+
+    return [obj for obj in gc.get_objects() if isinstance(obj, Limiter)]
+
+
 @pytest.fixture(name="client")
 def client_fixture(session):
     def get_session_override():
@@ -42,15 +53,22 @@ def client_fixture(session):
 
     app.dependency_overrides[get_session] = get_session_override
 
-    # Disable rate limiting for tests
-    limiter = app.state.limiter
-    original_enabled = getattr(limiter, "_enabled", True)
-    limiter._enabled = False
+    # Disable rate limiting for tests. Each router instantiates its own slowapi
+    # Limiter (checked via `.enabled` at request time), and the app config key
+    # controls them all, so flip both: the config (covers every limiter) and
+    # each instance we can reach. Without this, cross-test request volume trips
+    # per-endpoint limits and later tests fail spuriously.
+    app.state.limiter.enabled = False
+    limiters = _all_limiters()
+    original = [(lim, lim.enabled) for lim in limiters]
+    for lim in limiters:
+        lim.enabled = False
 
     with TestClient(app, raise_server_exceptions=False) as client:
         yield client
 
-    limiter._enabled = original_enabled
+    for lim, was in original:
+        lim.enabled = was
     app.dependency_overrides.clear()
 
 

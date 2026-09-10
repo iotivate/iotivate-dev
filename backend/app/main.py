@@ -25,6 +25,10 @@ from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
 from app.api.upload import router as upload_router
 from app.api.checkout import router as checkout_router
+from app.api.devices import router as devices_router
+from app.api.zones import router as zones_router
+from app.api.analytics import router as analytics_router
+from app.api.radar_ws import router as radar_ws_router
 
 # Configure logging before anything else
 setup_logging(settings.log_level)
@@ -164,6 +168,11 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(upload_router, prefix="/api")
 app.include_router(checkout_router, prefix="/api")
+app.include_router(devices_router, prefix="/api")
+app.include_router(zones_router, prefix="/api")
+app.include_router(analytics_router, prefix="/api")
+# Radar WebSocket routes live at /ws/radar/* (no /api prefix).
+app.include_router(radar_ws_router)
 
 
 @app.get("/health")

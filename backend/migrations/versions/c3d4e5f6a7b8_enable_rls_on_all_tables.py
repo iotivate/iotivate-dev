@@ -31,13 +31,23 @@ TABLES = [
 ]
 
 
+def _is_postgres() -> bool:
+    # RLS and the `public` schema are Postgres-only. Local dev and the test
+    # suite run on SQLite, where this DDL is a syntax error.
+    return op.get_bind().dialect.name == "postgresql"
+
+
 def upgrade() -> None:
     """Enable RLS on every public table to block Supabase PostgREST access."""
+    if not _is_postgres():
+        return
     for table in TABLES:
         op.execute(f'ALTER TABLE public."{table}" ENABLE ROW LEVEL SECURITY')
 
 
 def downgrade() -> None:
     """Disable RLS on every public table."""
+    if not _is_postgres():
+        return
     for table in TABLES:
         op.execute(f'ALTER TABLE public."{table}" DISABLE ROW LEVEL SECURITY')

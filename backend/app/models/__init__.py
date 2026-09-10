@@ -4,5 +4,18 @@ from app.models.contact import ContactMessage
 from app.models.user import User
 from app.models.purchase import Purchase
 from app.models.webhook_event import WebhookEvent
+from app.models.device import Device, DeviceUser
+from app.models.zone import Zone
+from app.models.rule import Rule, RuleEvent
+from app.models.analytics import ZoneOccupancySample
 
-__all__ = ["Tool", "Project", "ContactMessage", "User", "Purchase", "WebhookEvent"]
+__all__ = [
+    "Tool",
+    "Project",
+    "ContactMessage",
+    "User",
+    "Purchase",
+    "WebhookEvent",
+    "Device",
+    "DeviceUser",
+]

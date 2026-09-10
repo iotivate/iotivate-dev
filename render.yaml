@@ -1,64 +1,51 @@
+# Render Blueprint for the IoTivate backend — the shared FastAPI app that serves
+# the site AND radar (radar is routers/tables inside this same app, not a
+# separate service).
+#
+# SAFE TO COMMIT: this file does NOT touch an existing service that was created
+# manually in the Render dashboard. Render only uses it if you explicitly adopt
+# it as a Blueprint (Dashboard → Blueprints → New/sync). Until then it is inert
+# documentation. Your current deploy is unaffected.
+#
+# If you DO adopt it, review the plan/region/env below so they match the running
+# service first.
+
 services:
-  # --- Backend API ---
   - type: web
     name: iotivate-backend
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    plan: free
+    runtime: python
+    rootDir: backend
+    plan: starter # <-- change to match your current Render plan before adopting
+    buildCommand: pip install -r requirements.txt
+
+    # IMPORTANT — single worker, single instance.
+    # Radar's WebSocket connections, presence, and rule engine are kept in
+    # process memory. Running more than one worker or instance breaks
+    # cross-connection fan-out (a device on one worker can't reach a dashboard on
+    # another) and rule-cache invalidation. Keep this at one process until a
+    # pub/sub layer (Postgres LISTEN/NOTIFY or Redis) is added for horizontal
+    # scaling. `uvicorn` with no --workers flag = a single process.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    numInstances: 1
+
+    # Render supports WebSockets natively; /ws/radar/* needs no extra config.
     healthCheckPath: /health
+
     envVars:
+      # Pin the interpreter to match local/dev.
+      - key: PYTHON_VERSION
+        value: "3.12.13"
+      # Secrets/config are managed in the Render dashboard (sync: false means
+      # "set this in the dashboard, don't manage it from the blueprint").
+      - key: SECRET_KEY
+        sync: false
       - key: DATABASE_URL
         sync: false
-      - key: SECRET_KEY
-        generateValue: true
       - key: CORS_ORIGINS
-        value: https://iotivate.dev
-      - key: FRONTEND_URL
-        value: https://iotivate.dev
-      - key: LOG_LEVEL
-        value: INFO
-      # Admin bootstrap
-      - key: ADMIN_EMAIL
         sync: false
-      - key: ADMIN_USERNAME
-        sync: false
-      - key: ADMIN_PASSWORD
-        sync: false
-      # SMTP
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-      - key: SMTP_FROM_EMAIL
-        sync: false
-      - key: SMTP_TO_EMAIL
-        sync: false
-      - key: SMTP_USE_TLS
-        value: "true"
-      # Cloudflare R2
-      - key: R2_ACCOUNT_ID
-        sync: false
-      - key: R2_ACCESS_KEY_ID
-        sync: false
-      - key: R2_SECRET_ACCESS_KEY
-        sync: false
-      - key: R2_BUCKET_NAME
-        value: iotivate-files
-      - key: R2_PUBLIC_URL
-        sync: false
-      # Lemon Squeezy
-      - key: LEMONSQUEEZY_API_KEY
-        sync: false
-      - key: LEMONSQUEEZY_STORE_ID
-        sync: false
-      - key: LEMONSQUEEZY_WEBHOOK_SECRET
-        sync: false
-      - key: LEMONSQUEEZY_PRO_MONTHLY_VARIANT_ID
-        sync: false
-      - key: LEMONSQUEEZY_PRO_YEARLY_VARIANT_ID
-        sync: false
+      # Optional, feature-dependent — set in the dashboard if used:
+      #   SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASSWORD / SMTP_FROM_EMAIL /
+      #   SMTP_TO_EMAIL / SMTP_USE_TLS   (email alerts; degrades gracefully)
+      #   ADMIN_EMAIL / ADMIN_USERNAME / ADMIN_PASSWORD  (admin bootstrap)
+      #   LEMONSQUEEZY_*   (Pro subscriptions)
+      #   R2_*             (file uploads)
