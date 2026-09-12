@@ -10,6 +10,7 @@ import RulesPanel from "@/components/radar/RulesPanel";
 import EventsTimeline from "@/components/radar/EventsTimeline";
 import AnalyticsPanel from "@/components/radar/AnalyticsPanel";
 import { Siren } from "@/lib/siren";
+import { AlarmIcon, SpeakerOnIcon, SpeakerOffIcon } from "@/components/radar/icons";
 
 /*
  * Radar dashboard for a single device (Phase 4 + Phase 6b).
@@ -543,15 +544,18 @@ export default function RadarDashboardPage() {
           role="alert"
           className="flex animate-pulse items-center justify-between gap-4 rounded-lg border border-red-500 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-300"
         >
-          <span>🚨 Alarm active{alarmSource ? ` (${alarmSource})` : ""}</span>
+          <span className="flex items-center gap-2">
+            <AlarmIcon className="h-5 w-5 shrink-0" />
+            Alarm active{alarmSource ? ` (${alarmSource})` : ""}
+          </span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSirenMuted((m) => !m)}
-              className="rounded-lg border border-red-500 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-500/10 dark:text-red-300"
+              className="rounded-lg border border-red-500 p-1.5 text-red-600 hover:bg-red-500/10 dark:text-red-300"
               aria-label={sirenMuted ? "Unmute siren" : "Mute siren"}
               title={sirenMuted ? "Unmute siren" : "Mute siren"}
             >
-              {sirenMuted ? "🔇" : "🔊"}
+              {sirenMuted ? <SpeakerOffIcon className="h-4 w-4" /> : <SpeakerOnIcon className="h-4 w-4" />}
             </button>
             {canControl && (
               <button
