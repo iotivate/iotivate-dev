@@ -2,6 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd, ORGANIZATION } from "@/lib/jsonld";
 import RadarCta from "./RadarCta";
+import {
+  RadarIcon,
+  ZonesIcon,
+  BellIcon,
+  FleetIcon,
+  ChartIcon,
+  ShieldIcon,
+} from "@/components/radar/icons";
 
 /*
  * Public marketing landing for iotivate.dev/radar. Server-rendered for SEO
@@ -42,32 +50,32 @@ export const metadata: Metadata = {
 
 const FEATURES = [
   {
-    icon: "📡",
+    Icon: RadarIcon,
     title: "Live XY tracking",
     body: "Watch tracked targets move across a top-down radar plot in real time, straight from your ESP32 over a secure WebSocket.",
   },
   {
-    icon: "▦",
+    Icon: ZonesIcon,
     title: "Zones & rules",
     body: "Draw zones on the map and set rules — enter, exit, dwell, or occupancy thresholds — that evaluate every frame.",
   },
   {
-    icon: "🔔",
+    Icon: BellIcon,
     title: "Instant alerts",
     body: "Fire a dashboard alert, an email, or a remote alarm on the device itself the moment a rule trips.",
   },
   {
-    icon: "🛰️",
+    Icon: FleetIcon,
     title: "Multi-device fleet",
     body: "Manage many devices from one place, with live online status, frame rate, and last-seen at a glance.",
   },
   {
-    icon: "📈",
+    Icon: ChartIcon,
     title: "Analytics & history",
     body: "See events over time, busiest zones, and presence-by-hour — no raw-data firehose, just the signal.",
   },
   {
-    icon: "🔒",
+    Icon: ShieldIcon,
     title: "Secure by design",
     body: "Per-device tokens, authenticated WebSockets, and role-based sharing (owner / admin / viewer) on one account.",
   },
@@ -132,9 +140,7 @@ export default function RadarHome() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
             <div key={f.title} className="rounded-xl border border-border bg-surface p-6">
-              <div className="text-2xl" aria-hidden>
-                {f.icon}
-              </div>
+              <f.Icon className="h-7 w-7 text-accent" />
               <h2 className="mt-3 text-lg font-semibold">{f.title}</h2>
               <p className="mt-1 text-sm text-muted">{f.body}</p>
             </div>
