@@ -8,6 +8,7 @@ from app.models.device import Device, DeviceUser
 from app.models.zone import Zone
 from app.models.rule import Rule, RuleEvent
 from app.models.analytics import ZoneOccupancySample
+from app.models.bike import BikeTelemetry
 
 __all__ = [
     "Tool",
