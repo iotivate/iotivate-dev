@@ -59,6 +59,42 @@ more than an LM2596).
 
 Pins are configurable in `main/config.h`.
 
+## Modules & expansion
+
+iotiBike is a **universal Core + optional add-on modules**. The Core is what most
+customers buy; modules are accessories for specific needs.
+
+| Module | Role | Interface | Tier |
+|--------|------|-----------|------|
+| **Core** | GPS + IMU + 4G + siren; the tracker | — | V1, universal |
+| **Power** | battery voltage + current (energy economics) | **wired I2C** (ADS1115 + Hall sensor) | optional add-on |
+| **Immobilizer** | enable/disable the bike | **wired relay line** (never wireless) | optional add-on |
+| *(future)* fob / remote / display | convenience accessories | **ESP-NOW** (wireless) | optional |
+
+### Interconnect decision
+**Default = wired expansion, not wireless.** The Core exposes an **expansion
+connector** — I2C (SDA/SCL) + 3.3V + GND + 1–2 spare GPIO on a **locking
+connector** — and modules attach via pre-made harnesses (plug-and-play).
+
+Rationale (why not ESP-NOW for Power/Immobilizer):
+- **Cost/maintenance:** wireless modules each need their own ESP32 + power +
+  firmware → more cost, N codebases, harder for DIY makers to replicate. A wired
+  sensor on a cable is far simpler.
+- **No real install win:** Power/Immobilizer live at the battery/controller where
+  power must be run anyway; adding 2 I2C wires alongside power is trivial.
+- **🚫 Security — immobilizer must be wired.** 2.4 GHz is trivially jammable; a
+  thief could block an "immobilize" command. A wired relay has no RF to jam, and
+  a cut line is detectable → alert. Never put immobilization on a wireless link.
+
+**ESP-NOW** is reserved for genuinely-remote, non-safety-critical accessories
+(key fob, wireless remote, helmet/handlebar display, trailer tag).
+
+### Forward-compatibility (do now, build later)
+Core V1 is self-contained — no modules are built yet. Just **reserve an expansion
+header** on the Core (I2C + power + spare GPIO) so Power/Immobilizer can attach
+later at zero cost today. IMU/power *events* will also need a backend ingest
+extension (event type alongside the GPS batch) when those modules land.
+
 ## Build & flash (ESP-IDF v5.x)
 
 ```bash
