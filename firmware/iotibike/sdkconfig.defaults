@@ -1,0 +1,24 @@
+# Default config for the iotiBike firmware. Run `idf.py set-target esp32` first;
+# `idf.py build` picks these up. Override locally via `idf.py menuconfig`.
+
+CONFIG_IDF_TARGET="esp32"
+
+# Custom partition table (large app for TLS/PPP + NVS).
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# PPP over serial for the A7670 cellular link.
+CONFIG_LWIP_PPP_SUPPORT=y
+CONFIG_LWIP_PPP_PAP_SUPPORT=y
+CONFIG_LWIP_PPP_CHAP_SUPPORT=y
+
+# mbedTLS: dynamic buffers keep the TLS handshake within the classic ESP32's RAM.
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_PEER_CERT=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y
+
+# A little more headroom for the main task (TLS + JSON on the stack).
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Default log level (set lower for production).
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y

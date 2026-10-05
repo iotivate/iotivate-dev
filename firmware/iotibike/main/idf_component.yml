@@ -1,0 +1,5 @@
+# Managed component dependencies (pulled by the IDF Component Manager on build).
+# esp_modem drives the A7670 over PPP; added when modem.c lands.
+dependencies:
+  idf: ">=5.0"
+  espressif/esp_modem: "^1.1.0"
