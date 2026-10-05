@@ -39,7 +39,20 @@ upload a batch, then can idle — saving data and power on a mobile device.
 | IMU SDA | GPIO21 | MPU6050 SDA | I2C |
 | IMU SCL | GPIO22 | MPU6050 SCL | I2C |
 | IMU INT | GPIO35 | MPU6050 INT | wake-on-motion (optional) |
+| Siren | GPIO33 | MOSFET gate | siren on its own supply; gate pulldown (boot-safe) |
 | GND | GND | all | common ground |
+
+**Siren:** never drive it from the GPIO directly — GPIO33 switches a logic-level
+MOSFET (+ flyback diode if inductive); the siren runs off the bike/12V rail. The
+gate pulldown keeps it OFF through ESP32 reset so it can't false-trigger on boot.
+
+**Power monitoring (optional "iotiBike Power" add-on, not core V1):** battery
+voltage via divider/ADS1115; current via an **isolated Hall sensor (ACS758)** →
+ADS1115 (INA219/226 can't handle 48-72V packs). Current sensing taps the battery
+main lead (invasive, bike-specific) — keep it an optional accessory. V1 energy
+economics can estimate from GPS distance × Wh/km; measured current is the upgrade.
+The device is powered from the pack via a **high-voltage-input buck** (72V needs
+more than an LM2596).
 
 ⚠️ **Power the A7670 from its own 3.4–4.2 V supply with 1000 µF+ bulk capacitance**
 — it spikes ~2 A on transmit and will brown out the ESP32 otherwise. GPS is 3.3 V.
