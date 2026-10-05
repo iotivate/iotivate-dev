@@ -14,6 +14,7 @@ const solutions = [
 
 const navLinks = [
   { href: "/", label: "Home" },
+  { href: "/3d-print", label: "3D Printing" },
   { href: "/tools", label: "Tools" },
   { href: "/projects", label: "Projects" },
   { href: "/blog", label: "Blog" },
