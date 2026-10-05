@@ -19,25 +19,25 @@ export default function Home() {
         <HeroAnimations>
           <div className="relative z-10">
             <h1 className="hero-title text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl">
-              The browser-based workshop for IoT makers.
+              Build, flash, and print your hardware ideas.
             </h1>
             <p className="hero-description mt-6 text-lg sm:text-xl text-muted max-w-2xl leading-relaxed">
-              Free tools to flash firmware, monitor serial, and plan pinouts —
-              all in your browser, no installs required. Plus buy-and-flash
-              project kits you can run on your board straight from the page.
+              A maker platform in one place: on-demand 3D printing, buildable IoT
+              products like mmWave radar and GPS trackers, and free browser tools to
+              flash firmware, monitor serial, and plan pinouts — no installs.
             </p>
             <div className="hero-buttons mt-10 flex flex-wrap gap-4">
               <Link
-                href="/tools"
+                href="/3d-print"
                 className="inline-flex items-center px-6 py-3 bg-accent text-white font-medium rounded-lg hover:bg-accent-hover transition-colors"
               >
-                Launch Tools
+                Start a 3D print
               </Link>
               <Link
-                href="/projects"
+                href="/tools"
                 className="inline-flex items-center px-6 py-3 border border-border font-medium rounded-lg hover:bg-surface transition-colors"
               >
-                Browse Projects
+                Launch tools
               </Link>
             </div>
             <p className="hero-tagline mt-8 text-sm italic text-muted">
@@ -47,21 +47,29 @@ export default function Home() {
         </HeroAnimations>
       </section>
 
-      {/* What We Do */}
+      {/* What's on iotivate */}
       <section className="py-16 border-t border-border">
-        <h2 className="text-2xl font-bold mb-8">What we build</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <h2 className="text-2xl font-bold mb-8">Explore iotivate</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <Card
-            title="Web-Based Tools"
-            description="Flash firmware, configure devices, and manage IoT projects directly from your browser. No installs required."
+            href="/3d-print"
+            title="3D Printing"
+            description="Upload a model for an instant quote, pick a material and colour, and we print and deliver it. No model? We'll design it."
           />
           <Card
-            title="Real Projects"
-            description="Documented IoT builds with source code, schematics, and firmware — ready to learn from or fork."
+            href="/tools"
+            title="Browser tools"
+            description="Flash firmware, monitor serial, and plan pinouts — straight from the browser, no installs required."
           />
           <Card
-            title="Open Platform"
-            description="Everything we build is designed to be shared, extended, and integrated into your own workflows."
+            href="/radar"
+            title="Radar"
+            description="Turn an ESP32 + mmWave sensor into a live presence-sensing dashboard with zones, rules, and alerts."
+          />
+          <Card
+            href="/iotibike"
+            title="iotiBike"
+            description="Smart GPS tracking, anti-theft, and fuel-vs-electricity savings for one bike or a whole fleet."
           />
         </div>
       </section>
@@ -70,16 +78,18 @@ export default function Home() {
 }
 
 function Card({
+  href,
   title,
   description,
 }: {
+  href: string;
   title: string;
   description: string;
 }) {
   return (
-    <div className="p-6 border border-border rounded-lg">
+    <Link href={href} className="block p-6 border border-border rounded-lg transition-colors hover:border-accent/50 hover:bg-surface">
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
       <p className="text-sm text-muted leading-relaxed">{description}</p>
-    </div>
+    </Link>
   );
 }
