@@ -58,7 +58,7 @@ class TestOrders:
         pla, zone = _seed(session)
         r = client.post("/api/print/orders", json={
             "source": "upload",
-            "customer_name": "Ada", "customer_email": "ada@example.com",
+            "customer_name": "Ada", "customer_email": "ada@example.com", "customer_phone": "08011112222",
             "stl_url": "https://files.iotivate.dev/print-uploads/x.stl",
             "filament_id": pla.id, "quantity": 2, "volume_cm3": 500,
             "shipping_zone_id": zone.id, "shipping_address": "12 Test St, Abuja",
@@ -74,7 +74,7 @@ class TestOrders:
         _seed(session)
         r = client.post("/api/print/orders", json={
             "source": "design",
-            "customer_name": "Bola", "customer_email": "bola@example.com",
+            "customer_name": "Bola", "customer_email": "bola@example.com", "customer_phone": "08033334444",
             "design_brief": "A phone stand, ~12cm tall, sturdy for a desk.",
             "shipping_address": "5 Design Rd, Abuja",
         })
@@ -84,7 +84,7 @@ class TestOrders:
     def test_upload_order_requires_stl(self, client, session):
         pla, _ = _seed(session)
         r = client.post("/api/print/orders", json={
-            "source": "upload", "customer_name": "No File", "customer_email": "n@example.com",
+            "source": "upload", "customer_name": "No File", "customer_email": "n@example.com", "customer_phone": "08055556666",
             "filament_id": pla.id, "volume_cm3": 100, "shipping_address": "x",
         })
         assert r.status_code == 422  # missing stl_url
@@ -92,7 +92,7 @@ class TestOrders:
     def test_closed_service_rejects_orders(self, client, session):
         pla, zone = _seed(session, service_open=False)
         r = client.post("/api/print/orders", json={
-            "source": "upload", "customer_name": "Late", "customer_email": "l@example.com",
+            "source": "upload", "customer_name": "Late", "customer_email": "l@example.com", "customer_phone": "08077778888",
             "stl_url": "https://files.iotivate.dev/print-uploads/y.stl",
             "filament_id": pla.id, "volume_cm3": 100, "shipping_address": "x",
         })

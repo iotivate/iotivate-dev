@@ -112,9 +112,9 @@ function Studio({ config }: { config: PrintConfig }) {
   const [file, setFile] = useState<File | null>(null);
   const [metrics, setMetrics] = useState<StlMetrics | null>(null);
   const [filamentId, setFilamentId] = useState<number>(config.filaments[0]?.id ?? 0);
-  const [colorId, setColorId] = useState<number>(config.filaments[0]?.colors[0]?.id ?? 0);
+  const [colorId, setColorId] = useState<number>(0);
   const [qty, setQty] = useState(1);
-  const [previewColor, setPreviewColor] = useState<string>(config.filaments[0]?.colors[0]?.hex ?? "#5BA8A0");
+  const [previewColor, setPreviewColor] = useState<string>("#00ae42"); // Bambu-green default
   const previewWrapRef = useRef<HTMLDivElement>(null);
 
   function toggleFullscreen() {
@@ -154,9 +154,7 @@ function Studio({ config }: { config: PrintConfig }) {
   }
   function onPickFilament(id: number) {
     setFilamentId(id);
-    const fil = config.filaments.find((f) => f.id === id);
-    setColorId(fil?.colors[0]?.id ?? 0);
-    if (fil?.colors[0]) setPreviewColor(fil.colors[0].hex);
+    setColorId(0); // let them choose a colour for the new material
   }
   function onPickColor(id: number, hex: string) {
     setColorId(id);
@@ -165,8 +163,8 @@ function Studio({ config }: { config: PrintConfig }) {
 
   async function submit() {
     setSubmitErr(null);
-    if (!name.trim() || !email.trim() || !address.trim()) {
-      setSubmitErr("Please fill in your name, email and delivery address.");
+    if (!name.trim() || !email.trim() || !phone.trim() || !address.trim()) {
+      setSubmitErr("Please fill in your name, email, phone and delivery address.");
       return;
     }
     setSubmitting(true);
@@ -179,7 +177,7 @@ function Studio({ config }: { config: PrintConfig }) {
         const up = await uploadStl(file);
         const order = await createPrintOrder({
           source: "upload",
-          customer_name: name, customer_email: email, customer_phone: phone || null,
+          customer_name: name, customer_email: email, customer_phone: phone,
           stl_url: up.url, filament_id: filament.id, color_id: colorId || null, quantity: qty,
           volume_cm3: metrics.volumeCm3, dim_x_mm: metrics.x, dim_y_mm: metrics.y, dim_z_mm: metrics.z,
           shipping_zone_id: zoneId === "" ? null : zoneId, shipping_address: address, notes: notes || null,
@@ -192,7 +190,7 @@ function Studio({ config }: { config: PrintConfig }) {
         }
         const order = await createPrintOrder({
           source: "design",
-          customer_name: name, customer_email: email, customer_phone: phone || null,
+          customer_name: name, customer_email: email, customer_phone: phone,
           design_brief: brief,
           shipping_zone_id: zoneId === "" ? null : zoneId, shipping_address: address, notes: notes || null,
         });
@@ -212,7 +210,7 @@ function Studio({ config }: { config: PrintConfig }) {
         {created.source === "upload" ? (
           <p className="mt-1 text-sm text-muted">
             {created.total != null && <>Estimated total <b className="text-foreground">{formatNaira(created.total)}</b>. </>}
-            We&apos;ll review your model, confirm the final price, and send you a payment link. {config.lead_time_text} once paid.
+            We&apos;ll review your model, confirm the final price and turnaround, and send you a payment link.
           </p>
         ) : (
           <p className="mt-1 text-sm text-muted">
@@ -246,7 +244,7 @@ function Studio({ config }: { config: PrintConfig }) {
             </label>
             {file && (
               <div ref={previewWrapRef} className="relative h-64 overflow-hidden rounded-2xl border border-border bg-surface">
-                <StlPreview file={file} onMetrics={setMetrics} colorHex={previewColor} />
+                <StlPreview file={file} onMetrics={setMetrics} colorHex={previewColor} bedX={config.max_x_mm} bedY={config.max_y_mm} />
                 <div className="absolute right-2 top-2 flex items-center gap-1.5">
                   <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-background/90 shadow-sm" title="Preview colour">
                     <input type="color" value={previewColor} onChange={(e) => setPreviewColor(e.target.value)}
@@ -308,7 +306,10 @@ function Studio({ config }: { config: PrintConfig }) {
             {estimate ? (
               <div className="rounded-xl border border-accent/25 bg-accent/5 p-4">
                 <div className="flex items-baseline justify-between">
-                  <span className={label}>Estimated total</span>
+                  <span className="flex items-center gap-2">
+                    <span className={label}>Estimated total</span>
+                    <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">estimate</span>
+                  </span>
                   <span className="font-mono text-2xl font-bold text-accent">{formatNaira(estimate.total)}</span>
                 </div>
                 <div className="mt-2 space-y-1 text-xs text-muted">
@@ -316,7 +317,9 @@ function Studio({ config }: { config: PrintConfig }) {
                   <div className="flex justify-between"><span>Delivery{zone ? ` · ${zone.name}` : ""}</span><span className="font-mono">{formatNaira(estimate.shippingCost)}</span></div>
                   {estimate.minApplied && <div className="text-[11px]">Minimum order applied.</div>}
                 </div>
-                <p className="mt-2 text-[11px] text-muted">{config.estimate_disclaimer}</p>
+                <p className="mt-3 rounded-lg bg-background px-2.5 py-2 text-xs leading-relaxed text-muted">
+                  <b className="text-foreground">This is an estimate.</b> {config.estimate_disclaimer} You only pay after we confirm the final price.
+                </p>
               </div>
             ) : (
               <p className="rounded-xl border border-border bg-surface p-4 text-sm text-muted">
@@ -342,7 +345,7 @@ function Studio({ config }: { config: PrintConfig }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div><span className={label}>Full name</span><input value={name} onChange={(e) => setName(e.target.value)} className={`mt-1 ${field}`} /></div>
         <div><span className={label}>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={`mt-1 ${field}`} /></div>
-        <div><span className={label}>Phone (optional)</span><input value={phone} onChange={(e) => setPhone(e.target.value)} className={`mt-1 ${field}`} /></div>
+        <div><span className={label}>Phone</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={`mt-1 ${field}`} /></div>
         <div>
           <span className={label}>Delivery zone</span>
           <select value={zoneId} onChange={(e) => setZoneId(e.target.value === "" ? "" : Number(e.target.value))} className={`mt-1 ${field}`}>
@@ -368,7 +371,7 @@ function Studio({ config }: { config: PrintConfig }) {
         className="self-start rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-50">
         {submitting ? "Submitting…" : tab === "upload" ? "Request this print" : "Request a design quote"}
       </button>
-      <p className="text-xs text-muted">Delivery within Nigeria · {config.lead_time_text} · pay after we confirm.</p>
+      <p className="text-xs text-muted">Delivery within Nigeria · turnaround depends on size &amp; quantity, confirmed with your quote · pay after we confirm.</p>
     </div>
   );
 }

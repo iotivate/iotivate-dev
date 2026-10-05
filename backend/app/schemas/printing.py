@@ -81,7 +81,7 @@ class OrderCreate(BaseModel):
     source: str
     customer_name: str = Field(min_length=1, max_length=100)
     customer_email: EmailStr
-    customer_phone: str | None = Field(default=None, max_length=40)
+    customer_phone: str = Field(min_length=1, max_length=40)  # required for delivery
 
     # upload path
     stl_url: str | None = Field(default=None, max_length=500)

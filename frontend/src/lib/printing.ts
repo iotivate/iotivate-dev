@@ -38,7 +38,7 @@ export interface OrderCreate {
   source: "upload" | "design";
   customer_name: string;
   customer_email: string;
-  customer_phone?: string | null;
+  customer_phone: string;
   stl_url?: string | null;
   filament_id?: number | null;
   color_id?: number | null;
