@@ -115,6 +115,56 @@ class OrderCreate(BaseModel):
         return self
 
 
+# --- admin ---
+class PrintSettingsUpdate(BaseModel):
+    setup_fee: float | None = Field(default=None, ge=0)
+    min_order: float | None = Field(default=None, ge=0)
+    fill_factor: float | None = Field(default=None, gt=0, le=1)
+    max_x_mm: float | None = Field(default=None, gt=0)
+    max_y_mm: float | None = Field(default=None, gt=0)
+    max_z_mm: float | None = Field(default=None, gt=0)
+    currency: str | None = Field(default=None, max_length=8)
+    lead_time_text: str | None = Field(default=None, max_length=60)
+    service_open: bool | None = None
+    design_enabled: bool | None = None
+    estimate_disclaimer: str | None = Field(default=None, max_length=200)
+
+
+class FilamentIn(BaseModel):
+    type: str = Field(min_length=1, max_length=20)
+    name: str = Field(min_length=1, max_length=60)
+    density_g_cm3: float = Field(gt=0, le=5)
+    rate_per_gram: float = Field(ge=0)
+    enabled: bool = True
+    sort_order: int = 0
+
+
+class FilamentUpdate(BaseModel):
+    type: str | None = Field(default=None, min_length=1, max_length=20)
+    name: str | None = Field(default=None, min_length=1, max_length=60)
+    density_g_cm3: float | None = Field(default=None, gt=0, le=5)
+    rate_per_gram: float | None = Field(default=None, ge=0)
+    enabled: bool | None = None
+    sort_order: int | None = None
+
+
+class ColorIn(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+    hex: str = Field(default="#808080", max_length=9)
+    enabled: bool = True
+
+
+class ZoneIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    flat_rate: float = Field(ge=0)
+    enabled: bool = True
+    sort_order: int = 0
+
+
+class OrderStatusUpdate(BaseModel):
+    status: str = Field(min_length=1, max_length=20)
+
+
 class OrderCreatedOut(BaseModel):
     id: int
     status: str

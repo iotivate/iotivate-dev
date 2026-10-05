@@ -28,6 +28,13 @@ export default function AdminDashboard() {
           <h2 className="font-semibold mb-2">Contacts</h2>
           <p className="text-sm text-muted">View contact form submissions</p>
         </Link>
+        <Link
+          href="/admin/3d-print"
+          className="p-6 border border-border rounded-lg hover:border-accent/50 transition-colors"
+        >
+          <h2 className="font-semibold mb-2">3D Printing</h2>
+          <p className="text-sm text-muted">Pricing, filaments, shipping &amp; orders</p>
+        </Link>
       </div>
     </div>
   );
