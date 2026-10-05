@@ -306,7 +306,10 @@ function Studio({ config }: { config: PrintConfig }) {
             {estimate ? (
               <div className="rounded-xl border border-accent/25 bg-accent/5 p-4">
                 <div className="flex items-baseline justify-between">
-                  <span className={label}>Estimated total</span>
+                  <span className="flex items-center gap-2">
+                    <span className={label}>Estimated total</span>
+                    <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">estimate</span>
+                  </span>
                   <span className="font-mono text-2xl font-bold text-accent">{formatNaira(estimate.total)}</span>
                 </div>
                 <div className="mt-2 space-y-1 text-xs text-muted">
@@ -314,7 +317,9 @@ function Studio({ config }: { config: PrintConfig }) {
                   <div className="flex justify-between"><span>Delivery{zone ? ` · ${zone.name}` : ""}</span><span className="font-mono">{formatNaira(estimate.shippingCost)}</span></div>
                   {estimate.minApplied && <div className="text-[11px]">Minimum order applied.</div>}
                 </div>
-                <p className="mt-2 text-[11px] text-muted">{config.estimate_disclaimer}</p>
+                <p className="mt-3 rounded-lg bg-background px-2.5 py-2 text-xs leading-relaxed text-muted">
+                  <b className="text-foreground">This is an estimate.</b> {config.estimate_disclaimer} You only pay after we confirm the final price.
+                </p>
               </div>
             ) : (
               <p className="rounded-xl border border-border bg-surface p-4 text-sm text-muted">

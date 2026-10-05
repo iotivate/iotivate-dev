@@ -55,8 +55,30 @@ export default function StlPreview({
 }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const materialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const meshRef = useRef<THREE.Mesh | null>(null);
   const colorRef = useRef(colorHex);
   const onMetricsRef = useRef(onMetrics);
+
+  // Rotate the model 90° about an axis, re-sit it on the plate, and re-report
+  // dimensions (volume is unchanged by rotation).
+  function rotate(axis: "x" | "y" | "z") {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const g = mesh.geometry;
+    if (axis === "x") g.rotateX(Math.PI / 2);
+    else if (axis === "y") g.rotateY(Math.PI / 2);
+    else g.rotateZ(Math.PI / 2);
+    g.computeBoundingBox();
+    const box = g.boundingBox!;
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    g.translate(-center.x, -box.min.y, -center.z);
+    g.computeVertexNormals();
+    const m = computeMeshMetrics(g);
+    onMetricsRef.current({ volumeCm3: m.volume / 1000, x: size.x, y: size.y, z: size.z });
+  }
 
   useEffect(() => {
     onMetricsRef.current = onMetrics;
@@ -140,6 +162,7 @@ export default function StlPreview({
         });
         materialRef.current = material;
         mesh = new THREE.Mesh(geometry, material);
+        meshRef.current = mesh;
         scene.add(mesh);
 
         const maxDim = Math.max(size.x, size.y, size.z) || 1;
@@ -176,10 +199,29 @@ export default function StlPreview({
       grid.dispose();
       (scene.background as THREE.CanvasTexture)?.dispose?.();
       materialRef.current = null;
+      meshRef.current = null;
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
   }, [file, bedX, bedY]);
 
-  return <div ref={mountRef} className="h-full w-full" />;
+  return (
+    <div className="relative h-full w-full">
+      <div ref={mountRef} className="h-full w-full" />
+      <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-lg bg-black/40 px-1.5 py-1 backdrop-blur">
+        <span className="px-1 text-[10px] font-medium uppercase tracking-wide text-white/70">Rotate</span>
+        {(["x", "y", "z"] as const).map((axis) => (
+          <button
+            key={axis}
+            type="button"
+            onClick={() => rotate(axis)}
+            title={`Rotate 90° around ${axis.toUpperCase()}`}
+            className="flex h-6 w-6 items-center justify-center rounded bg-white/10 text-xs font-semibold text-white hover:bg-white/25"
+          >
+            {axis.toUpperCase()}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
