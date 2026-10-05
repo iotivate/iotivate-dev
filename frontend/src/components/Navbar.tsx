@@ -1,20 +1,109 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth, usePro } from "@/lib/auth";
 
+// Products live under the "Solutions" dropdown. Add future products here.
+const solutions = [
+  { href: "/radar", label: "Radar", desc: "mmWave presence sensing" },
+  { href: "/iotibike", label: "iotiBike", desc: "Smart bike & fleet tracking" },
+];
+
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/tools", label: "Tools" },
   { href: "/projects", label: "Projects" },
-  { href: "/radar", label: "Radar" },
   { href: "/blog", label: "Blog" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
+
+function isSolutionsActive(pathname: string): boolean {
+  return solutions.some((s) => pathname === s.href || pathname.startsWith(`${s.href}/`));
+}
+
+function SolutionsDropdown({ pathname }: { pathname: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const active = isSolutionsActive(pathname);
+
+  // Close on outside click and on Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div
+      ref={ref}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          active ? "text-accent bg-accent/10" : "text-muted hover:text-foreground"
+        }`}
+      >
+        Solutions
+        <svg
+          className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute left-0 mt-1 w-64 rounded-lg border border-border bg-background py-1 shadow-lg"
+        >
+          {solutions.map((s) => {
+            const itemActive = pathname === s.href || pathname.startsWith(`${s.href}/`);
+            return (
+              <Link
+                key={s.href}
+                href={s.href}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className={`block px-4 py-2.5 transition-colors ${
+                  itemActive ? "bg-accent/10" : "hover:bg-accent/5"
+                }`}
+              >
+                <span className={`block text-sm font-medium ${itemActive ? "text-accent" : "text-foreground"}`}>
+                  {s.label}
+                </span>
+                <span className="block text-xs text-muted">{s.desc}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -30,7 +119,19 @@ export default function Navbar() {
             iotivate<span className="text-accent">.dev</span>
           </Link>
           <div className="hidden md:flex items-center gap-1">
-            {navLinks.map(({ href, label }) => (
+            {/* Home */}
+            <Link
+              href="/"
+              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                pathname === "/" ? "text-accent bg-accent/10" : "text-muted hover:text-foreground"
+              }`}
+            >
+              Home
+            </Link>
+            {/* Solutions dropdown (products) */}
+            <SolutionsDropdown pathname={pathname} />
+            {/* The rest */}
+            {navLinks.slice(1).map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
@@ -109,56 +210,65 @@ function MobileMenu({ pathname, user, isLoading, logout, isPro }: MobileMenuProp
 
   return (
     <div className="md:hidden relative">
-      <button onClick={toggleMenu} className="p-2 cursor-pointer">
+      <button onClick={toggleMenu} className="p-2 cursor-pointer" aria-label="Menu" aria-expanded={isOpen}>
         {isOpen ? (
-          // Close icon (X)
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         ) : (
-          // Hamburger icon
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 6h16M4 12h16M4 18h16"
-            />
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-background border border-border rounded-lg shadow-lg py-2">
-          {navLinks.map(({ href, label }) => (
+        <div className="absolute right-0 mt-2 w-56 bg-background border border-border rounded-lg shadow-lg py-2">
+          {/* Home */}
+          <Link
+            href="/"
+            onClick={closeMenu}
+            className={`block px-4 py-2 text-sm ${
+              pathname === "/" ? "text-accent bg-accent/10" : "text-muted hover:text-foreground"
+            }`}
+          >
+            Home
+          </Link>
+
+          {/* Solutions group */}
+          <div className="px-4 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted/70">
+            Solutions
+          </div>
+          {solutions.map((s) => {
+            const itemActive = pathname === s.href || pathname.startsWith(`${s.href}/`);
+            return (
+              <Link
+                key={s.href}
+                href={s.href}
+                onClick={closeMenu}
+                className={`block py-2 pl-6 pr-4 text-sm ${
+                  itemActive ? "text-accent bg-accent/10" : "text-muted hover:text-foreground"
+                }`}
+              >
+                {s.label}
+              </Link>
+            );
+          })}
+
+          {/* The rest */}
+          {navLinks.slice(1).map(({ href, label }) => (
             <Link
               key={href}
               href={href}
               onClick={closeMenu}
               className={`block px-4 py-2 text-sm ${
-                pathname === href
-                  ? "text-accent bg-accent/10"
-                  : "text-muted hover:text-foreground"
+                pathname === href ? "text-accent bg-accent/10" : "text-muted hover:text-foreground"
               }`}
             >
               {label}
             </Link>
           ))}
+
           <div className="border-t border-border mt-2 pt-2">
             {isLoading ? (
               <span className="block px-4 py-2 text-sm text-muted">...</span>
