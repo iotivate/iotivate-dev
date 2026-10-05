@@ -35,6 +35,42 @@ function makeGradientTexture(top: string, bottom: string): THREE.CanvasTexture {
   return tex;
 }
 
+// A rounded rectangle (XY plane), centred on the origin.
+function roundedRectShape(w: number, h: number, r: number): THREE.Shape {
+  const s = new THREE.Shape();
+  const hw = w / 2, hh = h / 2;
+  s.moveTo(-hw + r, -hh);
+  s.lineTo(hw - r, -hh);
+  s.quadraticCurveTo(hw, -hh, hw, -hh + r);
+  s.lineTo(hw, hh - r);
+  s.quadraticCurveTo(hw, hh, hw - r, hh);
+  s.lineTo(-hw + r, hh);
+  s.quadraticCurveTo(-hw, hh, -hw, hh - r);
+  s.lineTo(-hw, -hh + r);
+  s.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
+  return s;
+}
+
+// Bambu-style plate outline: rounded rect with a grip tab on the +X edge.
+function platePath(w: number, h: number, r: number, tabDepth: number, tabWidth: number): THREE.Shape {
+  const s = new THREE.Shape();
+  const hw = w / 2, hh = h / 2, th = tabWidth / 2;
+  s.moveTo(-hw + r, -hh);
+  s.lineTo(hw - r, -hh);
+  s.quadraticCurveTo(hw, -hh, hw, -hh + r);
+  s.lineTo(hw, -th);
+  s.lineTo(hw + tabDepth, -th + 4);
+  s.lineTo(hw + tabDepth, th - 4);
+  s.lineTo(hw, th);
+  s.lineTo(hw, hh - r);
+  s.quadraticCurveTo(hw, hh, hw - r, hh);
+  s.lineTo(-hw + r, hh);
+  s.quadraticCurveTo(-hw, hh, -hw, hh - r);
+  s.lineTo(-hw, -hh + r);
+  s.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
+  return s;
+}
+
 /**
  * Bambu-Studio-style STL preview: the model sits on a build plate/grid over a
  * dark gradient background. Reports volume (cm³) + dimensions (mm) via onMetrics
@@ -110,17 +146,33 @@ export default function StlPreview({
     fill.position.set(-1, 0.5, -1);
     scene.add(fill);
 
-    // Build plate + grid on the XZ ground plane (y = 0).
+    // Fancy build plate (Bambu-style): rounded plate with a grip tab, an inset
+    // printable-area outline, a fine grid, and a green origin marker — all on the
+    // XZ ground plane (y = 0).
     const bed = Math.max(bedX, bedY, 50);
-    const plate = new THREE.Mesh(
-      new THREE.PlaneGeometry(bedX, bedY),
-      new THREE.MeshStandardMaterial({ color: PLATE_COLOR, roughness: 0.95, metalness: 0 }),
-    );
+    const plateMat = new THREE.MeshStandardMaterial({ color: PLATE_COLOR, roughness: 0.92, metalness: 0.08 });
+    const plate = new THREE.Mesh(new THREE.ShapeGeometry(platePath(bedX + 26, bedY + 26, 14, 14, 46)), plateMat);
     plate.rotation.x = -Math.PI / 2;
-    plate.position.y = -0.2;
+    plate.position.y = -0.3;
     scene.add(plate);
+
+    const outlineMat = new THREE.LineBasicMaterial({ color: 0x6b7076 });
+    const outline = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints(roundedRectShape(bedX, bedY, 6).getPoints(90)),
+      outlineMat,
+    );
+    outline.rotation.x = -Math.PI / 2;
+    outline.position.y = 0.02;
+    scene.add(outline);
+
     const grid = new THREE.GridHelper(bed, Math.max(4, Math.round(bed / 10)), GRID_CENTER, GRID_LINE);
+    grid.position.y = 0.01;
     scene.add(grid);
+
+    const originMat = new THREE.MeshBasicMaterial({ color: 0x00ae42 });
+    const origin = new THREE.Mesh(new THREE.BoxGeometry(6, 1, 6), originMat);
+    origin.position.set(-bedX / 2, 0.5, bedY / 2);
+    scene.add(origin);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -195,7 +247,11 @@ export default function StlPreview({
         (mesh.material as THREE.Material).dispose();
       }
       plate.geometry.dispose();
-      (plate.material as THREE.Material).dispose();
+      plateMat.dispose();
+      outline.geometry.dispose();
+      outlineMat.dispose();
+      origin.geometry.dispose();
+      originMat.dispose();
       grid.dispose();
       (scene.background as THREE.CanvasTexture)?.dispose?.();
       materialRef.current = null;
