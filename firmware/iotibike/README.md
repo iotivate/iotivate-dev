@@ -1,0 +1,123 @@
+# iotiBike firmware (ESP32 + A7670 + NEO-6M)
+
+ESP-IDF firmware for the iotiBike tracker: reads GPS, batches points, and uploads
+them over 4G to the iotivate cloud.
+
+- **MCU:** classic ESP32 (ESP32-WROOM-32)
+- **Cellular:** SIMCOM A7670 (Cat-1 LTE) — run as a **PPP pipe**; TLS is done on
+  the ESP32 (mbedTLS) with our own CA bundle, which sidesteps the modem's TLS
+  stack and its RSA/SNI limitations.
+- **GPS:** u-blox NEO-6M on a dedicated UART (continuous NMEA, 9600 baud) —
+  source of **position, speed, and heading**.
+- **IMU:** MPU6050 (accel + gyro) on I2C — **motion / tilt / crash events** for
+  theft detection and wake-on-motion. (Speed/heading are *not* derived from the
+  IMU — accel integration drifts and the MPU6050 has no magnetometer.)
+- **Cloud:** `POST https://device.iotivate.dev/api/bike/telemetry`
+  (device-token auth). Contract: `docs/RADAR_FIRMWARE_INTEGRATION.md`.
+
+## Architecture
+
+```
+NEO-6M ──UART2(NMEA)──▶ ESP32 ──UART1(AT/PPP)──▶ A7670 ──4G──▶ device.iotivate.dev
+                          │
+                   buffer points (NVS/RAM), batch-upload over PPP+esp_tls,
+                   flush offline buffer on reconnect. Token stored in NVS.
+```
+
+Store-and-forward: GPS runs continuously; the modem dials PPP periodically to
+upload a batch, then can idle — saving data and power on a mobile device.
+
+## Wiring
+
+| Link | ESP32 pin | Module pin | Notes |
+|------|-----------|-----------|-------|
+| GPS RX | GPIO16 (UART2 RX) | NEO-6M TX | 9600 baud NMEA |
+| GPS TX | GPIO17 (UART2 TX) | NEO-6M RX | optional (config) |
+| Modem TX | GPIO27 (UART1 TX) | A7670 RX | 115200 |
+| Modem RX | GPIO26 (UART1 RX) | A7670 TX | 115200 |
+| Modem PWRKEY | GPIO4 | A7670 PWRKEY | power-on pulse |
+| IMU SDA | GPIO21 | MPU6050 SDA | I2C |
+| IMU SCL | GPIO22 | MPU6050 SCL | I2C |
+| IMU INT | GPIO35 | MPU6050 INT | wake-on-motion (optional) |
+| Siren | GPIO33 | MOSFET gate | siren on its own supply; gate pulldown (boot-safe) |
+| GND | GND | all | common ground |
+
+**Siren:** never drive it from the GPIO directly — GPIO33 switches a logic-level
+MOSFET (+ flyback diode if inductive); the siren runs off the bike/12V rail. The
+gate pulldown keeps it OFF through ESP32 reset so it can't false-trigger on boot.
+
+**Power monitoring (optional "iotiBike Power" add-on, not core V1):** battery
+voltage via divider/ADS1115; current via an **isolated Hall sensor (ACS758)** →
+ADS1115 (INA219/226 can't handle 48-72V packs). Current sensing taps the battery
+main lead (invasive, bike-specific) — keep it an optional accessory. V1 energy
+economics can estimate from GPS distance × Wh/km; measured current is the upgrade.
+The device is powered from the pack via a **high-voltage-input buck** (72V needs
+more than an LM2596).
+
+⚠️ **Power the A7670 from its own 3.4–4.2 V supply with 1000 µF+ bulk capacitance**
+— it spikes ~2 A on transmit and will brown out the ESP32 otherwise. GPS is 3.3 V.
+
+Pins are configurable in `main/config.h`.
+
+## Modules & expansion
+
+iotiBike is a **universal Core + optional add-on modules**. The Core is what most
+customers buy; modules are accessories for specific needs.
+
+| Module | Role | Interface | Tier |
+|--------|------|-----------|------|
+| **Core** | GPS + IMU + 4G + siren; the tracker | — | V1, universal |
+| **Power** | battery voltage + current (energy economics) | **wired I2C** (ADS1115 + Hall sensor) | optional add-on |
+| **Immobilizer** | enable/disable the bike | **wired relay line** (never wireless) | optional add-on |
+| *(future)* fob / remote / display | convenience accessories | **ESP-NOW** (wireless) | optional |
+
+### Interconnect decision
+**Default = wired expansion, not wireless.** The Core exposes an **expansion
+connector** — I2C (SDA/SCL) + 3.3V + GND + 1–2 spare GPIO on a **locking
+connector** — and modules attach via pre-made harnesses (plug-and-play).
+
+Rationale (why not ESP-NOW for Power/Immobilizer):
+- **Cost/maintenance:** wireless modules each need their own ESP32 + power +
+  firmware → more cost, N codebases, harder for DIY makers to replicate. A wired
+  sensor on a cable is far simpler.
+- **No real install win:** Power/Immobilizer live at the battery/controller where
+  power must be run anyway; adding 2 I2C wires alongside power is trivial.
+- **🚫 Security — immobilizer must be wired.** 2.4 GHz is trivially jammable; a
+  thief could block an "immobilize" command. A wired relay has no RF to jam, and
+  a cut line is detectable → alert. Never put immobilization on a wireless link.
+
+**ESP-NOW** is reserved for genuinely-remote, non-safety-critical accessories
+(key fob, wireless remote, helmet/handlebar display, trailer tag).
+
+### Forward-compatibility (do now, build later)
+Core V1 is self-contained — no modules are built yet. Just **reserve an expansion
+header** on the Core (I2C + power + spare GPIO) so Power/Immobilizer can attach
+later at zero cost today. IMU/power *events* will also need a backend ingest
+extension (event type alongside the GPS batch) when those modules land.
+
+## Build & flash (ESP-IDF v5.x)
+
+```bash
+cd firmware/iotibike
+idf.py set-target esp32
+idf.py menuconfig        # set APN + device token (or provision at runtime)
+idf.py build
+idf.py -p /dev/ttyUSB0 flash monitor
+```
+
+## Configuration
+- Pins, baud, API host/path, sample/upload intervals: `main/config.h`.
+- Cellular APN: set for your SIM (menuconfig / config.h).
+- Device token: obtained once from `POST /api/devices/pair`, stored in NVS.
+- CA bundle: `main/certs/` (the root CA `device.iotivate.dev` chains to).
+
+## Status
+Scaffold + boot. Build order (matches the content series):
+1. **GPS lock** (`gps.c`) — first NMEA fix *(Episode 2: "first signal")*.
+2. **IMU** (`imu.c`) — tilt/motion/crash events + wake-on-motion (theft).
+3. **Cellular PPP** (`modem.c`) — A7670 dial-up.
+4. **Upload** (`uploader.c`) — batched TLS POST + offline buffer.
+
+Note: the cloud ingest currently accepts GPS points only
+(`POST /api/bike/telemetry`). IMU **events** (movement / tilt / crash alerts)
+will need a small backend extension — an event type alongside the GPS batch.

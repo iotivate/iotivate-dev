@@ -29,6 +29,7 @@ from app.api.devices import router as devices_router
 from app.api.zones import router as zones_router
 from app.api.analytics import router as analytics_router
 from app.api.bike import router as bike_router
+from app.api.printing import router as printing_router
 from app.api.radar_ws import router as radar_ws_router
 
 # Configure logging before anything else
@@ -92,10 +93,44 @@ def _run_migrations() -> None:
     command.upgrade(alembic_cfg, "head")
 
 
+def _seed_printing() -> None:
+    """Seed sensible 3D-printing defaults (editable later in admin). Idempotent —
+    only writes when the tables are empty. Numbers are placeholders; set your real
+    rate, bed size, and shipping fees in admin."""
+    from app.models.printing import PrintColor, PrintFilament, PrintSettings, ShippingZone
+
+    with Session(engine) as session:
+        if session.get(PrintSettings, 1) is None:
+            session.add(PrintSettings(id=1))  # model defaults
+
+        if session.exec(select(PrintFilament)).first() is None:
+            pla = PrintFilament(type="PLA", name="PLA", density_g_cm3=1.24,
+                                rate_per_gram=50.0, enabled=True, sort_order=0)
+            session.add(pla)
+            session.commit()
+            session.refresh(pla)
+            for cname, chex in [("Black", "#111111"), ("White", "#f5f5f5"),
+                                ("Red", "#d7263d"), ("Blue", "#1b6ca8"), ("Grey", "#808080")]:
+                session.add(PrintColor(filament_id=pla.id, name=cname, hex=chex))
+            # Disabled placeholders — enable + price in admin when stocked.
+            session.add(PrintFilament(type="ABS", name="ABS", density_g_cm3=1.04,
+                                      rate_per_gram=60.0, enabled=False, sort_order=1))
+            session.add(PrintFilament(type="TPU", name="TPU (flexible)", density_g_cm3=1.21,
+                                      rate_per_gram=90.0, enabled=False, sort_order=2))
+
+        if session.exec(select(ShippingZone)).first() is None:
+            session.add(ShippingZone(name="Abuja (within city)", flat_rate=2500.0, sort_order=0))
+            session.add(ShippingZone(name="Other states (Nigeria)", flat_rate=4500.0, sort_order=1))
+
+        session.commit()
+    logger.info("3D-printing defaults ensured")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _run_migrations()
     _bootstrap_admin()
+    _seed_printing()
     yield
 
 
@@ -173,6 +208,7 @@ app.include_router(devices_router, prefix="/api")
 app.include_router(zones_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(bike_router, prefix="/api")
+app.include_router(printing_router, prefix="/api")
 # Radar WebSocket routes live at /ws/radar/* (no /api prefix).
 app.include_router(radar_ws_router)
 
