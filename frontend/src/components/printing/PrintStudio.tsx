@@ -163,8 +163,8 @@ function Studio({ config }: { config: PrintConfig }) {
 
   async function submit() {
     setSubmitErr(null);
-    if (!name.trim() || !email.trim() || !address.trim()) {
-      setSubmitErr("Please fill in your name, email and delivery address.");
+    if (!name.trim() || !email.trim() || !phone.trim() || !address.trim()) {
+      setSubmitErr("Please fill in your name, email, phone and delivery address.");
       return;
     }
     setSubmitting(true);
@@ -177,7 +177,7 @@ function Studio({ config }: { config: PrintConfig }) {
         const up = await uploadStl(file);
         const order = await createPrintOrder({
           source: "upload",
-          customer_name: name, customer_email: email, customer_phone: phone || null,
+          customer_name: name, customer_email: email, customer_phone: phone,
           stl_url: up.url, filament_id: filament.id, color_id: colorId || null, quantity: qty,
           volume_cm3: metrics.volumeCm3, dim_x_mm: metrics.x, dim_y_mm: metrics.y, dim_z_mm: metrics.z,
           shipping_zone_id: zoneId === "" ? null : zoneId, shipping_address: address, notes: notes || null,
@@ -190,7 +190,7 @@ function Studio({ config }: { config: PrintConfig }) {
         }
         const order = await createPrintOrder({
           source: "design",
-          customer_name: name, customer_email: email, customer_phone: phone || null,
+          customer_name: name, customer_email: email, customer_phone: phone,
           design_brief: brief,
           shipping_zone_id: zoneId === "" ? null : zoneId, shipping_address: address, notes: notes || null,
         });
@@ -210,7 +210,7 @@ function Studio({ config }: { config: PrintConfig }) {
         {created.source === "upload" ? (
           <p className="mt-1 text-sm text-muted">
             {created.total != null && <>Estimated total <b className="text-foreground">{formatNaira(created.total)}</b>. </>}
-            We&apos;ll review your model, confirm the final price, and send you a payment link. {config.lead_time_text} once paid.
+            We&apos;ll review your model, confirm the final price and turnaround, and send you a payment link.
           </p>
         ) : (
           <p className="mt-1 text-sm text-muted">
@@ -340,7 +340,7 @@ function Studio({ config }: { config: PrintConfig }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div><span className={label}>Full name</span><input value={name} onChange={(e) => setName(e.target.value)} className={`mt-1 ${field}`} /></div>
         <div><span className={label}>Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={`mt-1 ${field}`} /></div>
-        <div><span className={label}>Phone (optional)</span><input value={phone} onChange={(e) => setPhone(e.target.value)} className={`mt-1 ${field}`} /></div>
+        <div><span className={label}>Phone</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={`mt-1 ${field}`} /></div>
         <div>
           <span className={label}>Delivery zone</span>
           <select value={zoneId} onChange={(e) => setZoneId(e.target.value === "" ? "" : Number(e.target.value))} className={`mt-1 ${field}`}>
@@ -366,7 +366,7 @@ function Studio({ config }: { config: PrintConfig }) {
         className="self-start rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-50">
         {submitting ? "Submitting…" : tab === "upload" ? "Request this print" : "Request a design quote"}
       </button>
-      <p className="text-xs text-muted">Delivery within Nigeria · {config.lead_time_text} · pay after we confirm.</p>
+      <p className="text-xs text-muted">Delivery within Nigeria · turnaround depends on size &amp; quantity, confirmed with your quote · pay after we confirm.</p>
     </div>
   );
 }
