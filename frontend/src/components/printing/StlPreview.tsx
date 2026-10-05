@@ -16,23 +16,33 @@ export interface StlMetrics {
 /**
  * Compact STL viewer for the print studio: renders the model and reports volume
  * (cm³) + bounding-box dimensions (mm) via onMetrics. Reuses computeMeshMetrics
- * (signed-tetrahedra volume) from the existing STL viewer so the quote math is
- * the same proven code.
+ * (signed-tetrahedra volume) so the quote math is the same proven code.
+ * - colour updates live (no reload) via a material ref
+ * - resizes with its container (ResizeObserver) so fullscreen works
  */
 export default function StlPreview({
   file,
   onMetrics,
-  accentHex = "#5BA8A0",
+  colorHex = "#5BA8A0",
 }: {
   file: File;
   onMetrics: (m: StlMetrics) => void;
-  accentHex?: string;
+  colorHex?: string;
 }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const colorRef = useRef(colorHex);
   const onMetricsRef = useRef(onMetrics);
+
   useEffect(() => {
     onMetricsRef.current = onMetrics;
   }, [onMetrics]);
+
+  // Live colour update without re-parsing the model.
+  useEffect(() => {
+    colorRef.current = colorHex;
+    if (materialRef.current) materialRef.current.color.set(colorHex);
+  }, [colorHex]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -40,13 +50,10 @@ export default function StlPreview({
     let disposed = false;
     let raf = 0;
 
-    const width = mount.clientWidth;
-    const height = mount.clientHeight;
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 5000);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio || 1);
-    renderer.setSize(width, height);
     mount.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.7));
@@ -58,6 +65,17 @@ export default function StlPreview({
     controls.enableDamping = true;
 
     let mesh: THREE.Mesh | null = null;
+
+    const resize = () => {
+      const w = mount.clientWidth || 1;
+      const h = mount.clientHeight || 1;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(mount);
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -74,28 +92,23 @@ export default function StlPreview({
         geometry.translate(-center.x, -center.y, -center.z);
 
         const material = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(accentHex),
+          color: new THREE.Color(colorRef.current),
           metalness: 0.1,
           roughness: 0.7,
         });
+        materialRef.current = material;
         mesh = new THREE.Mesh(geometry, material);
         scene.add(mesh);
 
-        // Frame the camera to the model.
         const maxDim = Math.max(size.x, size.y, size.z) || 1;
         camera.position.set(maxDim * 1.4, maxDim * 1.1, maxDim * 1.6);
         camera.lookAt(0, 0, 0);
         controls.update();
 
-        const metrics = computeMeshMetrics(geometry); // volume in mm³
-        onMetricsRef.current({
-          volumeCm3: metrics.volume / 1000,
-          x: size.x,
-          y: size.y,
-          z: size.z,
-        });
+        const metrics = computeMeshMetrics(geometry); // mm³
+        onMetricsRef.current({ volumeCm3: metrics.volume / 1000, x: size.x, y: size.y, z: size.z });
       } catch {
-        /* invalid STL — leave preview empty; parent handles errors */
+        /* invalid STL — parent handles errors */
       }
     };
     reader.readAsArrayBuffer(file);
@@ -107,29 +120,20 @@ export default function StlPreview({
     };
     raf = requestAnimationFrame(loop);
 
-    const onResize = () => {
-      if (!mount) return;
-      const w = mount.clientWidth;
-      const h = mount.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-    window.addEventListener("resize", onResize);
-
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
-      window.removeEventListener("resize", onResize);
+      ro.disconnect();
       controls.dispose();
       if (mesh) {
         mesh.geometry.dispose();
         (mesh.material as THREE.Material).dispose();
       }
+      materialRef.current = null;
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
-  }, [file, accentHex]);
+  }, [file]);
 
   return <div ref={mountRef} className="h-full w-full" />;
 }

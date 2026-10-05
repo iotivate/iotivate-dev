@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import StlPreview, { type StlMetrics } from "./StlPreview";
 import {
   createPrintOrder,
@@ -114,6 +114,15 @@ function Studio({ config }: { config: PrintConfig }) {
   const [filamentId, setFilamentId] = useState<number>(config.filaments[0]?.id ?? 0);
   const [colorId, setColorId] = useState<number>(config.filaments[0]?.colors[0]?.id ?? 0);
   const [qty, setQty] = useState(1);
+  const [previewColor, setPreviewColor] = useState<string>(config.filaments[0]?.colors[0]?.hex ?? "#5BA8A0");
+  const previewWrapRef = useRef<HTMLDivElement>(null);
+
+  function toggleFullscreen() {
+    const el = previewWrapRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) document.exitFullscreen();
+    else el.requestFullscreen?.();
+  }
 
   // design
   const [brief, setBrief] = useState("");
@@ -147,6 +156,11 @@ function Studio({ config }: { config: PrintConfig }) {
     setFilamentId(id);
     const fil = config.filaments.find((f) => f.id === id);
     setColorId(fil?.colors[0]?.id ?? 0);
+    if (fil?.colors[0]) setPreviewColor(fil.colors[0].hex);
+  }
+  function onPickColor(id: number, hex: string) {
+    setColorId(id);
+    setPreviewColor(hex);
   }
 
   async function submit() {
@@ -231,8 +245,20 @@ function Studio({ config }: { config: PrintConfig }) {
                 onChange={(e) => onPickFile(e.target.files?.[0] ?? null)} />
             </label>
             {file && (
-              <div className="h-64 overflow-hidden rounded-2xl border border-border bg-surface">
-                <StlPreview file={file} onMetrics={setMetrics} />
+              <div ref={previewWrapRef} className="relative h-64 overflow-hidden rounded-2xl border border-border bg-surface">
+                <StlPreview file={file} onMetrics={setMetrics} colorHex={previewColor} />
+                <div className="absolute right-2 top-2 flex items-center gap-1.5">
+                  <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-background/90 shadow-sm" title="Preview colour">
+                    <input type="color" value={previewColor} onChange={(e) => setPreviewColor(e.target.value)}
+                      className="h-5 w-5 cursor-pointer border-0 bg-transparent p-0" aria-label="Preview colour" />
+                  </label>
+                  <button type="button" onClick={toggleFullscreen} title="Fullscreen preview"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background/90 shadow-sm hover:bg-background">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             )}
             {metrics && (
@@ -266,7 +292,7 @@ function Studio({ config }: { config: PrintConfig }) {
                 <span className={label}>Color</span>
                 <div className="mt-1.5 flex flex-wrap gap-2">
                   {filament.colors.map((c) => (
-                    <button key={c.id} type="button" onClick={() => setColorId(c.id)} title={c.name}
+                    <button key={c.id} type="button" onClick={() => onPickColor(c.id, c.hex)} title={c.name}
                       className={`h-8 w-8 rounded-full border-2 ${colorId === c.id ? "border-accent" : "border-border"}`}
                       style={{ backgroundColor: c.hex }} aria-label={c.name} />
                   ))}
