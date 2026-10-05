@@ -112,9 +112,9 @@ function Studio({ config }: { config: PrintConfig }) {
   const [file, setFile] = useState<File | null>(null);
   const [metrics, setMetrics] = useState<StlMetrics | null>(null);
   const [filamentId, setFilamentId] = useState<number>(config.filaments[0]?.id ?? 0);
-  const [colorId, setColorId] = useState<number>(config.filaments[0]?.colors[0]?.id ?? 0);
+  const [colorId, setColorId] = useState<number>(0);
   const [qty, setQty] = useState(1);
-  const [previewColor, setPreviewColor] = useState<string>(config.filaments[0]?.colors[0]?.hex ?? "#5BA8A0");
+  const [previewColor, setPreviewColor] = useState<string>("#00ae42"); // Bambu-green default
   const previewWrapRef = useRef<HTMLDivElement>(null);
 
   function toggleFullscreen() {
@@ -154,9 +154,7 @@ function Studio({ config }: { config: PrintConfig }) {
   }
   function onPickFilament(id: number) {
     setFilamentId(id);
-    const fil = config.filaments.find((f) => f.id === id);
-    setColorId(fil?.colors[0]?.id ?? 0);
-    if (fil?.colors[0]) setPreviewColor(fil.colors[0].hex);
+    setColorId(0); // let them choose a colour for the new material
   }
   function onPickColor(id: number, hex: string) {
     setColorId(id);
@@ -246,7 +244,7 @@ function Studio({ config }: { config: PrintConfig }) {
             </label>
             {file && (
               <div ref={previewWrapRef} className="relative h-64 overflow-hidden rounded-2xl border border-border bg-surface">
-                <StlPreview file={file} onMetrics={setMetrics} colorHex={previewColor} />
+                <StlPreview file={file} onMetrics={setMetrics} colorHex={previewColor} bedX={config.max_x_mm} bedY={config.max_y_mm} />
                 <div className="absolute right-2 top-2 flex items-center gap-1.5">
                   <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-background/90 shadow-sm" title="Preview colour">
                     <input type="color" value={previewColor} onChange={(e) => setPreviewColor(e.target.value)}
