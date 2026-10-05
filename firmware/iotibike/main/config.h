@@ -10,6 +10,18 @@
 #define GPS_PIN_RX          16   // ESP32 RX  <- NEO-6M TX
 #define GPS_PIN_TX          17   // ESP32 TX  -> NEO-6M RX (optional)
 
+// --- IMU: MPU6050 on I2C (tilt / motion / theft / crash events) ---
+// NOTE: speed & heading come from GPS, not the IMU (accel integration drifts;
+// the MPU6050 has no magnetometer). The IMU is for motion/tilt/impact events.
+#define IMU_I2C_PORT        I2C_NUM_0
+#define IMU_PIN_SDA         21
+#define IMU_PIN_SCL         22
+#define IMU_I2C_FREQ_HZ     400000
+#define IMU_PIN_INT         35     // MPU6050 INT -> ESP32 (wake-on-motion)
+#define IMU_ADDR            0x68   // 0x69 if AD0 is tied high
+#define TILT_ALERT_DEG      35.0f  // tilt beyond this (while armed) -> alert
+#define MOTION_WAKE_MG      80     // motion threshold for wake-on-motion (milli-g)
+
 // --- Cellular: SIMCOM A7670 on UART1 (AT / PPP) ---
 #define MODEM_UART_NUM      UART_NUM_1
 #define MODEM_UART_BAUD     115200
