@@ -193,6 +193,10 @@ async def add_security_headers(request: Request, call_next):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
+    # Also allow this project's Vercel preview deployments so branch previews can
+    # call the API without being individually allow-listed. Echoes the matched
+    # origin (safe with credentials); production origins stay in cors_origin_list.
+    allow_origin_regex=r"https://iotivate-dev-[a-z0-9-]+\.vercel\.app",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],

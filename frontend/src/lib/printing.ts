@@ -79,7 +79,8 @@ async function asJson<T>(res: Response): Promise<T> {
 }
 
 export function getPrintConfig(): Promise<PrintConfig> {
-  return fetch(`${API_URL}/api/print/config`).then((r) => asJson<PrintConfig>(r));
+  // no-store so admin changes (new colours, pricing) show on the next page load.
+  return fetch(`${API_URL}/api/print/config`, { cache: "no-store" }).then((r) => asJson<PrintConfig>(r));
 }
 
 export function uploadStl(file: File): Promise<{ url: string; filename: string; size: number }> {

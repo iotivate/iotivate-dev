@@ -143,7 +143,10 @@ function FilamentsSection() {
     <Section title="Filaments" right={<button className={btnGhost} onClick={() => setAdding((a) => !a)}>{adding ? "Cancel" : "Add filament"}</button>}>
       {adding && <FilamentForm onSubmit={addFilament} />}
       <div className="flex flex-col gap-3">
-        {items.map((f) => <FilamentRow key={f.id} filament={f} onChange={load} />)}
+        {/* key includes colour ids so the row remounts (and shows new colours) after add/delete */}
+        {items.map((f) => (
+          <FilamentRow key={`${f.id}:${f.colors.map((c) => c.id).join("-")}`} filament={f} onChange={load} />
+        ))}
         {items.length === 0 && <p className="text-sm text-muted">No filaments yet.</p>}
       </div>
       {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
@@ -168,6 +171,7 @@ function FilamentRow({ filament, onChange }: { filament: Filament; onChange: () 
   const [f, setF] = useState(filament);
   const [newColor, setNewColor] = useState({ name: "", hex: "#808080" });
   const [status, setStatus] = useState<string | null>(null);
+  const [colorMsg, setColorMsg] = useState<string | null>(null);
 
   const save = async () => {
     setStatus("Saving…");
@@ -180,7 +184,18 @@ function FilamentRow({ filament, onChange }: { filament: Filament; onChange: () 
       setStatus(e instanceof Error ? e.message : "Save failed");
     }
   };
-  const addColor = async () => { if (!newColor.name) return; await jsend(`${ADMIN}/filaments/${f.id}/colors`, "POST", { ...newColor, enabled: true }); setNewColor({ name: "", hex: "#808080" }); onChange(); };
+  const addColor = async () => {
+    if (!newColor.name.trim()) { setColorMsg("Enter a colour name first"); return; }
+    setColorMsg("Adding…");
+    try {
+      await jsend(`${ADMIN}/filaments/${f.id}/colors`, "POST", { ...newColor, enabled: true });
+      setNewColor({ name: "", hex: "#808080" });
+      setColorMsg(null);
+      onChange(); // reload → row remounts (new key) → colour appears
+    } catch (e) {
+      setColorMsg(e instanceof Error ? e.message : "Couldn't add colour");
+    }
+  };
   const delColor = async (id: number) => { try { await jsend(`${ADMIN}/colors/${id}`, "DELETE"); onChange(); } catch { await jsend(`${ADMIN}/colors/${id}`, "PUT", { ...f.colors.find((c) => c.id === id)!, enabled: false }); onChange(); } };
 
   return (
@@ -205,9 +220,10 @@ function FilamentRow({ filament, onChange }: { filament: Filament; onChange: () 
           </span>
         ))}
         <span className="flex items-center gap-1">
-          <input className={`${input} w-24`} placeholder="color" value={newColor.name} onChange={(e) => setNewColor({ ...newColor, name: e.target.value })} />
+          <input className={`${input} w-24`} placeholder="colour name" value={newColor.name} onChange={(e) => setNewColor({ ...newColor, name: e.target.value })} />
           <input type="color" value={newColor.hex} onChange={(e) => setNewColor({ ...newColor, hex: e.target.value })} className="h-8 w-8 rounded border border-border" />
-          <button className={btnGhost} onClick={addColor}>+ color</button>
+          <button type="button" className={btnGhost} onClick={addColor}>+ colour</button>
+          {colorMsg && <span className={`text-xs ${colorMsg === "Adding…" ? "text-muted" : "text-red-600"}`}>{colorMsg}</span>}
         </span>
       </div>
     </div>
