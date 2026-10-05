@@ -71,6 +71,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link href="/admin/users" className="text-muted hover:text-foreground transition-colors whitespace-nowrap">
                   Users
                 </Link>
+                <Link href="/admin/3d-print" className="text-muted hover:text-foreground transition-colors whitespace-nowrap">
+                  3D Printing
+                </Link>
               </div>
             </div>
             <Link href="/" className="text-sm text-muted hover:text-foreground transition-colors shrink-0">

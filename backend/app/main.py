@@ -30,6 +30,7 @@ from app.api.zones import router as zones_router
 from app.api.analytics import router as analytics_router
 from app.api.bike import router as bike_router
 from app.api.printing import router as printing_router
+from app.api.admin_printing import router as admin_printing_router
 from app.api.radar_ws import router as radar_ws_router
 
 # Configure logging before anything else
@@ -209,6 +210,7 @@ app.include_router(zones_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(bike_router, prefix="/api")
 app.include_router(printing_router, prefix="/api")
+app.include_router(admin_printing_router, prefix="/api")
 # Radar WebSocket routes live at /ws/radar/* (no /api prefix).
 app.include_router(radar_ws_router)
 
