@@ -57,6 +57,11 @@ export default function Home() {
             description="Upload a model for an instant quote, pick a material and colour, and we print and deliver it. No model? We'll design it."
           />
           <Card
+            href="/tools"
+            title="Browser tools"
+            description="Flash firmware, monitor serial, and plan pinouts — straight from the browser, no installs required."
+          />
+          <Card
             href="/radar"
             title="Radar"
             description="Turn an ESP32 + mmWave sensor into a live presence-sensing dashboard with zones, rules, and alerts."
@@ -65,11 +70,6 @@ export default function Home() {
             href="/iotibike"
             title="iotiBike"
             description="Smart GPS tracking, anti-theft, and fuel-vs-electricity savings for one bike or a whole fleet."
-          />
-          <Card
-            href="/tools"
-            title="Browser tools"
-            description="Flash firmware, monitor serial, and plan pinouts — straight from the browser, no installs required."
           />
         </div>
       </section>
