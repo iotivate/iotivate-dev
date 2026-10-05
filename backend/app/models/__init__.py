@@ -9,6 +9,13 @@ from app.models.zone import Zone
 from app.models.rule import Rule, RuleEvent
 from app.models.analytics import ZoneOccupancySample
 from app.models.bike import BikeTelemetry
+from app.models.printing import (
+    PrintFilament,
+    PrintColor,
+    PrintSettings,
+    ShippingZone,
+    PrintOrder,
+)
 
 __all__ = [
     "Tool",
