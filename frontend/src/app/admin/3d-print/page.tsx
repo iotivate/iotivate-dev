@@ -86,9 +86,15 @@ function SettingsSection() {
 
   async function save() {
     if (!s) return;
-    setMsg(null); setErr(null);
-    try { await jsend(`${ADMIN}/settings`, "PUT", s); setMsg("Saved"); }
-    catch (e) { setErr(e instanceof Error ? e.message : "Save failed"); }
+    setMsg("Saving…"); setErr(null);
+    try {
+      await jsend(`${ADMIN}/settings`, "PUT", s);
+      setMsg("Saved ✓");
+      setTimeout(() => setMsg(null), 2500);
+    } catch (e) {
+      setMsg(null);
+      setErr(e instanceof Error ? e.message : "Save failed");
+    }
   }
   const num = (k: keyof Settings) => (e: React.ChangeEvent<HTMLInputElement>) => setS({ ...s!, [k]: Number(e.target.value) });
 
@@ -161,8 +167,19 @@ function FilamentForm({ onSubmit }: { onSubmit: (f: Omit<Filament, "id" | "color
 function FilamentRow({ filament, onChange }: { filament: Filament; onChange: () => void }) {
   const [f, setF] = useState(filament);
   const [newColor, setNewColor] = useState({ name: "", hex: "#808080" });
+  const [status, setStatus] = useState<string | null>(null);
 
-  const save = async () => { await jsend(`${ADMIN}/filaments/${f.id}`, "PUT", { type: f.type, name: f.name, density_g_cm3: f.density_g_cm3, rate_per_gram: f.rate_per_gram, enabled: f.enabled, sort_order: f.sort_order }); onChange(); };
+  const save = async () => {
+    setStatus("Saving…");
+    try {
+      await jsend(`${ADMIN}/filaments/${f.id}`, "PUT", { type: f.type, name: f.name, density_g_cm3: f.density_g_cm3, rate_per_gram: f.rate_per_gram, enabled: f.enabled, sort_order: f.sort_order });
+      setStatus("Saved ✓");
+      setTimeout(() => setStatus(null), 2000);
+      onChange();
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Save failed");
+    }
+  };
   const addColor = async () => { if (!newColor.name) return; await jsend(`${ADMIN}/filaments/${f.id}/colors`, "POST", { ...newColor, enabled: true }); setNewColor({ name: "", hex: "#808080" }); onChange(); };
   const delColor = async (id: number) => { try { await jsend(`${ADMIN}/colors/${id}`, "DELETE"); onChange(); } catch { await jsend(`${ADMIN}/colors/${id}`, "PUT", { ...f.colors.find((c) => c.id === id)!, enabled: false }); onChange(); } };
 
@@ -174,7 +191,10 @@ function FilamentRow({ filament, onChange }: { filament: Filament; onChange: () 
         <input className={input} type="number" step="0.01" value={f.density_g_cm3} onChange={(e) => setF({ ...f, density_g_cm3: Number(e.target.value) })} title="density g/cm³" />
         <input className={input} type="number" value={f.rate_per_gram} onChange={(e) => setF({ ...f, rate_per_gram: Number(e.target.value) })} title="₦ per gram" />
         <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" checked={f.enabled} onChange={(e) => setF({ ...f, enabled: e.target.checked })} /> enabled</label>
-        <button className={btn} onClick={save}>Save</button>
+        <div className="flex items-center gap-2">
+          <button className={btn} onClick={save}>Save</button>
+          {status && <span className={`text-xs ${status.includes("✓") ? "text-accent" : status === "Saving…" ? "text-muted" : "text-red-600"}`}>{status}</span>}
+        </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {f.colors.map((c) => (
@@ -224,12 +244,27 @@ function ZoneForm({ onDone }: { onDone: () => void }) {
 
 function ZoneRow({ zone, onChange }: { zone: Zone; onChange: () => void }) {
   const [z, setZ] = useState(zone);
+  const [status, setStatus] = useState<string | null>(null);
+  const save = async () => {
+    setStatus("Saving…");
+    try {
+      await jsend(`${ADMIN}/zones/${z.id}`, "PUT", { name: z.name, flat_rate: z.flat_rate, enabled: z.enabled, sort_order: z.sort_order });
+      setStatus("Saved ✓");
+      setTimeout(() => setStatus(null), 2000);
+      onChange();
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Save failed");
+    }
+  };
   return (
     <div className="grid items-center gap-2 sm:grid-cols-4">
       <input className={input} value={z.name} onChange={(e) => setZ({ ...z, name: e.target.value })} />
       <input className={input} type="number" value={z.flat_rate} onChange={(e) => setZ({ ...z, flat_rate: Number(e.target.value) })} />
       <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" checked={z.enabled} onChange={(e) => setZ({ ...z, enabled: e.target.checked })} /> enabled</label>
-      <button className={btn} onClick={async () => { await jsend(`${ADMIN}/zones/${z.id}`, "PUT", { name: z.name, flat_rate: z.flat_rate, enabled: z.enabled, sort_order: z.sort_order }); onChange(); }}>Save</button>
+      <div className="flex items-center gap-2">
+        <button className={btn} onClick={save}>Save</button>
+        {status && <span className={`text-xs ${status.includes("✓") ? "text-accent" : status === "Saving…" ? "text-muted" : "text-red-600"}`}>{status}</span>}
+      </div>
     </div>
   );
 }
