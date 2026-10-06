@@ -2,9 +2,10 @@ from app.models.printing import PrintColor, PrintFilament, PrintOrder, PrintSett
 
 
 def _seed(session, *, service_open=True):
-    session.add(PrintSettings(id=1, setup_fee=500, min_order=3000, fill_factor=0.4,
+    session.add(PrintSettings(id=1, setup_fee=500, min_order=3000,
+                              wall_thickness_mm=1.0, infill_percent=20,
                               max_x_mm=220, max_y_mm=220, max_z_mm=250, service_open=service_open))
-    pla = PrintFilament(type="PLA", name="PLA", density_g_cm3=1.24, rate_per_gram=50.0, enabled=True)
+    pla = PrintFilament(type="PLA", name="PLA", density_g_cm3=1.0, rate_per_gram=50.0, enabled=True)
     session.add(pla)
     session.commit()
     session.refresh(pla)
@@ -31,10 +32,12 @@ class TestQuote:
     def test_small_quote_floored(self, client, session):
         pla, zone = _seed(session)
         r = client.post("/api/print/quote", json={
-            "volume_cm3": 20, "filament_id": pla.id, "quantity": 1, "shipping_zone_id": zone.id,
+            "volume_cm3": 20, "surface_cm2": 40, "filament_id": pla.id, "quantity": 1,
+            "shipping_zone_id": zone.id,
         })
         assert r.status_code == 200
         q = r.json()
+        # shell=min(4,20)=4; interior=16; material=7.2g *50 = 360 +500 = 860 < 3000
         assert q["items_subtotal"] == 3000
         assert q["min_applied"] is True
         assert q["total"] == 5500  # 3000 + 2500 shipping
@@ -60,14 +63,15 @@ class TestOrders:
             "source": "upload",
             "customer_name": "Ada", "customer_email": "ada@example.com", "customer_phone": "08011112222",
             "stl_url": "https://files.iotivate.dev/print-uploads/x.stl",
-            "filament_id": pla.id, "quantity": 2, "volume_cm3": 500,
+            "filament_id": pla.id, "quantity": 2, "volume_cm3": 500, "surface_cm2": 400,
             "shipping_zone_id": zone.id, "shipping_address": "12 Test St, Abuja",
         })
         assert r.status_code == 201, r.text
         body = r.json()
         assert body["source"] == "upload"
-        # 248g*50 = 12400 *2 + 500 setup = 25300; + 2500 (Abuja) shipping = 27800
-        assert body["total_estimate"] == 27800.0
+        # shell=min(40,500)=40; interior=460; material=40+0.2*460=132g
+        # 132g*50 = 6600 *2 + 500 setup = 13700; + 2500 (Abuja) shipping = 16200
+        assert body["total_estimate"] == 16200.0
         assert session.get(PrintOrder, body["id"]) is not None
 
     def test_design_order_created_without_quote(self, client, session):

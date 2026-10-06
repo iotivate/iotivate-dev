@@ -37,7 +37,8 @@ class ConfigOut(BaseModel):
     currency: str
     setup_fee: float
     min_order: float
-    fill_factor: float
+    wall_thickness_mm: float
+    infill_percent: float
     max_x_mm: float
     max_y_mm: float
     max_z_mm: float
@@ -50,6 +51,7 @@ class ConfigOut(BaseModel):
 # --- quote (authoritative price) ---
 class QuoteIn(BaseModel):
     volume_cm3: float = Field(gt=0, le=1_000_000)
+    surface_cm2: float = Field(default=0.0, ge=0, le=10_000_000)
     filament_id: int
     quantity: int = Field(default=1, ge=1, le=100)
     dim_x_mm: float | None = Field(default=None, ge=0)
@@ -89,6 +91,7 @@ class OrderCreate(BaseModel):
     color_id: int | None = None
     quantity: int = Field(default=1, ge=1, le=100)
     volume_cm3: float | None = Field(default=None, gt=0, le=1_000_000)
+    surface_cm2: float | None = Field(default=None, ge=0, le=10_000_000)
     dim_x_mm: float | None = Field(default=None, ge=0)
     dim_y_mm: float | None = Field(default=None, ge=0)
     dim_z_mm: float | None = Field(default=None, ge=0)
@@ -119,7 +122,8 @@ class OrderCreate(BaseModel):
 class PrintSettingsUpdate(BaseModel):
     setup_fee: float | None = Field(default=None, ge=0)
     min_order: float | None = Field(default=None, ge=0)
-    fill_factor: float | None = Field(default=None, gt=0, le=1)
+    wall_thickness_mm: float | None = Field(default=None, gt=0, le=10)
+    infill_percent: float | None = Field(default=None, ge=0, le=100)
     max_x_mm: float | None = Field(default=None, gt=0)
     max_y_mm: float | None = Field(default=None, gt=0)
     max_z_mm: float | None = Field(default=None, gt=0)

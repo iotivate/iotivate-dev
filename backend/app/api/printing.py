@@ -91,7 +91,8 @@ def get_config(session: Session = Depends(get_session)):
         currency=s.currency,
         setup_fee=s.setup_fee,
         min_order=s.min_order,
-        fill_factor=s.fill_factor,
+        wall_thickness_mm=s.wall_thickness_mm,
+        infill_percent=s.infill_percent,
         max_x_mm=s.max_x_mm, max_y_mm=s.max_y_mm, max_z_mm=s.max_z_mm,
         lead_time_text=s.lead_time_text,
         estimate_disclaimer=s.estimate_disclaimer,
@@ -115,9 +116,11 @@ def quote(data: QuoteIn, session: Session = Depends(get_session)):
 
     q = compute_quote(
         volume_cm3=data.volume_cm3,
+        surface_cm2=data.surface_cm2,
         density_g_cm3=filament.density_g_cm3,
         rate_per_gram=filament.rate_per_gram,
-        fill_factor=s.fill_factor,
+        wall_thickness_mm=s.wall_thickness_mm,
+        infill_percent=s.infill_percent,
         quantity=data.quantity,
         setup_fee=s.setup_fee,
         min_order=s.min_order,
@@ -196,6 +199,7 @@ def create_order(request: Request, data: OrderCreate, session: Session = Depends
         color_id=data.color_id,
         quantity=data.quantity,
         volume_cm3=data.volume_cm3,
+        surface_cm2=data.surface_cm2,
         dim_x_mm=data.dim_x_mm, dim_y_mm=data.dim_y_mm, dim_z_mm=data.dim_z_mm,
         design_brief=data.design_brief,
         reference_url=data.reference_url,
@@ -216,9 +220,11 @@ def create_order(request: Request, data: OrderCreate, session: Session = Depends
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown filament")
         q = compute_quote(
             volume_cm3=data.volume_cm3,
+            surface_cm2=data.surface_cm2 or 0.0,
             density_g_cm3=filament.density_g_cm3,
             rate_per_gram=filament.rate_per_gram,
-            fill_factor=s.fill_factor,
+            wall_thickness_mm=s.wall_thickness_mm,
+            infill_percent=s.infill_percent,
             quantity=data.quantity,
             setup_fee=s.setup_fee,
             min_order=s.min_order,
