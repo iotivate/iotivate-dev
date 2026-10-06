@@ -8,6 +8,7 @@ import { computeMeshMetrics } from "@/components/stl-viewer/utils";
 
 export interface StlMetrics {
   volumeCm3: number;
+  surfaceCm2: number;
   x: number; // mm
   y: number;
   z: number;
@@ -113,7 +114,7 @@ export default function StlPreview({
     g.translate(-center.x, -box.min.y, -center.z);
     g.computeVertexNormals();
     const m = computeMeshMetrics(g);
-    onMetricsRef.current({ volumeCm3: m.volume / 1000, x: size.x, y: size.y, z: size.z });
+    onMetricsRef.current({ volumeCm3: m.volume / 1000, surfaceCm2: m.surfaceArea / 100, x: size.x, y: size.y, z: size.z });
   }
 
   useEffect(() => {
@@ -256,8 +257,8 @@ export default function StlPreview({
         controls.target.set(0, size.y / 2, 0);
         controls.update();
 
-        const metrics = computeMeshMetrics(geometry); // mm³ (rotation/translation preserve volume)
-        onMetricsRef.current({ volumeCm3: metrics.volume / 1000, x: size.x, y: size.y, z: size.z });
+        const metrics = computeMeshMetrics(geometry); // mm³/mm² (rotation/translation preserve both)
+        onMetricsRef.current({ volumeCm3: metrics.volume / 1000, surfaceCm2: metrics.surfaceArea / 100, x: size.x, y: size.y, z: size.z });
       } catch {
         /* invalid STL — parent handles errors */
       }

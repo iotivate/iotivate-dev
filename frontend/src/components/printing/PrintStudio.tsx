@@ -143,7 +143,7 @@ function Studio({ config }: { config: PrintConfig }) {
 
   const estimate = useMemo(() => {
     if (!metrics || !filament) return null;
-    return estimatePrice({ volumeCm3: metrics.volumeCm3, filament, quantity: qty, config, shippingCost });
+    return estimatePrice({ volumeCm3: metrics.volumeCm3, surfaceCm2: metrics.surfaceCm2, filament, quantity: qty, config, shippingCost });
   }, [metrics, filament, qty, config, shippingCost]);
 
   function onPickFile(f: File | null) {
@@ -179,7 +179,8 @@ function Studio({ config }: { config: PrintConfig }) {
           source: "upload",
           customer_name: name, customer_email: email, customer_phone: phone,
           stl_url: up.url, filament_id: filament.id, color_id: colorId || null, quantity: qty,
-          volume_cm3: metrics.volumeCm3, dim_x_mm: metrics.x, dim_y_mm: metrics.y, dim_z_mm: metrics.z,
+          volume_cm3: metrics.volumeCm3, surface_cm2: metrics.surfaceCm2,
+          dim_x_mm: metrics.x, dim_y_mm: metrics.y, dim_z_mm: metrics.z,
           shipping_zone_id: zoneId === "" ? null : zoneId, shipping_address: address, notes: notes || null,
         });
         setCreated({ id: order.id, total: order.total_estimate, source: "upload" });

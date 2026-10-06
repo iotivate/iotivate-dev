@@ -24,7 +24,8 @@ export interface PrintConfig {
   currency: string;
   setup_fee: number;
   min_order: number;
-  fill_factor: number;
+  wall_thickness_mm: number;
+  infill_percent: number;
   max_x_mm: number;
   max_y_mm: number;
   max_z_mm: number;
@@ -44,6 +45,7 @@ export interface OrderCreate {
   color_id?: number | null;
   quantity?: number;
   volume_cm3?: number | null;
+  surface_cm2?: number | null;
   dim_x_mm?: number | null;
   dim_y_mm?: number | null;
   dim_z_mm?: number | null;
@@ -100,17 +102,25 @@ export function createPrintOrder(payload: OrderCreate): Promise<OrderCreated> {
 }
 
 /** Client-side estimate for live display. The server recomputes authoritatively
- *  on order submit, so this is for instant UX only. Mirrors print_quote.py. */
+ *  on order submit, so this is for instant UX only. Mirrors print_quote.py
+ *  (shell + infill): shell = surfaceArea × wallThickness (capped at volume),
+ *  material = shell + infill% × interior. */
 export function estimatePrice(args: {
   volumeCm3: number;
+  surfaceCm2: number;
   filament: PrintFilament;
   quantity: number;
   config: PrintConfig;
   shippingCost: number;
 }): { weightG: number; itemsSubtotal: number; shippingCost: number; total: number; minApplied: boolean } {
-  const { volumeCm3, filament, quantity, config, shippingCost } = args;
+  const { volumeCm3, surfaceCm2, filament, quantity, config, shippingCost } = args;
   const qty = Math.max(1, quantity);
-  const weightG = Math.max(0, volumeCm3) * filament.density_g_cm3 * config.fill_factor;
+  const v = Math.max(0, volumeCm3);
+  const wallCm = Math.max(0, config.wall_thickness_mm) / 10;
+  const shell = Math.min(Math.max(0, surfaceCm2) * wallCm, v);
+  const interior = Math.max(0, v - shell);
+  const fill = Math.max(0, Math.min(1, config.infill_percent / 100));
+  const weightG = (shell + fill * interior) * filament.density_g_cm3;
   const raw = weightG * filament.rate_per_gram * qty + config.setup_fee;
   const itemsSubtotal = Math.max(raw, config.min_order);
   return {

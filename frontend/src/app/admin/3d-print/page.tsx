@@ -20,7 +20,7 @@ interface Filament {
 }
 interface Zone { id: number; name: string; flat_rate: number; enabled: boolean; sort_order: number }
 interface Settings {
-  setup_fee: number; min_order: number; fill_factor: number;
+  setup_fee: number; min_order: number; wall_thickness_mm: number; infill_percent: number;
   max_x_mm: number; max_y_mm: number; max_z_mm: number;
   currency: string; lead_time_text: string; service_open: boolean;
   design_enabled: boolean; estimate_disclaimer: string;
@@ -102,10 +102,11 @@ function SettingsSection() {
     <Section title="Pricing & settings" right={s && <button className={btn} onClick={save}>Save</button>}>
       {!s ? <p className="text-sm text-muted">Loading…</p> : (
         <div className="grid gap-4 sm:grid-cols-3">
-          <Fld label={`Rate is per gram, per filament (below)`} wide><span className="text-xs text-muted">Price = weight × rate/g × qty + setup, floored to minimum, + shipping.</span></Fld>
+          <Fld label={`Weight = shell + infill (per filament rate, below)`} wide><span className="text-xs text-muted">Shell = surface area × wall thickness; weight = (shell + infill% × interior) × density. Raise wall thickness if estimates read low vs your slicer.</span></Fld>
           <Fld label="Setup fee (₦)"><input className={input} type="number" value={s.setup_fee} onChange={num("setup_fee")} /></Fld>
           <Fld label="Minimum order (₦)"><input className={input} type="number" value={s.min_order} onChange={num("min_order")} /></Fld>
-          <Fld label="Fill factor (0–1)"><input className={input} type="number" step="0.05" value={s.fill_factor} onChange={num("fill_factor")} /></Fld>
+          <Fld label="Wall thickness (mm)"><input className={input} type="number" step="0.1" value={s.wall_thickness_mm} onChange={num("wall_thickness_mm")} /></Fld>
+          <Fld label="Infill (%)"><input className={input} type="number" step="1" value={s.infill_percent} onChange={num("infill_percent")} /></Fld>
           <Fld label="Bed max X (mm)"><input className={input} type="number" value={s.max_x_mm} onChange={num("max_x_mm")} /></Fld>
           <Fld label="Bed max Y (mm)"><input className={input} type="number" value={s.max_y_mm} onChange={num("max_y_mm")} /></Fld>
           <Fld label="Bed max Z (mm)"><input className={input} type="number" value={s.max_z_mm} onChange={num("max_z_mm")} /></Fld>

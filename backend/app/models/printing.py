@@ -52,7 +52,10 @@ class PrintSettings(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     setup_fee: float = Field(default=500.0)        # NGN, added per order
     min_order: float = Field(default=3000.0)       # NGN, order total floored to this
-    fill_factor: float = Field(default=0.4)        # weight = volume*density*fill_factor
+    fill_factor: float = Field(default=0.4)        # legacy flat model (unused; kept for compat)
+    # Shell + infill weight model (see services/print_quote.py).
+    wall_thickness_mm: float = Field(default=1.2)  # effective solid skin: perimeters + top/bottom
+    infill_percent: float = Field(default=15.0)    # interior infill density
     max_x_mm: float = Field(default=220.0)         # printer bed limits
     max_y_mm: float = Field(default=220.0)
     max_z_mm: float = Field(default=250.0)
@@ -98,6 +101,7 @@ class PrintOrder(SQLModel, table=True):
     color_id: int | None = Field(default=None, foreign_key="printcolor.id")
     quantity: int = Field(default=1)
     volume_cm3: float | None = Field(default=None)
+    surface_cm2: float | None = Field(default=None)
     est_weight_g: float | None = Field(default=None)
     dim_x_mm: float | None = Field(default=None)
     dim_y_mm: float | None = Field(default=None)
