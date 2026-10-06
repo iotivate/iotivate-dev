@@ -170,10 +170,43 @@ export default function StlPreview({
     grid.position.y = 0.01;
     scene.add(grid);
 
-    const originMat = new THREE.MeshBasicMaterial({ color: 0x00ae42 });
-    const origin = new THREE.Mesh(new THREE.BoxGeometry(6, 1, 6), originMat);
-    origin.position.set(-bedX / 2, 0.5, bedY / 2);
-    scene.add(origin);
+    // Branded plate decal: "iotivate.dev" (+ logo) rendered on the plate, like a
+    // slicer plate label. Doubles as free branding in any screenshot/video.
+    const labelCanvas = document.createElement("canvas");
+    labelCanvas.width = 1024;
+    labelCanvas.height = 256;
+    const lctx = labelCanvas.getContext("2d")!;
+    const drawLabel = (logo?: HTMLImageElement) => {
+      lctx.clearRect(0, 0, 1024, 256);
+      lctx.textBaseline = "middle";
+      lctx.font = "600 128px system-ui, -apple-system, sans-serif";
+      let x = 30;
+      if (logo && logo.width) {
+        const h = 150;
+        const w = h * (logo.width / logo.height);
+        lctx.drawImage(logo, x, (256 - h) / 2, w, h);
+        x += w + 28;
+      }
+      lctx.fillStyle = "rgba(255,255,255,0.85)";
+      lctx.fillText("iotivate", x, 132);
+      const iw = lctx.measureText("iotivate").width;
+      lctx.fillStyle = "rgba(91,168,160,0.95)"; // brand teal
+      lctx.fillText(".dev", x + iw, 132);
+    };
+    drawLabel();
+    const labelTex = new THREE.CanvasTexture(labelCanvas);
+    labelTex.anisotropy = 4;
+    const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide });
+    const labelAspect = labelCanvas.width / labelCanvas.height;
+    const labelW = Math.min(bedX * 0.55, 130);
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(labelW, labelW / labelAspect), labelMat);
+    label.rotation.x = -Math.PI / 2;
+    label.position.set(0, 0.05, bedY / 2 - labelW / labelAspect);
+    scene.add(label);
+    const logoImg = new Image();
+    logoImg.crossOrigin = "anonymous";
+    logoImg.onload = () => { drawLabel(logoImg); labelTex.needsUpdate = true; };
+    logoImg.src = "/logo.png";
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -251,8 +284,9 @@ export default function StlPreview({
       plateMat.dispose();
       outline.geometry.dispose();
       outlineMat.dispose();
-      origin.geometry.dispose();
-      originMat.dispose();
+      label.geometry.dispose();
+      labelMat.dispose();
+      labelTex.dispose();
       grid.dispose();
       (scene.background as THREE.CanvasTexture)?.dispose?.();
       materialRef.current = null;
