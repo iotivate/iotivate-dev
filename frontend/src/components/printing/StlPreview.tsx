@@ -136,6 +136,7 @@ export default function StlPreview({
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio || 1);
+    renderer.domElement.style.display = "block";
     mount.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.65));
@@ -182,7 +183,7 @@ export default function StlPreview({
       const h = mount.clientHeight || 1;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, h, false);
+      renderer.setSize(w, h); // updateStyle=true so the canvas fills its container
     };
     resize();
     const ro = new ResizeObserver(resize);
