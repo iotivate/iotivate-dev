@@ -44,7 +44,9 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/print", tags=["3d-printing"])
 
 ALLOWED_STL_EXT = {".stl", ".obj", ".3mf"}
-MAX_STL_BYTES = 50 * 1024 * 1024  # 50 MB
+# Absolute ceiling regardless of the admin setting — protects the single-worker
+# backend's memory and stays under a possible Cloudflare 100MB proxy limit.
+HARD_MAX_UPLOAD_MB = 100
 
 
 def _get_settings(session: Session) -> PrintSettings:
@@ -52,6 +54,10 @@ def _get_settings(session: Session) -> PrintSettings:
     if s is None:  # not seeded yet — fall back to defaults
         s = PrintSettings(id=1)
     return s
+
+
+def _effective_upload_mb(s: PrintSettings) -> int:
+    return max(1, min(s.max_upload_mb, HARD_MAX_UPLOAD_MB))
 
 
 def _fits_build_volume(dims: tuple[float | None, float | None, float | None], s: PrintSettings) -> bool:
@@ -93,6 +99,7 @@ def get_config(session: Session = Depends(get_session)):
         min_order=s.min_order,
         wall_thickness_mm=s.wall_thickness_mm,
         infill_percent=s.infill_percent,
+        max_upload_mb=_effective_upload_mb(s),
         max_x_mm=s.max_x_mm, max_y_mm=s.max_y_mm, max_z_mm=s.max_z_mm,
         lead_time_text=s.lead_time_text,
         estimate_disclaimer=s.estimate_disclaimer,
@@ -136,7 +143,11 @@ def quote(data: QuoteIn, session: Session = Depends(get_session)):
 
 @router.post("/stl", response_model=StlUploadOut)
 @limiter.limit("20/hour")
-async def upload_stl(request: Request, file: UploadFile = File(...)):
+async def upload_stl(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+):
     """Public STL upload (on order submit). Rate-limited + size-capped to curb
     abuse; files land under print-uploads/ so an R2 lifecycle rule can expire them."""
     if not settings.r2_configured:
@@ -147,11 +158,12 @@ async def upload_stl(request: Request, file: UploadFile = File(...)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File type not allowed. Use: {', '.join(sorted(ALLOWED_STL_EXT))}",
         )
+    max_mb = _effective_upload_mb(_get_settings(session))
     content = await file.read()
-    if len(content) > MAX_STL_BYTES:
+    if len(content) > max_mb * 1024 * 1024:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File too large (max {MAX_STL_BYTES // (1024 * 1024)} MB)",
+            detail=f"File too large (max {max_mb} MB)",
         )
     if not content:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")

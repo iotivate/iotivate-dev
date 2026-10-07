@@ -183,14 +183,22 @@ function Studio({ config }: { config: PrintConfig }) {
 
   function onPickFile(f: File | null) {
     setPreviewErr(null);
+    // Shown right under the upload box (not the bottom submit error) so it's
+    // visible on mobile, where the file is picked at the top of the screen.
     if (f && !ACCEPTED_MODEL_EXT.some((ext) => f.name.toLowerCase().endsWith(ext))) {
       setFile(null);
       setMetrics(null);
       setCreated(null);
       setSubmitErr(null);
-      // Shown right under the upload box (not the bottom submit error) so it's
-      // visible on mobile, where the file is picked at the top of the screen.
       setPreviewErr("That file type isn't supported — please upload an STL file.");
+      return;
+    }
+    if (f && f.size > config.max_upload_mb * 1024 * 1024) {
+      setFile(null);
+      setMetrics(null);
+      setCreated(null);
+      setSubmitErr(null);
+      setPreviewErr(`That file is too large (max ${config.max_upload_mb} MB).`);
       return;
     }
     setFile(f);
@@ -294,7 +302,7 @@ function Studio({ config }: { config: PrintConfig }) {
           <div className="flex min-w-0 flex-col gap-3">
             <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border bg-surface px-6 py-8 text-center hover:border-accent">
               <span className="text-sm font-medium">{file ? file.name : "Upload your model"}</span>
-              <span className="text-xs text-muted">STL file · max 50 MB</span>
+              <span className="text-xs text-muted">STL file · max {config.max_upload_mb} MB</span>
               <input type="file" accept={FILE_ACCEPT} className="hidden"
                 onChange={(e) => onPickFile(e.target.files?.[0] ?? null)} />
             </label>

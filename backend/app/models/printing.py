@@ -56,6 +56,7 @@ class PrintSettings(SQLModel, table=True):
     # Shell + infill weight model (see services/print_quote.py).
     wall_thickness_mm: float = Field(default=1.2)  # effective solid skin: perimeters + top/bottom
     infill_percent: float = Field(default=15.0)    # interior infill density
+    max_upload_mb: int = Field(default=100)        # STL upload size cap (hard-ceilinged in the API)
     max_x_mm: float = Field(default=220.0)         # printer bed limits
     max_y_mm: float = Field(default=220.0)
     max_z_mm: float = Field(default=250.0)
