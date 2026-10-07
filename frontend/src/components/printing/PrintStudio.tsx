@@ -253,7 +253,7 @@ function Studio({ config }: { config: PrintConfig }) {
       <div className="flex flex-wrap items-center gap-2">
         <TabBtn active={tab === "upload"} onClick={() => pickTab("upload")}>I have a 3D file</TabBtn>
         {config.design_enabled && (
-          <TabBtn active={tab === "design"} onClick={() => pickTab("design")} pulse={hintDesign && tab !== "design"}>
+          <TabBtn active={tab === "design"} onClick={() => pickTab("design")} pulse={tab !== "design"}>
             I need it designed
             {hintDesign && tab !== "design" && (
               <span className="ml-2 rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
