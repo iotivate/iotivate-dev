@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import MetaPixel from "@/components/MetaPixel";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
@@ -63,6 +64,7 @@ export default function RootLayout({
       <head>
         <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
         <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "2e33c80f6fb84f47b23fcdb91e309f4a"}'></script>
+        <MetaPixel />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import StlPreview, { type StlMetrics } from "./StlPreview";
+import { pixelTrack, pixelTrackCustom } from "@/lib/metapixel";
 import {
   createPrintOrder,
   estimatePrice,
@@ -157,6 +158,16 @@ function Studio({ config }: { config: PrintConfig }) {
     return estimatePrice({ volumeCm3: metrics.volumeCm3, surfaceCm2: metrics.surfaceCm2, filament, quantity: qty, config, shippingCost });
   }, [metrics, filament, qty, config, shippingCost]);
 
+  // Fire a Meta "Quote" signal once per loaded model (not on every qty tweak),
+  // so ads can build audiences from people who got far enough to see a price.
+  const quotedFileRef = useRef<File | null>(null);
+  useEffect(() => {
+    if (file && estimate && filament && quotedFileRef.current !== file) {
+      quotedFileRef.current = file;
+      pixelTrackCustom("Quote", { value: estimate.total, currency: config.currency, content_name: filament.type });
+    }
+  }, [file, estimate, filament, config.currency]);
+
   function onPickFile(f: File | null) {
     setFile(f);
     setMetrics(null);
@@ -194,6 +205,7 @@ function Studio({ config }: { config: PrintConfig }) {
           dim_x_mm: metrics.x, dim_y_mm: metrics.y, dim_z_mm: metrics.z,
           shipping_zone_id: zoneId === "" ? null : zoneId, shipping_address: address, notes: notes || null,
         });
+        pixelTrack("Lead", { value: order.total_estimate ?? 0, currency: config.currency, content_name: filament.type });
         setCreated({ id: order.id, total: order.total_estimate, source: "upload" });
       } else {
         if (!brief.trim()) {
@@ -206,6 +218,7 @@ function Studio({ config }: { config: PrintConfig }) {
           design_brief: brief,
           shipping_zone_id: zoneId === "" ? null : zoneId, shipping_address: address, notes: notes || null,
         });
+        pixelTrack("Lead", { currency: config.currency, content_name: "design" });
         setCreated({ id: order.id, total: null, source: "design" });
       }
     } catch (e) {
