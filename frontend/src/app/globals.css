@@ -168,7 +168,7 @@ body {
   }
 }
 .design-tab-pulse {
-  animation: design-tab-glow 1.8s ease-in-out infinite;
+  animation: design-tab-glow 1s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .design-tab-pulse {
