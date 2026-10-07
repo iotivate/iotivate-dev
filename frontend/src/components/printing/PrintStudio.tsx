@@ -95,6 +95,12 @@ function RegionNotice() {
 const field = "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-accent";
 const label = "text-xs font-medium uppercase tracking-wide text-muted";
 
+// iOS Safari grays out files when the picker is filtered by extension alone
+// (it doesn't know .stl/.obj/.3mf). Keep a broad accept so they're selectable,
+// and enforce the real check in JS after a file is chosen.
+const ACCEPTED_MODEL_EXT = [".stl", ".obj", ".3mf"];
+const FILE_ACCEPT = ".stl,.obj,.3mf,model/stl,application/sla,application/octet-stream";
+
 function Studio({ config }: { config: PrintConfig }) {
   const [tab, setTab] = useState<Tab>("upload");
   // Nudge the "I need it designed" path for visitors with no 3D file. Settles
@@ -169,6 +175,13 @@ function Studio({ config }: { config: PrintConfig }) {
   }, [file, estimate, filament, config.currency]);
 
   function onPickFile(f: File | null) {
+    if (f && !ACCEPTED_MODEL_EXT.some((ext) => f.name.toLowerCase().endsWith(ext))) {
+      setSubmitErr("Please choose an STL, OBJ or 3MF file.");
+      setFile(null);
+      setMetrics(null);
+      setCreated(null);
+      return;
+    }
     setFile(f);
     setMetrics(null);
     setCreated(null);
@@ -271,7 +284,7 @@ function Studio({ config }: { config: PrintConfig }) {
             <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border bg-surface px-6 py-8 text-center hover:border-accent">
               <span className="text-sm font-medium">{file ? file.name : "Upload your model"}</span>
               <span className="text-xs text-muted">STL, OBJ or 3MF · max 50 MB</span>
-              <input type="file" accept=".stl,.obj,.3mf" className="hidden"
+              <input type="file" accept={FILE_ACCEPT} className="hidden"
                 onChange={(e) => onPickFile(e.target.files?.[0] ?? null)} />
             </label>
             {file && (
