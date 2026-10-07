@@ -96,6 +96,17 @@ const label = "text-xs font-medium uppercase tracking-wide text-muted";
 
 function Studio({ config }: { config: PrintConfig }) {
   const [tab, setTab] = useState<Tab>("upload");
+  // Nudge the "I need it designed" path for visitors with no 3D file. Settles
+  // after a few seconds or as soon as they pick a tab, so it never nags.
+  const [hintDesign, setHintDesign] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setHintDesign(false), 8000);
+    return () => clearTimeout(t);
+  }, []);
+  function pickTab(t: Tab) {
+    setHintDesign(false);
+    setTab(t);
+  }
 
   // shared
   const [name, setName] = useState("");
@@ -226,10 +237,17 @@ function Studio({ config }: { config: PrintConfig }) {
   return (
     <div className="flex flex-col gap-5">
       {/* tabs */}
-      <div className="flex gap-2">
-        <TabBtn active={tab === "upload"} onClick={() => setTab("upload")}>I have a 3D file</TabBtn>
+      <div className="flex flex-wrap items-center gap-2">
+        <TabBtn active={tab === "upload"} onClick={() => pickTab("upload")}>I have a 3D file</TabBtn>
         {config.design_enabled && (
-          <TabBtn active={tab === "design"} onClick={() => setTab("design")}>I need it designed</TabBtn>
+          <TabBtn active={tab === "design"} onClick={() => pickTab("design")} pulse={hintDesign && tab !== "design"}>
+            I need it designed
+            {hintDesign && tab !== "design" && (
+              <span className="ml-2 rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                No 3D file?
+              </span>
+            )}
+          </TabBtn>
         )}
       </div>
 
@@ -377,11 +395,15 @@ function Studio({ config }: { config: PrintConfig }) {
   );
 }
 
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabBtn({ active, onClick, pulse, children }: { active: boolean; onClick: () => void; pulse?: boolean; children: React.ReactNode }) {
   return (
     <button onClick={onClick}
       className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-        active ? "border-accent bg-accent/10 text-accent" : "border-border text-muted hover:bg-surface"
+        active
+          ? "border-accent bg-accent/10 text-accent"
+          : pulse
+            ? "design-tab-pulse border-accent/50 text-accent hover:bg-accent/5"
+            : "border-border text-muted hover:bg-surface"
       }`}>
       {children}
     </button>
