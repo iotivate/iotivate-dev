@@ -80,12 +80,14 @@ function platePath(w: number, h: number, r: number, tabDepth: number, tabWidth: 
 export default function StlPreview({
   file,
   onMetrics,
+  onError,
   colorHex = "#00ae42",
   bedX = 220,
   bedY = 220,
 }: {
   file: File;
   onMetrics: (m: StlMetrics) => void;
+  onError?: () => void;
   colorHex?: string;
   bedX?: number;
   bedY?: number;
@@ -95,6 +97,7 @@ export default function StlPreview({
   const meshRef = useRef<THREE.Mesh | null>(null);
   const colorRef = useRef(colorHex);
   const onMetricsRef = useRef(onMetrics);
+  const onErrorRef = useRef(onError);
 
   // Rotate the model 90° about an axis, re-sit it on the plate, and re-report
   // dimensions (volume is unchanged by rotation).
@@ -119,7 +122,8 @@ export default function StlPreview({
 
   useEffect(() => {
     onMetricsRef.current = onMetrics;
-  }, [onMetrics]);
+    onErrorRef.current = onError;
+  }, [onMetrics, onError]);
 
   useEffect(() => {
     colorRef.current = colorHex;
@@ -138,6 +142,7 @@ export default function StlPreview({
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio || 1);
     renderer.domElement.style.display = "block";
+    renderer.domElement.style.maxWidth = "100%"; // never let the canvas widen the page
     mount.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.65));
@@ -230,6 +235,11 @@ export default function StlPreview({
       if (disposed) return;
       try {
         const geometry = new STLLoader().parse(reader.result as ArrayBuffer);
+        const pos = geometry.getAttribute("position");
+        if (!pos || pos.count === 0) {
+          onErrorRef.current?.();
+          return;
+        }
         // STLs for printing are Z-up; Three.js is Y-up — rotate so it stands on the plate.
         geometry.rotateX(-Math.PI / 2);
         geometry.computeVertexNormals();
@@ -260,7 +270,7 @@ export default function StlPreview({
         const metrics = computeMeshMetrics(geometry); // mm³/mm² (rotation/translation preserve both)
         onMetricsRef.current({ volumeCm3: metrics.volume / 1000, surfaceCm2: metrics.surfaceArea / 100, x: size.x, y: size.y, z: size.z });
       } catch {
-        /* invalid STL — parent handles errors */
+        onErrorRef.current?.();
       }
     };
     reader.readAsArrayBuffer(file);

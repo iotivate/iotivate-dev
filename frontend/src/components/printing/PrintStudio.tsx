@@ -95,11 +95,11 @@ function RegionNotice() {
 const field = "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-accent";
 const label = "text-xs font-medium uppercase tracking-wide text-muted";
 
-// iOS Safari grays out files when the picker is filtered by extension alone
-// (it doesn't know .stl/.obj/.3mf). Keep a broad accept so they're selectable,
-// and enforce the real check in JS after a file is chosen.
-const ACCEPTED_MODEL_EXT = [".stl", ".obj", ".3mf"];
-const FILE_ACCEPT = ".stl,.obj,.3mf,model/stl,application/sla,application/octet-stream";
+// The preview/quote currently supports STL only. iOS Safari grays out files
+// when the picker is filtered by extension alone (it doesn't know .stl), so keep
+// a broad accept and enforce the real check in JS after a file is chosen.
+const ACCEPTED_MODEL_EXT = [".stl"];
+const FILE_ACCEPT = ".stl,model/stl,application/sla,application/octet-stream";
 
 function Studio({ config }: { config: PrintConfig }) {
   const [tab, setTab] = useState<Tab>("upload");
@@ -133,14 +133,21 @@ function Studio({ config }: { config: PrintConfig }) {
   const [colorId, setColorId] = useState<number>(0);
   const [qty, setQty] = useState(1);
   const [previewColor, setPreviewColor] = useState<string>("#00ae42"); // Bambu-green default
+  const [previewErr, setPreviewErr] = useState<string | null>(null);
+  // CSS-based expand (not the Fullscreen API, which iOS Safari doesn't support on
+  // non-video elements — that's why the button did nothing on mobile).
+  const [expanded, setExpanded] = useState(false);
   const previewWrapRef = useRef<HTMLDivElement>(null);
 
   function toggleFullscreen() {
-    const el = previewWrapRef.current;
-    if (!el) return;
-    if (document.fullscreenElement) document.exitFullscreen();
-    else el.requestFullscreen?.();
+    setExpanded((v) => !v);
   }
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setExpanded(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
 
   // design
   const [brief, setBrief] = useState("");
@@ -175,11 +182,12 @@ function Studio({ config }: { config: PrintConfig }) {
   }, [file, estimate, filament, config.currency]);
 
   function onPickFile(f: File | null) {
+    setPreviewErr(null);
     if (f && !ACCEPTED_MODEL_EXT.some((ext) => f.name.toLowerCase().endsWith(ext))) {
-      setSubmitErr("Please choose an STL, OBJ or 3MF file.");
       setFile(null);
       setMetrics(null);
       setCreated(null);
+      setSubmitErr("That file type isn't supported yet — please upload an STL file.");
       return;
     }
     setFile(f);
@@ -280,29 +288,41 @@ function Studio({ config }: { config: PrintConfig }) {
       {tab === "upload" ? (
         <div className="grid gap-5 lg:grid-cols-2">
           {/* left: upload + preview */}
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border bg-surface px-6 py-8 text-center hover:border-accent">
               <span className="text-sm font-medium">{file ? file.name : "Upload your model"}</span>
-              <span className="text-xs text-muted">STL, OBJ or 3MF · max 50 MB</span>
+              <span className="text-xs text-muted">STL file · max 50 MB</span>
               <input type="file" accept={FILE_ACCEPT} className="hidden"
                 onChange={(e) => onPickFile(e.target.files?.[0] ?? null)} />
             </label>
             {file && (
-              <div ref={previewWrapRef} className="relative h-64 overflow-hidden rounded-2xl border border-border bg-surface">
-                <StlPreview file={file} onMetrics={setMetrics} colorHex={previewColor} bedX={config.max_x_mm} bedY={config.max_y_mm} />
+              <div ref={previewWrapRef}
+                className={expanded
+                  ? "fixed inset-0 z-[60] bg-background"
+                  : "relative h-64 min-w-0 overflow-hidden rounded-2xl border border-border bg-surface"}>
+                <StlPreview file={file} onMetrics={setMetrics} onError={() => { setMetrics(null); setPreviewErr("We couldn't read that model. Please make sure it's a valid STL file."); }} colorHex={previewColor} bedX={config.max_x_mm} bedY={config.max_y_mm} />
                 <div className="absolute right-2 top-2 flex items-center gap-1.5">
                   <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-background/90 shadow-sm" title="Preview colour">
                     <input type="color" value={previewColor} onChange={(e) => setPreviewColor(e.target.value)}
                       className="h-5 w-5 cursor-pointer border-0 bg-transparent p-0" aria-label="Preview colour" />
                   </label>
-                  <button type="button" onClick={toggleFullscreen} title="Fullscreen preview"
+                  <button type="button" onClick={toggleFullscreen} title={expanded ? "Exit fullscreen" : "Fullscreen preview"}
                     className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background/90 shadow-sm hover:bg-background">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
-                    </svg>
+                    {expanded ? (
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 6 6 18M6 6l12 12" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+                      </svg>
+                    )}
                   </button>
                 </div>
               </div>
+            )}
+            {previewErr && (
+              <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-400">{previewErr}</p>
             )}
             {metrics && (
               <div className="rounded-xl border border-border bg-surface p-3 text-sm">
@@ -321,7 +341,7 @@ function Studio({ config }: { config: PrintConfig }) {
           </div>
 
           {/* right: options + estimate */}
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             <div>
               <span className={label}>Material</span>
               <select value={filamentId} onChange={(e) => onPickFilament(Number(e.target.value))} className={`mt-1 ${field}`}>
