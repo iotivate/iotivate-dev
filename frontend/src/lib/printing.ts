@@ -26,6 +26,7 @@ export interface PrintConfig {
   min_order: number;
   wall_thickness_mm: number;
   infill_percent: number;
+  max_upload_mb: number;
   max_x_mm: number;
   max_y_mm: number;
   max_z_mm: number;

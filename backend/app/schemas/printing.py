@@ -39,6 +39,7 @@ class ConfigOut(BaseModel):
     min_order: float
     wall_thickness_mm: float
     infill_percent: float
+    max_upload_mb: int
     max_x_mm: float
     max_y_mm: float
     max_z_mm: float
@@ -124,6 +125,7 @@ class PrintSettingsUpdate(BaseModel):
     min_order: float | None = Field(default=None, ge=0)
     wall_thickness_mm: float | None = Field(default=None, gt=0, le=10)
     infill_percent: float | None = Field(default=None, ge=0, le=100)
+    max_upload_mb: int | None = Field(default=None, ge=1, le=100)  # hard ceiling 100MB
     max_x_mm: float | None = Field(default=None, gt=0)
     max_y_mm: float | None = Field(default=None, gt=0)
     max_z_mm: float | None = Field(default=None, gt=0)
