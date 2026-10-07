@@ -187,7 +187,10 @@ function Studio({ config }: { config: PrintConfig }) {
       setFile(null);
       setMetrics(null);
       setCreated(null);
-      setSubmitErr("That file type isn't supported yet — please upload an STL file.");
+      setSubmitErr(null);
+      // Shown right under the upload box (not the bottom submit error) so it's
+      // visible on mobile, where the file is picked at the top of the screen.
+      setPreviewErr("That file type isn't supported — please upload an STL file.");
       return;
     }
     setFile(f);
@@ -300,7 +303,7 @@ function Studio({ config }: { config: PrintConfig }) {
                 className={expanded
                   ? "fixed inset-0 z-[60] bg-background"
                   : "relative h-64 min-w-0 overflow-hidden rounded-2xl border border-border bg-surface"}>
-                <StlPreview file={file} onMetrics={setMetrics} onError={() => { setMetrics(null); setPreviewErr("We couldn't read that model. Please make sure it's a valid STL file."); }} colorHex={previewColor} bedX={config.max_x_mm} bedY={config.max_y_mm} />
+                <StlPreview file={file} onMetrics={setMetrics} onError={() => { setFile(null); setMetrics(null); setPreviewErr("We couldn't read that model. Please make sure it's a valid STL file."); }} colorHex={previewColor} bedX={config.max_x_mm} bedY={config.max_y_mm} />
                 <div className="absolute right-2 top-2 flex items-center gap-1.5">
                   <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-background/90 shadow-sm" title="Preview colour">
                     <input type="color" value={previewColor} onChange={(e) => setPreviewColor(e.target.value)}
