@@ -3,9 +3,8 @@
 import { useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-// Set NEXT_PUBLIC_WHATSAPP_NUMBER in full international format, digits only
-// (e.g. 2348012345678). Leave unset to hide the WhatsApp button.
-const WHATSAPP = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "";
+// Business WhatsApp (digits only, intl format). Env var overrides if set.
+const WHATSAPP = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "2349126497801";
 
 const field =
   "w-full rounded-lg border border-border bg-background px-4 py-3 text-sm outline-none transition-colors focus:border-accent";
