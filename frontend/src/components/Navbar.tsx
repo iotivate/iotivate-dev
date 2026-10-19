@@ -12,9 +12,15 @@ const solutions = [
   { href: "/iotibike", label: "iotiBike", desc: "Smart bike & fleet tracking" },
 ];
 
+// Fabrication & design services live under the "Services" dropdown.
+const services = [
+  { href: "/3d-print", label: "3D Printing", desc: "Upload, quote, print & deliver" },
+  { href: "/pcb-design", label: "PCB Design", desc: "Schematic to production files" },
+  { href: "/final-year-projects", label: "Final-Year Projects", desc: "Built, tested & documented" },
+];
+
 const navLinks = [
   { href: "/", label: "Home" },
-  { href: "/3d-print", label: "3D Printing" },
   { href: "/tools", label: "Tools" },
   { href: "/projects", label: "Projects" },
   { href: "/blog", label: "Blog" },
@@ -22,14 +28,16 @@ const navLinks = [
   { href: "/contact", label: "Contact" },
 ];
 
-function isSolutionsActive(pathname: string): boolean {
-  return solutions.some((s) => pathname === s.href || pathname.startsWith(`${s.href}/`));
+type NavItem = { href: string; label: string; desc: string };
+
+function isGroupActive(pathname: string, items: NavItem[]): boolean {
+  return items.some((s) => pathname === s.href || pathname.startsWith(`${s.href}/`));
 }
 
-function SolutionsDropdown({ pathname }: { pathname: string }) {
+function NavDropdown({ label, items, pathname }: { label: string; items: NavItem[]; pathname: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const active = isSolutionsActive(pathname);
+  const active = isGroupActive(pathname, items);
 
   // Close on outside click and on Escape.
   useEffect(() => {
@@ -62,7 +70,7 @@ function SolutionsDropdown({ pathname }: { pathname: string }) {
           active ? "text-accent bg-accent/10" : "text-muted hover:text-foreground"
         }`}
       >
-        Solutions
+        {label}
         <svg
           className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
           viewBox="0 0 24 24"
@@ -81,7 +89,7 @@ function SolutionsDropdown({ pathname }: { pathname: string }) {
           role="menu"
           className="absolute left-0 mt-1 w-64 rounded-lg border border-border bg-background py-1 shadow-lg"
         >
-          {solutions.map((s) => {
+          {items.map((s) => {
             const itemActive = pathname === s.href || pathname.startsWith(`${s.href}/`);
             return (
               <Link
@@ -129,8 +137,9 @@ export default function Navbar() {
             >
               Home
             </Link>
-            {/* Solutions dropdown (products) */}
-            <SolutionsDropdown pathname={pathname} />
+            {/* Solutions (products) + Services (fabrication/design) */}
+            <NavDropdown label="Solutions" items={solutions} pathname={pathname} />
+            <NavDropdown label="Services" items={services} pathname={pathname} />
             {/* The rest */}
             {navLinks.slice(1).map(({ href, label }) => (
               <Link
@@ -241,6 +250,26 @@ function MobileMenu({ pathname, user, isLoading, logout, isPro }: MobileMenuProp
             Solutions
           </div>
           {solutions.map((s) => {
+            const itemActive = pathname === s.href || pathname.startsWith(`${s.href}/`);
+            return (
+              <Link
+                key={s.href}
+                href={s.href}
+                onClick={closeMenu}
+                className={`block py-2 pl-6 pr-4 text-sm ${
+                  itemActive ? "text-accent bg-accent/10" : "text-muted hover:text-foreground"
+                }`}
+              >
+                {s.label}
+              </Link>
+            );
+          })}
+
+          {/* Services group */}
+          <div className="px-4 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted/70">
+            Services
+          </div>
+          {services.map((s) => {
             const itemActive = pathname === s.href || pathname.startsWith(`${s.href}/`);
             return (
               <Link
