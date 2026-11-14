@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 from sqlmodel import Session, select
 
 from app.config import settings
@@ -148,7 +149,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    if request.url.path == "/health":
+    if request.url.path in ("/health", "/health/db"):
         return await call_next(request)
 
     start = time.perf_counter()
@@ -222,3 +223,17 @@ app.include_router(radar_ws_router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/health/db")
+def health_db():
+    """DB-touching health check. An external keep-alive pings this so the query
+    keeps the (free-tier) database active and stops it auto-pausing on idle.
+    Returns 503 if the database is unreachable."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "ok", "db": "ok"}
+    except Exception:
+        logger.exception("DB health check failed")
+        return JSONResponse(status_code=503, content={"status": "error", "db": "unreachable"})
