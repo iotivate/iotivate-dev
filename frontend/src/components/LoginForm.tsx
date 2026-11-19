@@ -4,6 +4,9 @@ import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+
+const googleEnabled = !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 export default function LoginForm() {
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +99,14 @@ export default function LoginForm() {
       >
         {isLoading ? "Signing in..." : "Sign in"}
       </button>
+      {googleEnabled && (
+        <>
+          <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-muted">
+            <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+          </div>
+          <GoogleSignInButton onError={setError} />
+        </>
+      )}
       <p className="text-sm text-center text-muted">
         Don&apos;t have an account?{" "}
         <Link href="/register" className="text-accent hover:underline">

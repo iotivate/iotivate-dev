@@ -7,7 +7,10 @@ class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True, max_length=255)
     username: str = Field(unique=True, index=True, max_length=30)
-    hashed_password: str = Field(max_length=255)
+    # Nullable: social-login (Google) users have no password.
+    hashed_password: str | None = Field(default=None, max_length=255)
+    # Google account subject (sub) when the user signed in with Google.
+    google_id: str | None = Field(default=None, unique=True, index=True, max_length=64)
     is_active: bool = Field(default=True)
     is_admin: bool = Field(default=False)
 
