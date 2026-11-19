@@ -160,3 +160,58 @@ class TestResetPassword:
             "password": "AnotherStrong1!",
         })
         assert response.status_code == 400
+
+
+from app.config import settings  # noqa: E402
+from app.models.user import User  # noqa: E402
+from sqlmodel import select  # noqa: E402
+
+
+def _google_claims(email="ada@example.com", sub="google-sub-123", name="Ada Lovelace", verified=True):
+    return {
+        "sub": sub, "email": email, "email_verified": verified,
+        "name": name, "iss": "https://accounts.google.com",
+    }
+
+
+class TestGoogleAuth:
+    def test_google_not_configured_returns_503(self, client):
+        # settings.google_client_id defaults to "" in tests
+        r = client.post("/api/auth/google", json={"credential": "x.y.z"})
+        assert r.status_code == 503
+
+    def test_google_new_user_created(self, client, session):
+        with patch.object(settings, "google_client_id", "test-client"), \
+             patch("app.api.auth.verify_google_token", return_value=_google_claims()):
+            r = client.post("/api/auth/google", json={"credential": "tok"})
+        assert r.status_code == 200, r.text
+        assert "access_token" in r.json()
+        user = session.exec(select(User).where(User.email == "ada@example.com")).first()
+        assert user is not None
+        assert user.google_id == "google-sub-123"
+        assert user.hashed_password is None  # passwordless social account
+
+    def test_google_links_existing_email_account(self, client, session, test_user):
+        claims = _google_claims(email="test@example.com", sub="sub-999")
+        with patch.object(settings, "google_client_id", "test-client"), \
+             patch("app.api.auth.verify_google_token", return_value=claims):
+            r = client.post("/api/auth/google", json={"credential": "tok"})
+        assert r.status_code == 200, r.text
+        user = session.exec(select(User).where(User.email == "test@example.com")).first()
+        assert user.google_id == "sub-999"  # linked to the existing account
+        assert user.hashed_password is not None  # password preserved
+
+    def test_google_invalid_token_returns_401(self, client):
+        with patch.object(settings, "google_client_id", "test-client"), \
+             patch("app.api.auth.verify_google_token", side_effect=ValueError("bad")):
+            r = client.post("/api/auth/google", json={"credential": "bad"})
+        assert r.status_code == 401
+
+    def test_google_only_user_cannot_password_login(self, client, session):
+        with patch.object(settings, "google_client_id", "test-client"), \
+             patch("app.api.auth.verify_google_token", return_value=_google_claims(email="x@example.com", sub="s1")):
+            client.post("/api/auth/google", json={"credential": "tok"})
+        user = session.exec(select(User).where(User.email == "x@example.com")).first()
+        # Passwordless account must not be loggable via the password endpoint
+        r = client.post("/api/auth/login", data={"username": user.username, "password": "Whatever1!"})
+        assert r.status_code == 401

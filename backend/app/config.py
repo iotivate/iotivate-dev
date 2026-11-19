@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # Frontend URL (for password reset links)
     frontend_url: str = "http://localhost:3000"
 
+    # Google Sign-In (OAuth). Set to your Google OAuth 2.0 Web client ID to
+    # enable "Sign in with Google"; left blank disables the feature.
+    google_client_id: str = ""
+
     # Lemon Squeezy settings
     lemonsqueezy_api_key: str = ""
     lemonsqueezy_store_id: str = ""

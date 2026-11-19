@@ -1,4 +1,6 @@
 import logging
+import re
+import secrets
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
@@ -12,11 +14,13 @@ from app.models.user import User
 from app.config import settings
 from app.schemas.auth import (
     ForgotPasswordRequest,
+    GoogleAuthRequest,
     RegisterRequest,
     ResetPasswordRequest,
     TokenResponse,
     UserResponse,
 )
+from app.services.google_oauth import verify_google_token
 from app.auth import (
     REFRESH_TOKEN_EXPIRE_DAYS,
     REMEMBER_ME_EXPIRE_DAYS,
@@ -104,8 +108,9 @@ def login(
 ):
     user = session.exec(select(User).where(User.username == form.username)).first()
 
-    # Always run password verification to prevent timing attacks that reveal user existence
-    if user:
+    # Always run password verification to prevent timing attacks that reveal user existence.
+    # Google-only accounts have no password (hashed_password is None) — they can't log in here.
+    if user and user.hashed_password:
         password_valid = verify_password(form.password, user.hashed_password)
     else:
         # Hash a dummy password to keep response time constant
@@ -123,6 +128,86 @@ def login(
     refresh_token = create_refresh_token(user, remember=remember_me)
     _set_refresh_cookie(response, refresh_token, remember=remember_me)
     logger.info("User logged in: %s", user.username)
+    return TokenResponse(access_token=access_token)
+
+
+def _unique_username(session: Session, base: str) -> str:
+    """Derive a valid, unique username from a Google display name / email local part."""
+    cleaned = re.sub(r"[^a-zA-Z0-9_-]", "", base or "").strip("-_")
+    if len(cleaned) < 3:
+        cleaned = "user"
+    cleaned = cleaned[:30]
+    candidate = cleaned
+    while session.exec(select(User).where(User.username == candidate)).first():
+        suffix = str(secrets.randbelow(10000))
+        candidate = f"{cleaned[: 30 - len(suffix)]}{suffix}"
+    return candidate
+
+
+@router.post("/google", response_model=TokenResponse)
+@limiter.limit("10/minute")
+def google_auth(
+    request: Request,
+    response: Response,
+    data: GoogleAuthRequest,
+    session: Session = Depends(get_session),
+):
+    """Sign in (or sign up) with a verified Google ID token. Links to an existing
+    account by email when one exists, otherwise creates a passwordless account."""
+    if not settings.google_client_id:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google sign-in is not available",
+        )
+    try:
+        claims = verify_google_token(data.credential)
+    except ValueError as exc:
+        logger.warning("Google token verification failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not verify Google sign-in",
+        )
+
+    google_id = str(claims["sub"])
+    email = claims["email"].strip().lower()
+    display_name = claims.get("name") or email.split("@")[0]
+
+    user = session.exec(select(User).where(User.google_id == google_id)).first()
+    if user is None:
+        # First Google sign-in: link to an existing email account, or create one.
+        user = session.exec(select(User).where(User.email == email)).first()
+        if user is not None:
+            # Safe to link: Google asserted the email is verified.
+            user.google_id = google_id
+            session.add(user)
+        else:
+            user = User(
+                email=email,
+                username=_unique_username(session, display_name),
+                google_id=google_id,
+                hashed_password=None,
+                is_active=True,
+            )
+            session.add(user)
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
+
+    try:
+        session.commit()
+        session.refresh(user)
+    except Exception:
+        session.rollback()
+        logger.exception("Google sign-in failed to persist user")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Sign-in failed. Please try again.",
+        )
+
+    access_token = create_access_token({"sub": user.username})
+    refresh_token = create_refresh_token(user, remember=False)
+    _set_refresh_cookie(response, refresh_token, remember=False)
+    logger.info("User signed in with Google: %s", user.username)
     return TokenResponse(access_token=access_token)
 
 

@@ -51,6 +51,11 @@ class ResetPasswordRequest(BaseModel):
         return _validate_password(v)
 
 
+class GoogleAuthRequest(BaseModel):
+    # The ID token (a JWT) returned by Google Identity Services on the client.
+    credential: str = Field(min_length=1, max_length=5000)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
