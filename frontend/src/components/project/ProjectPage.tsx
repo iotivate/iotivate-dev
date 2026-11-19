@@ -132,17 +132,11 @@ export default function ProjectPage({ data }: ProjectPageProps) {
         img.alt = 'Failed to load image: ' + img.src;
       };
 
-      const handleLoad = () => {
-        console.log('Build guide image loaded successfully:', img.src);
-      };
-
       img.addEventListener('error', handleError);
-      img.addEventListener('load', handleLoad);
 
       // Cleanup
       return () => {
         img.removeEventListener('error', handleError);
-        img.removeEventListener('load', handleLoad);
       };
     });
   }, [data.buildGuide]);
@@ -194,9 +188,6 @@ export default function ProjectPage({ data }: ProjectPageProps) {
             <h2 className="text-xl font-bold mb-4 text-foreground">Build Guide</h2>
             <div className="prose prose-invert max-w-none">
             {data.buildGuide.map((step, index) => {
-              // Debug logging for build guide content
-              console.log(`Build Guide Step ${index + 1} content:`, step.content);
-
               return (
                 <div key={index}>
                   <h3 className="text-lg font-semibold mb-3 text-foreground">{step.title}</h3>

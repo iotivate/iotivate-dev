@@ -89,9 +89,7 @@ export interface PaginatedResponse<T> {
 
 async function fetchAPI<T>(path: string): Promise<T | null> {
   try {
-    console.log(`[API] Fetching ${API_URL}${path}`);
     const res = await fetch(`${API_URL}${path}`, { next: { revalidate: 60 } });
-    console.log(`[API] Response status for ${path}:`, res.status);
     if (!res.ok) {
       console.error(`[API] Error response for ${path}:`, res.status, res.statusText);
       return null;

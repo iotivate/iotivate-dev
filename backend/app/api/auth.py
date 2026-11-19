@@ -83,13 +83,20 @@ def _cookie_secure() -> bool:
     return settings.frontend_url.startswith("https://")
 
 
+def _cookie_samesite() -> str:
+    """When the frontend and API are on different domains, the refresh cookie is
+    cross-site — browsers only send it back with SameSite=None (which requires
+    Secure). Fall back to Lax on plain-HTTP local dev (same-site there anyway)."""
+    return "none" if _cookie_secure() else "lax"
+
+
 def _set_refresh_cookie(response: Response, token: str, remember: bool = False) -> None:
     kwargs: dict = dict(
         key="refresh_token",
         value=token,
         httponly=True,
         secure=_cookie_secure(),
-        samesite="lax",
+        samesite=_cookie_samesite(),
         path="/api/auth",
     )
     if remember:
@@ -237,7 +244,7 @@ def logout(response: Response):
         key="refresh_token",
         httponly=True,
         secure=_cookie_secure(),
-        samesite="lax",
+        samesite=_cookie_samesite(),
         path="/api/auth",
     )
     return {"message": "Logged out"}
